@@ -1,4 +1,5 @@
 #include <iostream>
+#include <libxml/parser.h>
 
 #include "epub_reader.h"
 #include "epub_util.h"
@@ -19,7 +20,7 @@ int main(int argc, char *argv[])
         std::cout << "Failed to open" << std::endl;
     }
 
-    epub_global_cleanup();
+    xmlCleanupParser();
 
     return 0;
 }

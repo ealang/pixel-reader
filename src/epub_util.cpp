@@ -3,6 +3,7 @@
 #include <libxml/parser.h>
 #include <libxml/xmlstring.h>
 
+#include "libxml_util.h"
 #include "epub_util.h"
 
 #define SUPPORTED_DOCROOT_MEDIA_TYPE "application/oebps-package+xml"
@@ -16,46 +17,32 @@ std::string epub_get_rootfile_path(const char *xml_str)
         return "";
     }
 
-    xmlNodePtr it = xmlDocGetRootElement(container_doc);
-    if (it == nullptr)
-    {
-        std::cerr << "Unable to get room elem in container.xml" << std::endl;
-        return "";
-    }
+    xmlNodePtr node = xmlDocGetRootElement(container_doc);
+    node = it_first_child(it_first_by_name(node, (const xmlChar *) "container"));
+    node = it_first_child(it_first_by_name(node, (const xmlChar *) "rootfiles"));
+    node = it_first_by_name(node, (const xmlChar *) "rootfile");
 
     std::string rootfile_path;
-    for (; it; it = it->next)
+    if (node)
     {
-        std::cout << "name " << it->name << "\n";
-        if (it->type == XML_ELEMENT_NODE && xmlStrEqual(it->name, (const xmlChar *)"rootfile"))
+        auto full_path = xmlGetProp(node, (const xmlChar *)"full-path");
+        auto media_type = xmlGetProp(node, (const xmlChar *)"media-type");
+
+        if (xmlStrEqual(media_type, (const xmlChar *)SUPPORTED_DOCROOT_MEDIA_TYPE))
         {
-            auto full_path = xmlGetProp(it, (const xmlChar *)"full-path");
-            auto media_type = xmlGetProp(it, (const xmlChar *)"media-type");
-            if (full_path && media_type)
-            {
-                if (xmlStrEqual(media_type, (const xmlChar *)SUPPORTED_DOCROOT_MEDIA_TYPE))
-                {
-                    rootfile_path = std::string((const char*)full_path);
-                }
-                else
-                {
-                    std::cerr << "Found unsupported docroot media type: " << media_type << std::endl;
-                }
-            }
+            rootfile_path = std::string((const char*)full_path);
+        }
+        else
+        {
+            std::cerr << "Found unsupported docroot media type: " << media_type << std::endl;
         }
     }
-
-    if (!rootfile_path.size())
+    else
     {
-        std::cerr << "Unable to find docroot element" << std::endl;
+        std::cerr << "Unable to find rootfile element" << std::endl;
     }
 
     xmlFreeDoc(container_doc);
     
     return rootfile_path;
-}
-
-void epub_global_cleanup()
-{
-    xmlCleanupParser();
 }
