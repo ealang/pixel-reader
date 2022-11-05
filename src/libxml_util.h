@@ -3,7 +3,8 @@
 
 #include <libxml/parser.h>
 
-xmlNodePtr it_first_by_name(xmlNodePtr node, const xmlChar *name);
-xmlNodePtr it_first_child(xmlNodePtr node);
+xmlNodePtr elem_first_by_name(xmlNodePtr node, const xmlChar *name);
+xmlNodePtr elem_next_by_name(xmlNodePtr node, const xmlChar *name);
+xmlNodePtr elem_first_child(xmlNodePtr node);
 
 # endif

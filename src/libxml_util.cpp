@@ -1,23 +1,32 @@
 #include "libxml_util.h"
 
-xmlNodePtr it_first_by_name(xmlNodePtr node, const xmlChar *name)
+xmlNodePtr elem_first_by_name(xmlNodePtr node, const xmlChar *name)
 {
-    if (!node)
+    while(node)
     {
-        return nullptr;
-    }
-
-    for (; node; node=node->next)
-    {
-        if (xmlStrEqual(node->name, name))
+        if (node->type == XML_ELEMENT_NODE && xmlStrEqual(node->name, name))
         {
-            return node;
+            break;
         }
+        node = node->next;
     }
-    return nullptr;
+    return node;
 }
 
-xmlNodePtr it_first_child(xmlNodePtr node)
+xmlNodePtr elem_next_by_name(xmlNodePtr node, const xmlChar *name)
+{
+    while (node)
+    {
+        node = node->next;
+        if (node && node->type == XML_ELEMENT_NODE && xmlStrEqual(node->name, name))
+        {
+            break;
+        }
+    }
+    return node;
+}
+
+xmlNodePtr elem_first_child(xmlNodePtr node)
 {
     if (!node)
     {
