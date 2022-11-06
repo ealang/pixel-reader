@@ -21,8 +21,8 @@ struct Context
     int list_depth = 0;     // depth inside ul/ol nodes
     int pre_depth = 0;      // depth inside pre nodes
 
-    Context(std::vector<std::string> &lines, bool debug)
-        : lines(lines), debug(debug)
+    Context(std::vector<std::string> &lines)
+        : lines(lines)
     {
     }
 };
@@ -73,7 +73,7 @@ static bool _is_newline(char c)
 }
 
 // Remove newlines and compact whitespace
-static std::string _sanitize_whitespace(std::string str)
+static std::string _sanitize_whitespace(std::string str, bool fresh_line)
 {
     std::string result;
     bool last_was_space = false;
@@ -84,7 +84,7 @@ static std::string _sanitize_whitespace(std::string str)
         {
             if (_is_whitespace(*it))
             {
-                if (!last_was_space)
+                if (!last_was_space && (has_content || !fresh_line))
                 {
                     result.push_back(' ');
                     last_was_space = true;
@@ -99,17 +99,13 @@ static std::string _sanitize_whitespace(std::string str)
         }
     }
 
-    if (!has_content)
-    {
-        return "";
-    }
     return result;
 }
 
 static void _process_text(xmlNodePtr node, Context &context)
 {
     std::string line = context.pre_depth == 0
-        ? _sanitize_whitespace((const char*)node->content)
+        ? _sanitize_whitespace((const char*)node->content, context.fresh_line)
         : (const char*)node->content;
 
     if (!line.empty())
@@ -125,6 +121,7 @@ static void _ensure_blocking_padded(xmlNodePtr node, Context &context)
 {
     if (_element_is_blocking(node->name) && !context.fresh_line)
     {
+        DEBUG_LOG("\\n\\n");
         context.lines.push_back("\n\n");
         context.fresh_line = true;
     }
@@ -211,7 +208,7 @@ std::vector<std::string> parse_xhtml_lines(const char *xml_str, std::string name
     std::vector<std::string> lines;
     if (node)
     {
-        Context context(lines, false);
+        Context context(lines);
         _process_node(node, context);
     }
 
