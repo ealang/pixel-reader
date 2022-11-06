@@ -5,24 +5,34 @@ LDFLAGS  := -L/usr/lib -lstdc++ -lm -lzip -lxml2
 BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)/app
-TARGET   := basic
 INCLUDE  := -Iinclude/
 SRC      :=                      \
    $(wildcard src/*.cpp)         \
 
-OBJECTS  := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
+APP_TEST_TARGET := test
+APP_READER_TARGET := reader
+
+OBJECTS     := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
+LIB_OBJECTS := $(filter-out $(OBJ_DIR)/src/%_main.o, $(OBJECTS))
+EPUB_TEST_OBJECTS := $(LIB_OBJECTS) $(OBJ_DIR)/src/test_main.o
+EPUB_READER_OBJECTS := $(LIB_OBJECTS) $(OBJ_DIR)/src/reader_main.o
+
 DEPENDENCIES \
          := $(OBJECTS:.o=.d)
 
-all: build $(APP_DIR)/$(TARGET)
+all: build $(APP_DIR)/$(APP_TEST_TARGET) $(APP_DIR)/$(APP_READER_TARGET)
 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -MMD -o $@
 
-$(APP_DIR)/$(TARGET): $(OBJECTS)
+$(APP_DIR)/$(APP_TEST_TARGET): $(EPUB_TEST_OBJECTS)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -o $(APP_DIR)/$(TARGET) $^ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $(APP_DIR)/$(APP_TEST_TARGET) $^ $(LDFLAGS)
+
+$(APP_DIR)/$(APP_READER_TARGET): $(EPUB_READER_OBJECTS)
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -o $(APP_DIR)/$(APP_READER_TARGET) $^ $(LDFLAGS)
 
 -include $(DEPENDENCIES)
 
