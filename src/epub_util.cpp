@@ -1,14 +1,14 @@
+#include "epub_util.h"
+#include "libxml_util.h"
+#include "path_ops.h"
+
 #include <iostream>
 #include <cstring>
 #include <libxml/parser.h>
-#include <libxml/xmlstring.h>
 
-#include "libxml_util.h"
-#include "epub_util.h"
-
-std::string epub_get_rootfile_path(const char *xml_str)
+std::string epub_get_rootfile_path(const char *container_xml)
 {
-    xmlDocPtr container_doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, 0);
+    xmlDocPtr container_doc = xmlReadMemory(container_xml, strlen(container_xml), nullptr, nullptr, 0);
     if (container_doc == nullptr)
     {
         std::cerr << "Unable to parse container xml" << std::endl;
@@ -45,7 +45,7 @@ std::string epub_get_rootfile_path(const char *xml_str)
     return rootfile_path;
 }
 
-static std::unordered_map<std::string, ManifestItem> _parse_package_manifest(xmlNodePtr node)
+static std::unordered_map<std::string, ManifestItem> _parse_package_manifest(std::string base_href, xmlNodePtr node)
 {
     std::unordered_map<std::string, ManifestItem> manifest;
 
@@ -63,7 +63,7 @@ static std::unordered_map<std::string, ManifestItem> _parse_package_manifest(xml
             manifest.emplace(
                 std::string((const char*) id),
                 ManifestItem{
-                    std::string((const char*) href),
+                    path_join(base_href, (const char*) href),
                     std::string((const char*) media_type)
                 }
             );
@@ -96,9 +96,9 @@ static std::vector<std::string> _parse_package_spine(xmlNodePtr node)
     return spine_ids;
 }
 
-bool epub_get_package_contents(const char *xml_str, PackageContents &out_package)
+bool epub_get_package_contents(std::string rootfile_path, const char *package_xml, PackageContents &out_package)
 {
-    xmlDocPtr package_doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, 0);
+    xmlDocPtr package_doc = xmlReadMemory(package_xml, strlen(package_xml), nullptr, nullptr, 0);
     if (package_doc == nullptr)
     {
         std::cerr << "Unable to parse package doc" << std::endl;
@@ -106,8 +106,9 @@ bool epub_get_package_contents(const char *xml_str, PackageContents &out_package
     }
 
     xmlNodePtr node = xmlDocGetRootElement(package_doc);
+    std::string base_href = path_split_dir(rootfile_path).first;
 
-    out_package.id_to_manifest_item = _parse_package_manifest(node);
+    out_package.id_to_manifest_item = _parse_package_manifest(base_href, node);
     out_package.spine_ids = _parse_package_spine(node);
 
     xmlFreeDoc(package_doc);

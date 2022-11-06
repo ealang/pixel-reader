@@ -1,6 +1,6 @@
 # Credit https://www.partow.net/programming/makefile/index.html
 CXX      := -c++
-CXXFLAGS := -pedantic-errors -Wall -Wextra -Werror -I/usr/include/libxml2
+CXXFLAGS := -pedantic-errors -Wall -Wextra -I/usr/include/libxml2
 LDFLAGS  := -L/usr/lib -lstdc++ -lm -lzip -lxml2
 BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects

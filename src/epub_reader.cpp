@@ -1,8 +1,9 @@
+#include "epub_reader.h"
+#include "epub_util.h"
+#include "xhtml_parser.h"
+
 #include <iostream>
 #include <zip.h>
-
-#include "epub_util.h"
-#include "epub_reader.h"
 
 // Read contents as a null-terminated string
 static std::vector<char> _read_zip_file_str(zip_t *zip, std::string filepath)
@@ -39,7 +40,7 @@ static std::vector<char> _read_zip_file_str(zip_t *zip, std::string filepath)
 }
 
 EPubReader::EPubReader(std::string path)
-    :_path(path), _zip(0)
+    :_path(path), _zip(nullptr)
 {
 }
 
@@ -74,14 +75,14 @@ bool EPubReader::open()
     // read container.xml
     std::string rootfile_path;
     {
-        auto container_str = _read_zip_file_str(_zip, EPUB_CONTAINER_PATH);
-        if (container_str.empty())
+        auto container_xml = _read_zip_file_str(_zip, EPUB_CONTAINER_PATH);
+        if (container_xml.empty())
         {
             std::cerr << "Failed to read epub container" << std::endl;
             return false;
         }
 
-        rootfile_path = epub_get_rootfile_path(container_str.data());
+        rootfile_path = epub_get_rootfile_path(container_xml.data());
         if (rootfile_path.empty())
         {
             std::cerr << "Unable to get docroot path" << std::endl;
@@ -91,21 +92,52 @@ bool EPubReader::open()
 
     // read package document
     {
-        auto package_str = _read_zip_file_str(_zip, rootfile_path);
-        if (package_str.empty())
+        auto package_xml = _read_zip_file_str(_zip, rootfile_path);
+        if (package_xml.empty())
         {
             std::cerr << "Failed to read " << rootfile_path << std::endl;
             return false;
         }
-        bool parsed_package = epub_get_package_contents(package_str.data(), _package);
 
-        for (auto it: _package.spine_ids)
-        {
-            std::cout << it << " " << _package.id_to_manifest_item[it].href << std::endl;
-        }
-
-        return parsed_package;
+        return epub_get_package_contents(rootfile_path, package_xml.data(), _package);
     }
 
     return true;
 }
+
+const PackageContents& EPubReader::get_package() const
+{
+    return _package;
+}
+
+std::vector<char> EPubReader::get_file_as_bytes(std::string href) const
+{
+    return _read_zip_file_str(_zip, href);
+}
+
+std::vector<std::string> EPubReader::get_item_as_text(std::string item_id) const
+{
+    auto it = _package.id_to_manifest_item.find(item_id);
+    if (it == _package.id_to_manifest_item.end())
+    {
+        std::cerr << "Unable to find item in manifest " << item_id << std::endl;
+        return {};
+    }
+    auto item = it->second;
+
+    auto bytes = get_file_as_bytes(item.href);
+    if (bytes.empty())
+    {
+        std::cerr << "Unable to read item " << item_id << std::endl;
+        return {};
+    }
+
+    if (item.media_type == "application/xhtml+xml")
+    {
+        return parse_xhtml_lines(bytes.data(), item_id);
+    }
+
+    std::cerr << "Unable to parse item " << item_id << " with media type " << item.media_type << std::endl;
+    return {};
+}
+

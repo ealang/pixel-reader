@@ -20,7 +20,7 @@ struct PackageContents
     std::vector<std::string> spine_ids;
 };
 
-std::string epub_get_rootfile_path(const char *container_str);
-bool epub_get_package_contents(const char *package_str, PackageContents &out_package);
+std::string epub_get_rootfile_path(const char *container_xml);
+bool epub_get_package_contents(std::string rootfile_path, const char *package_xml, PackageContents &out_package);
 
 #endif
