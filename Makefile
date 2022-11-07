@@ -1,7 +1,22 @@
 # Credit https://www.partow.net/programming/makefile/index.html
-CXX      := -c++
-CXXFLAGS := -pedantic-errors -Wall -Wextra -I/usr/include/libxml2
-LDFLAGS  := -L/usr/lib -lstdc++ -lm -lzip -lxml2
+
+PLATFORM ?= $(UNION_PLATFORM)
+ifeq (,$(PLATFORM))
+	PLATFORM=linux
+endif
+
+PREFIX ?= /usr
+
+COMMON_CXXFLAGS := -pedantic-errors -Wall -Wextra -I${PREFIX}/include/libxml2
+
+ifeq ($(PLATFORM),miyoomini)
+CXXFLAGS := $(COMMON_CXXFLAGS) -Os -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd -I${PREFIX}/include/libxml2
+else
+CXXFLAGS := $(COMMON_CXXFLAGS)
+endif
+
+CXX      := $(CROSS_COMPILE)c++
+LDFLAGS  := -L/usr/lib -lstdc++ -lm -lzip -lxml2 -lSDL -lSDL_ttf -lSDL_image
 BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)/app
