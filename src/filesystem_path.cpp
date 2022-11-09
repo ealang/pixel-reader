@@ -1,6 +1,6 @@
-#include "path_ops.h"
+#include "filesystem_path.h"
 
-std::pair<std::string, std::string> path_split_dir(std::string path)
+std::pair<std::string, std::string> fs_path_split_dir(std::string path)
 {
     size_t i = path.find_last_of('/');
     if (i == std::string::npos) {
@@ -9,7 +9,7 @@ std::pair<std::string, std::string> path_split_dir(std::string path)
     return std::make_pair(path.substr(0, i), path.substr(i + 1));
 }
 
-std::string path_join(std::string path1, std::string path2)
+std::string fs_path_join(std::string path1, std::string path2)
 {
     if (path1.empty()) {
         return path2;

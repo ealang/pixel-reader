@@ -26,16 +26,18 @@ SRC      :=                      \
 
 APP_TEST_TARGET := test
 APP_READER_TARGET := reader
+APP_SANDBOX_TARGET := sandbox
 
 OBJECTS     := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
 LIB_OBJECTS := $(filter-out $(OBJ_DIR)/src/%_main.o, $(OBJECTS))
 EPUB_TEST_OBJECTS := $(LIB_OBJECTS) $(OBJ_DIR)/src/test_main.o
 EPUB_READER_OBJECTS := $(LIB_OBJECTS) $(OBJ_DIR)/src/reader_main.o
+SANDBOX_OBJECTS := $(LIB_OBJECTS) $(OBJ_DIR)/src/sandbox_main.o
 
 DEPENDENCIES \
          := $(OBJECTS:.o=.d)
 
-all: build $(APP_DIR)/$(APP_TEST_TARGET) $(APP_DIR)/$(APP_READER_TARGET)
+all: build $(APP_DIR)/$(APP_TEST_TARGET) $(APP_DIR)/$(APP_READER_TARGET) $(APP_DIR)/$(APP_SANDBOX_TARGET)
 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(@D)
@@ -48,6 +50,10 @@ $(APP_DIR)/$(APP_TEST_TARGET): $(EPUB_TEST_OBJECTS)
 $(APP_DIR)/$(APP_READER_TARGET): $(EPUB_READER_OBJECTS)
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $(APP_DIR)/$(APP_READER_TARGET) $^ $(LDFLAGS)
+
+$(APP_DIR)/$(APP_SANDBOX_TARGET): $(SANDBOX_OBJECTS)
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -o $(APP_DIR)/$(APP_SANDBOX_TARGET) $^ $(LDFLAGS)
 
 -include $(DEPENDENCIES)
 
@@ -72,8 +78,3 @@ info:
 	@echo "[*] Sources:         ${SRC}         "
 	@echo "[*] Objects:         ${OBJECTS}     "
 	@echo "[*] Dependencies:    ${DEPENDENCIES}"
-
-index:
-	ctags -R src \
-		/home/elang/git/union-miyoomini-toolchain/workspace/imports/headers/libxml2 \
-		/home/elang/git/union-miyoomini-toolchain/workspace/imports/headers/zip.h

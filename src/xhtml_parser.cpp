@@ -9,7 +9,7 @@
 #include <set>
 #include <unordered_map>
 
-#define DEBUG_LOG(msg) if (context.debug) { std::cout << std::string(context.node_depth * 2, ' ') << msg << std::endl; }
+#define DEBUG_LOG(msg) if (context.debug) { std::cerr << std::string(context.node_depth * 2, ' ') << msg << std::endl; }
 
 struct Context
 {
@@ -45,7 +45,6 @@ static const std::unordered_map<std::string, std::function<void(xmlNodePtr, Cont
     {"ul", _process_ul},
     {"pre", _process_pre}
 };
-
 
 static bool _element_is_blocking(const xmlChar *name)
 {
