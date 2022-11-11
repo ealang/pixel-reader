@@ -10,9 +10,9 @@ PREFIX ?= /usr
 COMMON_CXXFLAGS := -pedantic-errors -Wall -Wextra -I${PREFIX}/include/libxml2
 
 ifeq ($(PLATFORM),miyoomini)
-CXXFLAGS := $(COMMON_CXXFLAGS) -Os -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd -I${PREFIX}/include/libxml2
+CXXFLAGS := $(COMMON_CXXFLAGS) -Os -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd -I${PREFIX}/include/libxml2 -DFONT_PATH='"/customer/app/Exo-2-Bold-Italic.ttf"'
 else
-CXXFLAGS := $(COMMON_CXXFLAGS)
+CXXFLAGS := $(COMMON_CXXFLAGS) -DFONT_PATH='"fonts/Galmuri7_edit.ttf"'
 endif
 
 CXX      := $(CROSS_COMPILE)c++

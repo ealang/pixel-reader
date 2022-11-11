@@ -2,6 +2,15 @@
 
 #include <dirent.h>
 #include <algorithm>
+#include <unistd.h>
+
+std::string get_cwd()
+{
+    char *cwd_buffer = get_current_dir_name();
+    std::string cwd = cwd_buffer;
+    free(cwd_buffer);
+    return cwd;
+}
 
 static std::string to_lower(std::string s)
 {

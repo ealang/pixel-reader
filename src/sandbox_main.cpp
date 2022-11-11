@@ -3,12 +3,7 @@
 
 int main(int argc, char** argv)
 {
-
-    if (argc != 2) 
-    {
-        return 1;
-    }
-    std::string path = argv[1];
+    std::string path = argc == 2 ? argv[1] : ".";
 
     for (auto entry: directory_listing(path))
     {

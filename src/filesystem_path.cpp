@@ -22,3 +22,8 @@ std::string fs_path_join(std::string path1, std::string path2)
     }
     return path1 + "/" + path2;
 }
+
+std::string fs_path_parent(std::string path)
+{
+    return fs_path_split_dir(path).first;
+}
