@@ -38,7 +38,7 @@ struct FSState
 
 static void refresh_path_entries(FSState *s)
 {
-    std::cout << s->path << std::endl;
+    std::cerr << s->path << std::endl;
 
     s->path_entries = directory_listing(s->path);
     if (s->path != "/")

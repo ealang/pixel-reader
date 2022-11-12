@@ -2,10 +2,33 @@
 #include "sys/keymap.h"
 #include "sys/filesystem.h"
 
+#include "epub/epub_reader.h"
+
 #include "./file_selector.h"
+#include "./text_view.h"
 
 #include <SDL/SDL.h>
 #include <iostream>
+
+static std::string get_chapter()
+{
+    EPubReader reader("samples/epub/deep-learning-illustrated.epub");
+    if (reader.open())
+    {
+        auto package = reader.get_package();
+        std::string result;
+        for (auto &line : reader.get_item_as_text("ch01"))
+        {
+            result += line;
+        }
+        return result;
+    }
+    else
+    {
+        std::cerr << "Failed to open" << std::endl;
+    }
+    return "error opening";
+}
 
 int main (int argc, char *argv[])
 {
@@ -30,9 +53,15 @@ int main (int argc, char *argv[])
         return 1;
     }
 
-    FileSelector selector(starting_path, font, 4);
+    // FileSelector selector(starting_path, font, 4);
+    // selector.render(screen);
 
-    selector.render(screen);
+
+    auto text = get_chapter();
+
+    TextView view(text, font, 0);
+    view.render(screen);
+
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
 
@@ -48,15 +77,18 @@ int main (int argc, char *argv[])
                     quit = true;
                     break;
                 case SDL_KEYDOWN:
-                    if (selector.on_keypress(event.key.keysym.sym))
-                    {
-                        rerender = selector.render(screen);
-                        if (selector.file_is_selected())
-                        {
-                            std::cout << "Selected file: " << selector.get_selected_file() << std::endl;
-                            quit = true;
-                        }
+                    if (view.on_keypress(event.key.keysym.sym)) {
+                        rerender = true;
                     }
+                    // else if (selector.on_keypress(event.key.keysym.sym))
+                    // {
+                    //     rerender = selector.render(screen);
+                    //     if (selector.file_is_selected())
+                    //     {
+                    //         std::cout << "Selected file: " << selector.get_selected_file() << std::endl;
+                    //         quit = true;
+                    //     }
+                    // }
                     else
                     {
                         switch (event.key.keysym.sym) {
@@ -81,7 +113,8 @@ int main (int argc, char *argv[])
 
             if (rerender)
             {
-                selector.render(screen);
+                // selector.render(screen);
+                view.render(screen);
                 SDL_BlitSurface(screen, NULL, video, NULL);
                 SDL_Flip(video);
             }
