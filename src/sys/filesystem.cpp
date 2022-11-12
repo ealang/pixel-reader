@@ -1,5 +1,6 @@
 #include "./filesystem.h"
 
+#include <cstring>
 #include <dirent.h>
 #include <algorithm>
 #include <unistd.h>
@@ -10,12 +11,6 @@ std::string get_cwd()
     std::string cwd = cwd_buffer;
     free(cwd_buffer);
     return cwd;
-}
-
-static std::string to_lower(std::string s)
-{
-    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-    return s;
 }
 
 std::vector<FSEntry> directory_listing(const std::string& path)
@@ -44,10 +39,10 @@ std::vector<FSEntry> directory_listing(const std::string& path)
     closedir(dir);
 
     std::sort(entries.begin(), entries.end(), [](const FSEntry& a, const FSEntry& b) {
-        if (a.is_dir && !b.is_dir) {
-            return true;
+        if (a.is_dir != b.is_dir) {
+            return a.is_dir > b.is_dir;
         }
-        return to_lower(a.name) < to_lower(b.name);
+        return strcasecmp(a.name.c_str(), b.name.c_str()) < 0;
     });
 
     return entries;

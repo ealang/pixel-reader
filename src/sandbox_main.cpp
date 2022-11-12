@@ -38,21 +38,6 @@ void read(std::string epub_file)
     xmlCleanupParser();
 }
 
-void default_demo()
-{
-
-    char *cwd1 = get_current_dir_name();
-    char *cwd2 = getcwd(NULL, 0);
-    char *cwd3 = getenv("PWD");
-    std::cout << "cwd1: " << cwd1 << std::endl;
-    std::cout << "cwd2: " << cwd2 << std::endl;
-    std::cout << "cwd3: " << cwd3 << std::endl;
-
-    if (cwd1) free(cwd1);
-    //if (cwd2) free(cwd2);
-    // if (cwd3) free(cwd3);
-}
-
 int main(int argc, char** argv)
 {
     if (argc >= 2)
@@ -69,7 +54,6 @@ int main(int argc, char** argv)
     }
     else
     {
-        default_demo();
     }
 
     return 0;
