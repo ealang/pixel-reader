@@ -1,7 +1,7 @@
 #ifndef EPUB_READER_H_
 #define EPUB_READER_H_
 
-#include "epub_util.h"
+#include "./epub_metadata.h"
 
 #include <string>
 #include <vector>

@@ -1,6 +1,6 @@
-#include "epub_util.h"
-#include "libxml_util.h"
-#include "filesystem_path.h"
+#include "./epub_metadata.h"
+#include "./libxml_iter.h"
+#include "sys/filesystem_path.h"
 
 #include <iostream>
 #include <cstring>

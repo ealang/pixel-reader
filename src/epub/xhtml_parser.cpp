@@ -1,5 +1,5 @@
-#include "xhtml_parser.h"
-#include "libxml_util.h"
+#include "./xhtml_parser.h"
+#include "./libxml_iter.h"
 
 #include <libxml/parser.h>
 

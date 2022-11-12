@@ -1,7 +1,7 @@
 #include <iostream>
-#include "filesystem.h"
-#include "epub_reader.h"
-#include "epub_util.h"
+#include "sys/filesystem.h"
+#include "epub/epub_reader.h"
+#include "epub/epub_metadata.h"
 #include <libxml/parser.h>
 #include <unistd.h>
 

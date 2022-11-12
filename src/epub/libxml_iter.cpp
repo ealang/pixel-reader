@@ -1,4 +1,4 @@
-#include "libxml_util.h"
+#include "./libxml_iter.h"
 
 xmlNodePtr elem_first_by_name(xmlNodePtr node, const xmlChar *name)
 {

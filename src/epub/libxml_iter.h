@@ -1,5 +1,5 @@
-#ifndef LIBXML_UTIL_H_
-#define LIBXML_UTIL_H_
+#ifndef LIBXML_ITER_H_
+#define LIBXML_ITER_H_
 
 #include <libxml/parser.h>
 

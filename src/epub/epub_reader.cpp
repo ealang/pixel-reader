@@ -1,6 +1,5 @@
-#include "epub_reader.h"
-#include "epub_util.h"
-#include "xhtml_parser.h"
+#include "./epub_reader.h"
+#include "./xhtml_parser.h"
 
 #include <iostream>
 #include <zip.h>

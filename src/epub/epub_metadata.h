@@ -1,5 +1,5 @@
-#ifndef EPUB_UTIL_H_
-#define EPUB_UTIL_H_
+#ifndef EPUB_METADATA_H_
+#define EPUB_METADATA_H_
 
 #define EPUB_CONTAINER_PATH "META-INF/container.xml"
 

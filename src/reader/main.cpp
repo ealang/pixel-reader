@@ -1,7 +1,7 @@
 #include <iostream>
 #include <algorithm>
-#include "filesystem.h"
-#include "filesystem_path.h"
+#include "sys/filesystem.h"
+#include "sys/filesystem_path.h"
 
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
@@ -242,7 +242,7 @@ int main () {
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, 640, 480, 32, 0, 0, 0, 0);
 
     int font_size = 24;
-    TTF_Font *font = TTF_OpenFont(FONT_PATH, font_size);
+    TTF_Font *font = TTF_OpenFont("fonts/DejaVuSansMono.ttf", font_size);
 
     if (!font) {
         std::cerr << "TTF_OpenFont: " << TTF_GetError() << std::endl;
