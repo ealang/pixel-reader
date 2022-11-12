@@ -5,7 +5,7 @@ endif
 
 PREFIX ?= /usr
 
-COMMON_CXXFLAGS := -pedantic-errors -Wall -Wextra
+COMMON_CXXFLAGS := -pedantic-errors -Wall -Wextra -std=c++17
 
 ifeq ($(PLATFORM),miyoomini)
 CXXFLAGS := $(COMMON_CXXFLAGS) -Os -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd
