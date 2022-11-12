@@ -53,19 +53,12 @@ class FileSelector
     int font_ptsize;
     int cursor_pos;
     int scroll_pos;
-    int line_padding = 2;
+    int line_padding = 6;
     int num_lines;
 
     std::vector<FSEntry> path_entries;
 
-public:
-    FileSelector(const std::string &path, TTF_Font *font, uint32_t font_ptsize)
-        : path(path), font(font), font_ptsize(font_ptsize), cursor_pos(0), scroll_pos(0)
-    {
-        num_lines = (SCREEN_HEIGHT - 2 * line_padding) / (font_ptsize + 2 * line_padding);
-        refresh_path_entries();
-        move_down();
-    }
+    std::string selected_file;
 
     void refresh_path_entries()
     {
@@ -74,55 +67,6 @@ public:
         if (path_entries.size() && path != "/")
         {
             path_entries.insert(path_entries.begin(), FSEntry::directory(".."));
-        }
-    }
-
-    void render(SDL_Surface *dest_surface)
-    {
-        const SDL_PixelFormat *pixel_format = dest_surface->format;
-
-        SDL_Color fg_color = {255, 255, 255, 0};
-        SDL_Color bg_color = {0, 0, 0, 0};
-        SDL_Color highlight_color = {128, 0, 128, 0};
-
-        uint32_t rect_bg_color = SDL_MapRGB(pixel_format, 0, 0, 0);
-        uint32_t rect_highlight_color = SDL_MapRGB(pixel_format, 128, 0, 128);
-
-        Sint16 x = line_padding;
-        Sint16 y = line_padding;
-
-        // Clear screen
-        SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-        SDL_FillRect(dest_surface, &rect, rect_bg_color);
-
-        // Draw lines
-        for (int i = 0; i < num_lines; ++i)
-        {
-            int global_i = i + scroll_pos;
-            if (global_i >= (int)path_entries.size())
-            {
-                break;
-            }
-
-            const FSEntry &entry = path_entries[global_i];
-
-            bool is_highlighted = (global_i == cursor_pos);
-
-            // Draw hightlight
-            if (is_highlighted)
-            {
-                SDL_Rect rect = {0, y, SCREEN_WIDTH, (Uint16)(font_ptsize + 2 * line_padding)};
-                SDL_FillRect(dest_surface, &rect, rect_highlight_color);
-            }
-
-            // Draw text
-            SDL_Rect rectMessage = {x, (Sint16)(y + line_padding), 0, 0};
-            std::string name = (entry.is_dir ? "D " : "F ") + entry.name;
-            SDL_Surface *message = TTF_RenderUTF8_Shaded(font, name.c_str(), fg_color, is_highlighted ? highlight_color : bg_color);
-            SDL_BlitSurface(message, NULL, dest_surface, &rectMessage);
-            SDL_FreeSurface(message);
-
-            y += font_ptsize + 2 * line_padding;
         }
     }
 
@@ -194,6 +138,80 @@ public:
                 }
                 // TODO directory changed, out of bounds
             }
+            else
+            {
+                selected_file = fs_path_join(path, entry.name);
+            }
+        }
+    }
+
+public:
+    FileSelector(const std::string &path, TTF_Font *font, uint32_t font_ptsize)
+        : path(path), font(font), font_ptsize(font_ptsize), cursor_pos(0), scroll_pos(0)
+    {
+        num_lines = (SCREEN_HEIGHT - 2 * line_padding) / (font_ptsize + 2 * line_padding);
+        refresh_path_entries();
+        move_down();
+    }
+
+    bool file_is_selected() const
+    {
+        return selected_file.size() > 0;
+    }
+
+    std::string get_selected_file()
+    {
+        return selected_file;
+    }
+
+    void render(SDL_Surface *dest_surface)
+    {
+        const SDL_PixelFormat *pixel_format = dest_surface->format;
+
+        SDL_Color fg_color = {255, 255, 255, 0};
+        SDL_Color bg_color = {0, 0, 0, 0};
+        SDL_Color highlight_color = {128, 0, 128, 0};
+
+        uint32_t rect_bg_color = SDL_MapRGB(pixel_format, 0, 0, 0);
+        uint32_t rect_highlight_color = SDL_MapRGB(pixel_format, 128, 0, 128);
+
+        Sint16 x = line_padding;
+        Sint16 y = line_padding;
+
+        // Clear screen
+        SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+        SDL_FillRect(dest_surface, &rect, rect_bg_color);
+
+        // Draw lines
+        for (int i = 0; i < num_lines; ++i)
+        {
+            int global_i = i + scroll_pos;
+            if (global_i >= (int)path_entries.size())
+            {
+                break;
+            }
+
+            const FSEntry &entry = path_entries[global_i];
+
+            bool is_highlighted = (global_i == cursor_pos);
+
+            // Draw hightlight
+            if (is_highlighted)
+            {
+                SDL_Rect rect = {0, y, SCREEN_WIDTH, (Uint16)(font_ptsize + 2 * line_padding)};
+                SDL_FillRect(dest_surface, &rect, rect_highlight_color);
+            }
+
+            // Draw text
+            {
+                SDL_Rect rectMessage = {x, (Sint16)(y + line_padding), 0, 0};
+                std::string name = (entry.is_dir ? "D " : "F ") + entry.name;
+                SDL_Surface *message = TTF_RenderUTF8_Shaded(font, name.c_str(), fg_color, is_highlighted ? highlight_color : bg_color);
+                SDL_BlitSurface(message, NULL, dest_surface, &rectMessage);
+                SDL_FreeSurface(message);
+            }
+
+            y += font_ptsize + 2 * line_padding;
         }
     }
 
@@ -215,7 +233,6 @@ public:
     }
 };
 
-
 int main () {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
@@ -224,38 +241,21 @@ int main () {
     SDL_Surface *video = SDL_SetVideoMode(640, 480, 32, SDL_HWSURFACE);
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, 640, 480, 32, 0, 0, 0, 0);
 
-    TTF_Font *font = TTF_OpenFont(FONT_PATH, 36);
+    int font_size = 24;
+    TTF_Font *font = TTF_OpenFont(FONT_PATH, font_size);
 
     if (!font) {
         std::cerr << "TTF_OpenFont: " << TTF_GetError() << std::endl;
         return 1;
     }
 
-    FileSelector selector(get_cwd(), font, 36);
-    /*
-    Sint16 x = 50;
-    Sint16 y = 100;
-    //for (auto point : std::set<int>{9, 18, 36})
-    for (auto i = 0; i < 3; ++i)
+    int w, h;
+    if (TTF_SizeUTF8(font, "A", &w, &h) == 0)
     {
-        std::cout << i << std::endl;
-        SDL_Color fg_color = {255, 255, 255, 0};
-        SDL_Color bg_color = {128, 0, 0, 0};
-        // Uint32 progress_bg = SDL_MapRGB(video->format, 29, 30, 37);
-        //
-        SDL_Rect rectMessage = {x, y, 0, 0};
-        x += 25;
-        y += 40;
-        SDL_Surface *message;
-        if (i == 0) message = TTF_RenderUTF8_Blended(font, "hello world", fg_color);
-        //if (i == 1) TTF_RenderUTF8_LCD(font, "hello world", fg_color);
-        if (i == 1) message = TTF_RenderUTF8_Shaded(font, "hello world", fg_color, bg_color);
-        if (i == 2) message = TTF_RenderUTF8_Solid(font, "hello world", fg_color);
-
-        SDL_BlitSurface(message, NULL, screen, &rectMessage);
-        SDL_FreeSurface(message);
+        std::cout << "Font size: " << w << "x" << h << std::endl;
     }
-    */
+
+    FileSelector selector(get_cwd(), font, font_size);
 
     selector.render(screen);
     SDL_BlitSurface(screen, NULL, video, NULL);
@@ -276,6 +276,12 @@ int main () {
                     if (selector.on_keypress(event.key.keysym.sym))
                     {
                         rerender = true;
+
+                        if (selector.file_is_selected())
+                        {
+                            std::cout << "Selected file: " << selector.get_selected_file() << std::endl;
+                            quit = true;
+                        }
                     }
                     else
                     {
