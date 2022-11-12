@@ -135,7 +135,12 @@ static int detect_line_height(TTF_Font *font)
 }
 
 FileSelector::FileSelector(const std::string &path, TTF_Font *font, int line_padding)
-    : state(std::make_unique<FSState>(path, font, detect_line_height(font), line_padding))
+    : state(std::make_unique<FSState>(
+          fs_path_make_absolute(path, get_cwd()),
+          font,
+          detect_line_height(font),
+          line_padding
+      ))
 {
     refresh_path_entries(state.get());
 

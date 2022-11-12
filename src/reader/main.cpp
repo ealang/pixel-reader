@@ -7,7 +7,15 @@
 #include <SDL/SDL.h>
 #include <iostream>
 
-int main () { SDL_Init(SDL_INIT_VIDEO);
+int main (int argc, char *argv[])
+{
+    std::string starting_path = get_cwd();
+    if (argc == 2)
+    {
+        starting_path = argv[1];
+    }
+
+    SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
     TTF_Init();
 
@@ -22,7 +30,7 @@ int main () { SDL_Init(SDL_INIT_VIDEO);
         return 1;
     }
 
-    FileSelector selector(get_cwd(), font, 4);
+    FileSelector selector(starting_path, font, 4);
 
     selector.render(screen);
     SDL_BlitSurface(screen, NULL, video, NULL);
