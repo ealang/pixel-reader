@@ -28,16 +28,8 @@ static int detect_line_height(TTF_Font *font)
     return 24;
 }
 
-static std::vector<std::string> timed_wrap_lines(const std::string &text, int max_len)
-{
-    Timer t;
-    auto lines = wrap_lines(text.c_str(), max_len);
-    std::cerr << "Wrapped " << text.size() << " chars in " << t.elapsed_ms() << "ms" << std::endl;
-    return lines;
-}
-
-TextView::TextView(const std::string &text, TTF_Font *font, int line_padding)
-    : state(std::make_unique<TextViewState>(timed_wrap_lines(text, 40))),
+TextView::TextView(std::vector<std::string> lines, TTF_Font *font, int line_padding)
+    : state(std::make_unique<TextViewState>(lines)),
       font(font),
       line_height(detect_line_height(font)),
       line_padding(line_padding)

@@ -2,6 +2,7 @@
 #define TEXT_VIEW_H_
 
 #include <memory>
+#include <vector>
 #include <string>
 #include <SDL/SDL_ttf.h>
 #include <SDL/SDL_video.h>
@@ -16,7 +17,7 @@ class TextView
     int line_padding;
 
 public:
-    TextView(const std::string &text, TTF_Font *font, int line_padding);
+    TextView(std::vector<std::string> lines, TTF_Font *font, int line_padding);
     virtual ~TextView();
 
     bool render(SDL_Surface *dest_surface) const;

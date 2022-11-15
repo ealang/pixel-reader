@@ -1,8 +1,16 @@
 #include "./epub_reader.h"
 #include "./xhtml_parser.h"
+#include "sys/filesystem_path.h"
 
 #include <iostream>
 #include <zip.h>
+
+#define APPLICATION_XHTML_XML "application/xhtml+xml"
+
+TokItem::TokItem(std::string doc_id, std::string name)
+    : doc_id(doc_id), name(name)
+{
+}
 
 // Read contents as a null-terminated string
 static std::vector<char> _read_zip_file_str(zip_t *zip, std::string filepath)
@@ -36,6 +44,14 @@ static std::vector<char> _read_zip_file_str(zip_t *zip, std::string filepath)
     zip_fclose(fp);
 
     return buffer;
+}
+
+static void assert_is_open(const EPubReader *reader)
+{
+    if (!reader->is_open())
+    {
+        throw std::runtime_error("EpubReader is not open");
+    }
 }
 
 EPubReader::EPubReader(std::string path)
@@ -94,27 +110,53 @@ bool EPubReader::open()
         auto package_xml = _read_zip_file_str(_zip, rootfile_path);
         if (package_xml.empty())
         {
-            std::cerr << "Failed to read " << rootfile_path << std::endl;
+            std::cerr << "Failed to open " << rootfile_path << std::endl;
             return false;
         }
 
-        return epub_get_package_contents(rootfile_path, package_xml.data(), _package);
+        if (!epub_get_package_contents(rootfile_path, package_xml.data(), _package))
+        {
+            std::cerr << "Failed to parse " << rootfile_path << std::endl;
+            return false;
+        }
+    }
+
+    // compile toc
+    {
+        for (auto &doc_id : _package.spine_ids)
+        {
+            auto &item = _package.id_to_manifest_item[doc_id];
+            if (item.media_type == APPLICATION_XHTML_XML)
+            {
+                auto name = fs_path_split_dir(item.href).second; // TODO: better name
+                _tok_items.emplace_back(doc_id, name);
+            }
+        }
     }
 
     return true;
 }
 
-const PackageContents& EPubReader::get_package() const
+bool EPubReader::is_open() const
 {
-    return _package;
+    return _zip != nullptr;
 }
 
 std::vector<char> EPubReader::get_file_as_bytes(std::string href) const
 {
+    assert_is_open(this);
+
     return _read_zip_file_str(_zip, href);
 }
 
-std::vector<std::string> EPubReader::get_item_as_text(std::string item_id) const
+const std::vector<TokItem> &EPubReader::get_tok() const
+{
+    assert_is_open(this);
+
+    return _tok_items;
+}
+
+const std::vector<DocToken> EPubReader::get_tokenized_document(std::string item_id) const
 {
     auto it = _package.id_to_manifest_item.find(item_id);
     if (it == _package.id_to_manifest_item.end())
@@ -131,12 +173,11 @@ std::vector<std::string> EPubReader::get_item_as_text(std::string item_id) const
         return {};
     }
 
-    if (item.media_type == "application/xhtml+xml")
+    if (item.media_type == APPLICATION_XHTML_XML)
     {
-        return parse_xhtml_lines(bytes.data(), item_id);
+        return parse_xhtml_tokens(bytes.data(), item_id);
     }
 
     std::cerr << "Unable to parse item " << item_id << " with media type " << item.media_type << std::endl;
     return {};
 }
-
