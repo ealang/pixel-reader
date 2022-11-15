@@ -87,14 +87,37 @@ bool _element_is_blocking(const xmlChar *name)
     return blocking_elements.find((const char*)name) != blocking_elements.end();
 }
 
-bool _is_whitespace(char c)
+inline bool _is_whitespace(char c)
 {
     return c == ' ' || c == '\t';
 }
 
-bool _is_newline(char c)
+inline bool _is_newline(char c)
 {
     return c == '\n' || c == '\r';
+}
+
+inline bool _is_carriage_return(char c)
+{
+    return c == '\r';
+}
+
+std::string _remove_carriage_returns(const char *source)
+{
+    std::string result;
+    result.reserve(strlen(source));
+
+    char c;
+    while ((c = *source))
+    {
+        if (!_is_carriage_return(c))
+        {
+            result.push_back(c);
+        }
+        source++;
+    }
+
+    return result;
 }
 
 // Remove newlines and compact whitespace
@@ -131,7 +154,7 @@ void _process_text(xmlNodePtr node, Context &context)
 {
     std::string text = context.pre_depth == 0
         ? _sanitize_whitespace((const char*)node->content, context.fresh_line)
-        : (const char*)node->content;
+        : _remove_carriage_returns((const char*)node->content);
 
     if (!text.empty())
     {
@@ -299,7 +322,7 @@ std::vector<DocToken> cleanup_tokens(const std::vector<DocToken> &tokens)
 
 std::vector<DocToken> parse_xhtml_tokens(const char *xml_str, std::string name)
 {
-    xmlDocPtr doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, 0);
+    xmlDocPtr doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, XML_PARSE_NOERROR | XML_PARSE_NOWARNING | XML_PARSE_RECOVER);
     if (doc == nullptr)
     {
         std::cerr << "Unable to parse " << name << " as xml" << std::endl;
