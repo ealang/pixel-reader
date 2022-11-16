@@ -1,9 +1,17 @@
 #include "./view_stack.h"
 
-
 void ViewStack::push(std::shared_ptr<View> view)
 {
+    if (!views.empty())
+    {
+        views.back()->on_lose_focus();
+    }
+    view->on_gain_focus();
     views.push_back(view);
+}
+
+ViewStack::~ViewStack()
+{
 }
 
 bool ViewStack::render(SDL_Surface *dest)
@@ -26,10 +34,21 @@ bool ViewStack::on_keypress(SDLKey key)
 
 bool ViewStack::is_done()
 {
+    bool changed_focus = false;
     while (!views.empty() && views.back()->is_done())
     {
         views.pop_back();
+        changed_focus = true;
     }
 
-    return views.empty();
+    if (!views.empty())
+    {
+        if (changed_focus)
+        {
+            views.back()->on_gain_focus();
+        }
+        return false;
+    }
+
+    return true;
 }

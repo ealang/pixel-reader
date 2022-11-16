@@ -233,3 +233,8 @@ void FileSelector::set_on_file_selected(std::function<void(const std::string &)>
 {
     state->on_file_selected = on_file_selected;
 }
+
+void FileSelector::on_gain_focus()
+{
+    state->needs_render = true;
+}

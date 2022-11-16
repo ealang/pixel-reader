@@ -45,7 +45,7 @@ std::vector<std::string> get_book_display_lines(std::string epub_path, TTF_Font 
 
         std::vector<std::string> lines;
         std::cerr << "Found " << reader.get_tok().size() << " chapters" << std::endl;
-        int chapter_limit = 8;
+        int chapter_limit = 16;
         for (auto &tok : reader.get_tok())
         {
             if (chapter_limit-- == 0)
@@ -147,21 +147,21 @@ int main (int argc, char *argv[])
                         {
                             view_stack.on_keypress(key);
                         }
+
+                        if (view_stack.is_done())
+                        {
+                            quit = true;
+                        }
+
+                        if (view_stack.render(screen))
+                        {
+                            SDL_BlitSurface(screen, NULL, video, NULL);
+                            SDL_Flip(video);
+                        }
                     }
                     break;
                 default:
                     break;
-            }
-
-            if (view_stack.render(screen))
-            {
-                SDL_BlitSurface(screen, NULL, video, NULL);
-                SDL_Flip(video);
-            }
-
-            if (view_stack.is_done())
-            {
-                quit = true;
             }
         }
     }

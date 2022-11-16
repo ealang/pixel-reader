@@ -5,7 +5,6 @@
 
 #include "sys/timer.h"
 
-#include <iostream>
 #include <vector>
 
 struct TextViewState

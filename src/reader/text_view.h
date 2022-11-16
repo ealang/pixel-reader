@@ -23,9 +23,9 @@ public:
     TextView(std::vector<std::string> lines, TTF_Font *font, int line_padding);
     virtual ~TextView();
 
-    bool render(SDL_Surface *dest_surface);
-    bool on_keypress(SDLKey key);
-    bool is_done();
+    bool render(SDL_Surface *dest_surface) override;
+    bool on_keypress(SDLKey key) override;
+    bool is_done() override;
 };
 
 #endif

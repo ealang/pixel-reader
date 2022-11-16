@@ -15,6 +15,9 @@ public:
 
     // Return true if the view is no longer needed.
     virtual bool is_done() = 0;
+
+    virtual void on_lose_focus() {}
+    virtual void on_gain_focus() {}
 };
 
 #endif
