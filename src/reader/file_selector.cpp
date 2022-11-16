@@ -16,11 +16,12 @@ struct FSState
     int line_padding;
     int num_display_lines;
     bool needs_render = true;
+    bool is_done = false;
 
     // file state
     std::string path;
-    std::string selected_file;
     std::vector<FSEntry> path_entries;
+    std::function<void(std::string)> on_file_selected;
 
     // selection state
     int cursor_pos = 0;
@@ -83,13 +84,7 @@ static void on_select_entry(FSState *s)
         if (entry.name == "..")
         {
             highlight_name = fs_path_split_dir(s->path).second;
-
-            // update path
             s->path = fs_path_parent(s->path);
-            if (s->path.empty())
-            {
-                s->path = "/"; // TODO: add logic to fs_path_parents
-            }
         }
         else
         {
@@ -118,7 +113,11 @@ static void on_select_entry(FSState *s)
     else
     {
         // selected a file
-        s->selected_file = fs_path_join(s->path, entry.name);
+        if (s->on_file_selected)
+        {
+            std::string full_path = fs_path_join(s->path, entry.name);
+            s->on_file_selected(full_path);
+        }
     }
 
     s->needs_render = true;
@@ -143,20 +142,13 @@ FileSelector::FileSelector(const std::string &path, TTF_Font *font, int line_pad
       ))
 {
     refresh_path_entries(state.get());
-
 }
 
-bool FileSelector::file_is_selected() const
+FileSelector::~FileSelector()
 {
-    return state->selected_file.size() > 0;
 }
 
-std::string FileSelector::get_selected_file() const
-{
-    return state->selected_file;
-}
-
-bool FileSelector::render(SDL_Surface *dest_surface) const
+bool FileSelector::render(SDL_Surface *dest_surface)
 {
     if (!state->needs_render)
     {
@@ -232,6 +224,12 @@ bool FileSelector::on_keypress(SDLKey key)
     }
 }
 
-FileSelector::~FileSelector()
+bool FileSelector::is_done()
 {
+    return state->is_done;
+}
+
+void FileSelector::set_on_file_selected(std::function<void(const std::string &)> on_file_selected)
+{
+    state->on_file_selected = on_file_selected;
 }

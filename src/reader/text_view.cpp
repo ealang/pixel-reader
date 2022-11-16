@@ -42,7 +42,7 @@ TextView::~TextView()
 {
 }
 
-bool TextView::render(SDL_Surface *dest_surface) const
+bool TextView::render(SDL_Surface *dest_surface)
 {
     if (!state->needs_render)
     {
@@ -50,9 +50,8 @@ bool TextView::render(SDL_Surface *dest_surface) const
     }
     state->needs_render = false;
 
-
     const SDL_PixelFormat *pixel_format = dest_surface->format;
-    SDL_Color fg_color = {255, 255, 255, 0};
+    SDL_Color fg_color = {188, 182, 128, 0};
     SDL_Color bg_color = {0, 0, 0, 0};
     uint32_t rect_bg_color = SDL_MapRGB(pixel_format, 0, 0, 0);
 
@@ -89,21 +88,21 @@ bool TextView::on_keypress(SDLKey key)
                 state->scroll_pos--;
                 state->needs_render = true;
             }
-            return true;
+            break;
         case SW_BTN_DOWN:
             if (state->scroll_pos < static_cast<int>(state->lines.size()) - state->num_display_lines)
             {
                 state->scroll_pos++;
                 state->needs_render = true;
             }
-            return true;
+            break;
         case SW_BTN_LEFT:
             if (state->scroll_pos >= 0)
             {
                 state->scroll_pos = std::max(0, state->scroll_pos - state->num_display_lines);
                 state->needs_render = true;
             }
-            return true;
+            break;
         case SW_BTN_RIGHT:
             if (state->scroll_pos < static_cast<int>(state->lines.size()) - state->num_display_lines)
             {
@@ -113,8 +112,16 @@ bool TextView::on_keypress(SDLKey key)
                 );
                 state->needs_render = true;
             }
-            return true;
+            break;
         default:
-            return false;
+            _is_done = true;
+            break;
     }
+
+    return true;
+}
+
+bool TextView::is_done()
+{
+    return _is_done;
 }

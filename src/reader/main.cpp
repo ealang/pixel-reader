@@ -8,12 +8,16 @@
 #include "./display_lines.h"
 #include "./file_selector.h"
 #include "./text_view.h"
+#include "./view_stack.h"
 
 #include <SDL/SDL.h>
 #include <iostream>
 #include <libxml/parser.h>
 
-static std::vector<std::string> get_book_display_lines(std::string epub_path, TTF_Font *font)
+namespace
+{
+
+std::vector<std::string> get_book_display_lines(std::string epub_path, TTF_Font *font)
 {
     auto line_fits_on_screen = [font](const char *s, int len) {
 
@@ -41,8 +45,13 @@ static std::vector<std::string> get_book_display_lines(std::string epub_path, TT
 
         std::vector<std::string> lines;
         std::cerr << "Found " << reader.get_tok().size() << " chapters" << std::endl;
+        int chapter_limit = 8;
         for (auto &tok : reader.get_tok())
         {
+            if (chapter_limit-- == 0)
+            {
+                break;
+            }
             // std::cerr << tok.doc_id << " " << tok.name << std::endl;
             auto tokens = reader.get_tokenized_document(tok.doc_id);
             // std::cerr << "Contains " << tokens.size() << " tokens" << std::endl;
@@ -70,6 +79,20 @@ static std::vector<std::string> get_book_display_lines(std::string epub_path, TT
     return {"error opening"};
 }
 
+std::shared_ptr<View> app_main(ViewStack &view_stack, std::string starting_path, TTF_Font *font)
+{
+    std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(starting_path, font, 4);
+
+    fs->set_on_file_selected([font, &view_stack](std::string path) {
+        auto text = get_book_display_lines(path, font);
+        view_stack.push(std::make_shared<TextView>(text, font, 0));
+    });
+
+    return fs;
+}
+
+} // namespace
+
 int main (int argc, char *argv[])
 {
     std::string starting_path = get_cwd();
@@ -88,61 +111,41 @@ int main (int argc, char *argv[])
     int font_size = 24;
     TTF_Font *font = TTF_OpenFont("fonts/DejaVuSerif.ttf", font_size);
 
-    if (!font) {
+    if (!font)
+    {
         std::cerr << "TTF_OpenFont: " << TTF_GetError() << std::endl;
         return 1;
     }
 
-    // FileSelector selector(starting_path, font, 4);
-    // selector.render(screen);
-
-    auto text = get_book_display_lines("samples/epub/Little_Big.epub", font);
-
-    TextView view(text, font, 0);
-    view.render(screen);
+    ViewStack view_stack;
+    view_stack.push(app_main(view_stack, starting_path, font));
+    view_stack.render(screen);
 
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
 
     bool quit = false;
 
-    while (!quit) {
+    while (!quit)
+    {
         SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-
-            bool rerender = false;
-            switch (event.type) {
+        while (SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
                 case SDL_QUIT:
                     quit = true;
                     break;
                 case SDL_KEYDOWN:
-                    if (view.on_keypress(event.key.keysym.sym)) {
-                        rerender = true;
-                    }
-                    // else if (selector.on_keypress(event.key.keysym.sym))
-                    // {
-                    //     rerender = selector.render(screen);
-                    //     if (selector.file_is_selected())
-                    //     {
-                    //         std::cout << "Selected file: " << selector.get_selected_file() << std::endl;
-                    //         quit = true;
-                    //     }
-                    // }
-                    else
                     {
-                        switch (event.key.keysym.sym) {
-                            case SW_BTN_LEFT:
-                                break;
-                            case SW_BTN_RIGHT:
-                                break;
-                            case SW_BTN_A:
-                                quit = true;
-                                break;
-                            case SW_BTN_MENU:
-                                quit = true;
-                                break;
-                            default:
-                                break;
+                        SDLKey key = event.key.keysym.sym;
+                        if (key == SW_BTN_MENU)
+                        {
+                            quit = true;
+                        }
+                        else
+                        {
+                            view_stack.on_keypress(key);
                         }
                     }
                     break;
@@ -150,12 +153,15 @@ int main (int argc, char *argv[])
                     break;
             }
 
-            if (rerender)
+            if (view_stack.render(screen))
             {
-                // selector.render(screen);
-                view.render(screen);
                 SDL_BlitSurface(screen, NULL, video, NULL);
                 SDL_Flip(video);
+            }
+
+            if (view_stack.is_done())
+            {
+                quit = true;
             }
         }
     }
