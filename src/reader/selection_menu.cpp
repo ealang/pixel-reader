@@ -14,6 +14,11 @@ static int detect_line_height(TTF_Font *font)
     return 24;
 }
 
+SelectionMenu::SelectionMenu(TTF_Font *font)
+    : SelectionMenu({}, font)
+{
+}
+
 SelectionMenu::SelectionMenu(std::vector<std::string> entries, TTF_Font *font)
     : entries(entries),
       font(font),
@@ -29,6 +34,23 @@ SelectionMenu::~SelectionMenu()
 void SelectionMenu::set_entries(std::vector<std::string> new_entries)
 {
     entries = new_entries;
+    cursor_pos = 0;
+    scroll_pos = 0;
+}
+
+void SelectionMenu::set_on_selection(std::function<void(uint32_t)> _on_selection)
+{
+    on_selection = _on_selection;
+}
+
+void SelectionMenu::set_cursor_pos(uint32_t pos)
+{
+    if (pos < entries.size())
+    {
+        cursor_pos = pos;
+        // TODO: improve this
+        scroll_pos = std::max(0, static_cast<int>(pos) - (num_display_lines / 2));
+    }
 }
 
 bool SelectionMenu::render(SDL_Surface *dest_surface)
@@ -106,7 +128,7 @@ void SelectionMenu::on_select_entry()
 {
     if (!entries.empty() && on_selection)
     {
-        on_selection(entries[cursor_pos]);
+        on_selection(cursor_pos);
     }
 }
 
@@ -134,9 +156,4 @@ bool SelectionMenu::on_keypress(SDLKey key)
 bool SelectionMenu::is_done()
 {
     return _is_done;
-}
-
-void SelectionMenu::set_on_selection(std::function<void(const std::string &)> _on_selection)
-{
-    on_selection = _on_selection;
 }

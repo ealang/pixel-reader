@@ -16,13 +16,12 @@ class FileSelector: public View
     std::unique_ptr<FSState> state;
 
 public:
-    FileSelector(const std::string &path, TTF_Font *font, int line_padding);
+    FileSelector(std::string path, TTF_Font *font);
     virtual ~FileSelector();
 
     bool render(SDL_Surface *dest_surface);
     bool on_keypress(SDLKey key) override;
     bool is_done() override;
-    void on_gain_focus() override;
 
     void set_on_file_selected(std::function<void(const std::string &)> on_file_selected);
 };

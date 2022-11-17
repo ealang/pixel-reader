@@ -21,23 +21,25 @@ class SelectionMenu: public View
     int num_display_lines;
 
     bool _is_done = false;
-    std::function<void(std::string)> on_selection;
+    std::function<void(uint32_t)> on_selection;
 
     void on_move_down();
     void on_move_up();
     void on_select_entry();
 
 public:
+
+    SelectionMenu(TTF_Font *font);
     SelectionMenu(std::vector<std::string> entries, TTF_Font *font);
     virtual ~SelectionMenu();
 
     void set_entries(std::vector<std::string> new_entries);
+    void set_on_selection(std::function<void(uint32_t)> on_selection);
+    void set_cursor_pos(uint32_t pos);
 
     bool render(SDL_Surface *dest_surface) override;
     bool on_keypress(SDLKey key) override;
     bool is_done() override;
-
-    void set_on_selection(std::function<void(const std::string &)> on_selection);
 };
 
 #endif

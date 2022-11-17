@@ -101,15 +101,15 @@ std::vector<std::string> get_book_display_lines(std::string epub_path, std::stri
 
 std::shared_ptr<View> app_main(ViewStack &view_stack, std::string starting_path, TTF_Font *font)
 {
-    std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(starting_path, font, 4);
+    std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(starting_path, font);
 
     fs->set_on_file_selected([font, &view_stack](std::string path) {
-        // auto text = get_book_display_lines(path, font);
-        // view_stack.push(std::make_shared<TextView>(text, font, 0));
-        auto chapter_select = std::make_shared<SelectionMenu>(get_book_chapters(path), font);
+        auto chapters = get_book_chapters(path);
+        auto chapter_select = std::make_shared<SelectionMenu>(chapters, font);
         view_stack.push(chapter_select);
 
-        chapter_select->set_on_selection([font, path, &view_stack](std::string chapter) {
+        chapter_select->set_on_selection([font, path, chapters, &view_stack](uint32_t chapter_index) {
+            auto chapter = chapters[chapter_index];
             std::cout << "selected chapter " << chapter << std::endl;
             auto text = get_book_display_lines(path, chapter, font);
             view_stack.push(std::make_shared<TextView>(text, font, 2));
