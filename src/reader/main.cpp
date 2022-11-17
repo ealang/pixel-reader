@@ -9,6 +9,7 @@
 #include "./file_selector.h"
 #include "./text_view.h"
 #include "./view_stack.h"
+#include "./selection_menu.h"
 
 #include <SDL/SDL.h>
 #include <iostream>
@@ -17,7 +18,26 @@
 namespace
 {
 
-std::vector<std::string> get_book_display_lines(std::string epub_path, TTF_Font *font)
+std::vector<std::string> get_book_chapters(std::string epub_path)
+{
+    EPubReader reader(epub_path);
+    if (reader.open())
+    {
+        std::vector<std::string> chapters;
+        for (auto &tok : reader.get_tok())
+        {
+            chapters.emplace_back(tok.name);
+        }
+
+        return chapters;
+    }
+    else
+    {
+        std::cerr << "Failed to open" << std::endl;
+    }
+    return {"error opening"};
+}
+std::vector<std::string> get_book_display_lines(std::string epub_path, std::string chapter_name, TTF_Font *font)
 {
     auto line_fits_on_screen = [font](const char *s, int len) {
 
@@ -44,13 +64,12 @@ std::vector<std::string> get_book_display_lines(std::string epub_path, TTF_Font 
         Timer timer;
 
         std::vector<std::string> lines;
-        std::cerr << "Found " << reader.get_tok().size() << " chapters" << std::endl;
-        int chapter_limit = 16;
+        // std::cerr << "Found " << reader.get_tok().size() << " chapters" << std::endl;
         for (auto &tok : reader.get_tok())
         {
-            if (chapter_limit-- == 0)
+            if (tok.name != chapter_name)
             {
-                break;
+                continue;
             }
             // std::cerr << tok.doc_id << " " << tok.name << std::endl;
             auto tokens = reader.get_tokenized_document(tok.doc_id);
@@ -67,6 +86,7 @@ std::vector<std::string> get_book_display_lines(std::string epub_path, TTF_Font 
             {
                 lines.push_back(line.text);
             }
+            break;
         }
 
         std::cerr << "Took " << timer.elapsed_ms() << " ms to format " << lines.size() << " lines" << std::endl;
@@ -84,8 +104,16 @@ std::shared_ptr<View> app_main(ViewStack &view_stack, std::string starting_path,
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(starting_path, font, 4);
 
     fs->set_on_file_selected([font, &view_stack](std::string path) {
-        auto text = get_book_display_lines(path, font);
-        view_stack.push(std::make_shared<TextView>(text, font, 0));
+        // auto text = get_book_display_lines(path, font);
+        // view_stack.push(std::make_shared<TextView>(text, font, 0));
+        auto chapter_select = std::make_shared<SelectionMenu>(get_book_chapters(path), font);
+        view_stack.push(chapter_select);
+
+        chapter_select->set_on_selection([font, path, &view_stack](std::string chapter) {
+            std::cout << "selected chapter " << chapter << std::endl;
+            auto text = get_book_display_lines(path, chapter, font);
+            view_stack.push(std::make_shared<TextView>(text, font, 2));
+        });
     });
 
     return fs;
