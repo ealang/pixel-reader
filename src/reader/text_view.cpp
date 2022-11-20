@@ -1,8 +1,9 @@
-#include "sys/screen.h"
-#include "sys/keymap.h"
 #include "./text_view.h"
 #include "./text_wrap.h"
+#include "./sdl_utils.h"
 
+#include "sys/keymap.h"
+#include "sys/screen.h"
 #include "sys/timer.h"
 
 #include <vector>
@@ -16,16 +17,6 @@ struct TextViewState
 
     TextViewState(std::vector<std::string> lines) : lines(lines) {}
 };
-
-static int detect_line_height(TTF_Font *font)
-{
-    int w, h;
-    if (TTF_SizeUTF8(font, "A", &w, &h) == 0)
-    {
-        return h;
-    }
-    return 24;
-}
 
 TextView::TextView(std::vector<std::string> lines, TTF_Font *font, int line_padding)
     : state(std::make_unique<TextViewState>(lines)),

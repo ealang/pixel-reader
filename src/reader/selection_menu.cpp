@@ -2,17 +2,7 @@
 
 #include "sys/screen.h"
 #include "sys/keymap.h"
-
-// TODO: extract this
-static int detect_line_height(TTF_Font *font)
-{
-    int w, h;
-    if (TTF_SizeUTF8(font, "A", &w, &h) == 0)
-    {
-        return h;
-    }
-    return 24;
-}
+#include "./sdl_utils.h"
 
 SelectionMenu::SelectionMenu(TTF_Font *font)
     : SelectionMenu({}, font)
