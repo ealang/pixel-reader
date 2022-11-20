@@ -1,0 +1,3 @@
+[submodule "cross-compile/miyoo-mini/union-miyoomini-toolchain"]
+	path = cross-compile/miyoo-mini/union-miyoomini-toolchain
+	url = https://github.com/shauninman/union-miyoomini-toolchain

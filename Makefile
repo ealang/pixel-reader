@@ -5,16 +5,21 @@ endif
 
 PREFIX ?= /usr
 
-COMMON_CXXFLAGS := -pedantic-errors -Wall -Wextra -std=c++17 -O2
+CXXFLAGS := -pedantic-errors -Wall -Wextra -std=c++17 -O2
+LDFLAGS  := -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2
 
 ifeq ($(PLATFORM),miyoomini)
-CXXFLAGS := $(COMMON_CXXFLAGS) -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd
-else
-CXXFLAGS := $(COMMON_CXXFLAGS)
+CXXFLAGS := $(CXXFLAGS) \
+	    -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd \
+	    -Icross-compile/miyoo-mini/include/libxml2 \
+	    -Icross-compile/miyoo-mini/include
+LDFLAGS := $(LDFLAGS) \
+	-L$(PREFIX)/lib \
+	-Lcross-compile/miyoo-mini/lib \
+	-Wl,-rpath-link,cross-compile/miyoo-mini/lib
 endif
 
 CXX      := $(CROSS_COMPILE)c++
-LDFLAGS  := -L/usr/lib -lstdc++ -lm -lzip -lxml2 -lSDL -lSDL_ttf -lSDL_image
 BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)
@@ -56,10 +61,13 @@ $(APP_DIR)/$(APP_TEST_TARGET): $(TEST_OBJECTS)
 
 -include $(DEPENDENCIES)
 
-.PHONY: all build clean debug release run_tests
+.PHONY: all build clean debug release run_tests miyoo-mini-shell
 
 test: $(APP_DIR)/$(APP_TEST_TARGET)
 	$(APP_DIR)/$(APP_TEST_TARGET)
+
+miyoo-mini-shell:
+	$(MAKE) -C cross-compile/miyoo-mini/union-miyoomini-toolchain shell WORKSPACE_DIR=$(shell pwd)
 
 build:
 	@mkdir -p $(APP_DIR)
