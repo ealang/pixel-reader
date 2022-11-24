@@ -4,12 +4,12 @@
 #include <iostream>
 #include <string>
 
-static bool fits_on_line_by_char(const char *, int strlen)
+static bool fits_on_line_by_char(const char *, uint32_t strlen)
 {
     return strlen <= 80;
 }
 
-void epub_iter_sandbox(std::string path)
+void display_epub(std::string path)
 {
     std::cout << path << std::endl;
 
@@ -36,7 +36,7 @@ void epub_iter_sandbox(std::string path)
         std::cout << "Contains " << display_lines.size() << " lines" << std::endl;
         for (const auto &line: display_lines)
         {
-            std::cout << line.text << std::endl;
+            std::cout << to_string(line.address) << " | " << line.text << std::endl;
         }
     }
 }

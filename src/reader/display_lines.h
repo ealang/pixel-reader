@@ -1,7 +1,7 @@
 #ifndef DISPLAY_LINES_H_
 #define DISPLAY_LINES_H_
 
-#include "epub/doc_token.h"
+#include "doc_api/doc_token.h"
 
 #include <functional>
 #include <string>
@@ -10,13 +10,14 @@
 struct Line
 {
     std::string text;
+    DocAddr address;
 
-    Line(std::string text) : text(text) {}
+    Line(std::string text, DocAddr address);
 };
 
 void get_display_lines(
     const std::vector<DocToken> &tokens,
-    const std::function<bool(const char *, int)> &fits_on_line,
+    const std::function<bool(const char *, uint32_t)> &fits_on_line,
     std::vector<Line> &out_lines
 );
 

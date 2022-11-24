@@ -7,9 +7,18 @@ static bool fits_on_line_by_char(const char *, int strlen)
     return strlen <= 12;
 }
 
-static std::vector<std::string> default_invocation(const std::string &str, unsigned int max_search=100)
+static std::vector<std::string> default_invocation(const char *str, unsigned int max_search=100)
 {
-    return wrap_lines(str, fits_on_line_by_char, max_search);
+    std::vector<std::string> lines;
+    wrap_lines(
+        str,
+        fits_on_line_by_char,
+        [&lines](const char *str, uint32_t len) {
+            lines.emplace_back(str, len);
+        },
+        max_search
+    );
+    return lines;
 }
 
 TEST(TEXT_WRAP, empty_string)

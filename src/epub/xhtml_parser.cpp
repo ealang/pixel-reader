@@ -1,5 +1,7 @@
 #include "./xhtml_parser.h"
+
 #include "./libxml_iter.h"
+#include "./xhtml_string_util.h"
 
 #include <libxml/parser.h>
 
@@ -9,67 +11,30 @@
 #include <set>
 #include <unordered_map>
 
-#define DEBUG_LOG(msg) if (context.debug) { std::cerr << std::string(context.node_depth * 2, ' ') << msg << std::endl; }
+#define DEBUG 0
+#define DEBUG_LOG(msg) if (DEBUG) { std::cerr << std::string(context.node_depth * 2, ' ') << msg << std::endl; }
 
 namespace {
 
+#define EMPTY_STR ""
+
 struct Context
 {
-    std::vector<DocToken> &tokens;
-    bool debug = false; // show debug messages
-
-    bool fresh_line = true; // no text yet on current line
     int node_depth = 0;     // depth inside any nodes
     int list_depth = 0;     // depth inside ul/ol nodes
     int pre_depth = 0;      // depth inside pre nodes
 
-    Context(std::vector<DocToken> &tokens)
-        : tokens(tokens)
+    std::function<void(const Context&, TokenType, std::string)> _emit_token;
+
+    void emit_token(TokenType type, std::string text)
+    {
+        _emit_token(*this, type, text);
+    }
+
+    Context(std::function<void(const Context&, TokenType, std::string)> _emit_token)
+        : _emit_token(_emit_token)
     {
     }
-};
-
-class WithToken
-{
-    Context& context;
-    DocToken token;
-
-    void add()
-    {
-        DEBUG_LOG(token.to_string());
-        context.tokens.push_back(token);
-    }
-public:
-    WithToken(Context &context, DocToken token)
-        : context(context), token(token)
-    {
-        add();
-    }
-    ~WithToken()
-    {
-        add();
-    }
-};
-
-void _process_h(xmlNodePtr node, Context &context);
-void _process_li(xmlNodePtr node, Context &context);
-void _process_ul(xmlNodePtr node, Context &context);
-void _process_p(xmlNodePtr node, Context &context);
-void _process_pre(xmlNodePtr node, Context &context);
-void _process_node(xmlNodePtr node, Context &);
-
-const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>> _element_handlers = {
-    {"h1", _process_h},
-    {"h2", _process_h},
-    {"h3", _process_h},
-    {"h4", _process_h},
-    {"h5", _process_h},
-    {"h6", _process_h},
-    {"li", _process_li},
-    {"ol", _process_ul},
-    {"ul", _process_ul},
-    {"p", _process_p},
-    {"pre", _process_pre}
 };
 
 bool _element_is_blocking(const xmlChar *name)
@@ -82,146 +47,161 @@ bool _element_is_blocking(const xmlChar *name)
         "address", "article", "aside", "blockquote", "canvas", "dd", "div", "dl", "dt",
         "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
         "h5", "h6", "header", "hgroup", "hr", "li", "main", "nav", "noscript", "ol",
-        "output", "p", "pre", "section", "table", "tfoot", "ul", "video"
+        "output", "p", "pre", "section", "table", "tfoot", "ul", "video", "br"
     };
     return blocking_elements.find((const char*)name) != blocking_elements.end();
 }
 
-inline bool _is_whitespace(char c)
+/////////////////////////////
+
+void _on_enter_h(int, xmlNodePtr, Context &context)
 {
-    return c == ' ' || c == '\t';
+    context.emit_token(TokenType::Section, EMPTY_STR);
+    // TODO: emit header type
 }
 
-inline bool _is_newline(char c)
+void _on_exit_h(int, xmlNodePtr, Context &context)
 {
-    return c == '\n' || c == '\r';
+    context.emit_token(TokenType::Section, EMPTY_STR);
 }
 
-inline bool _is_carriage_return(char c)
+/////////////////////////////
+
+void _on_enter_ul(xmlNodePtr, Context &context)
 {
-    return c == '\r';
+    context.emit_token(TokenType::Section, EMPTY_STR);
 }
 
-std::string _remove_carriage_returns(const char *source)
+void _on_exit_ul(xmlNodePtr, Context &context)
 {
-    std::string result;
-    result.reserve(strlen(source));
-
-    char c;
-    while ((c = *source))
-    {
-        if (!_is_carriage_return(c))
-        {
-            result.push_back(c);
-        }
-        source++;
-    }
-
-    return result;
+    context.emit_token(TokenType::Section, EMPTY_STR);
 }
 
-// Remove newlines and compact whitespace
-std::string _sanitize_whitespace(std::string str, bool fresh_line)
-{
-    std::string result;
-    bool last_was_space = false;
-    bool has_content = false;
-    for (std::string::iterator it = str.begin(); it != str.end(); ++it)
-    {
-        if (!_is_newline(*it)) 
-        {
-            if (_is_whitespace(*it))
-            {
-                if (!last_was_space && (has_content || !fresh_line))
-                {
-                    result.push_back(' ');
-                    last_was_space = true;
-                }
-            }
-            else
-            {
-                result.push_back(*it);
-                last_was_space = false;
-                has_content = true;
-            }
-        }
-    }
+/////////////////////////////
 
-    return result;
-}
-
-void _process_text(xmlNodePtr node, Context &context)
-{
-    std::string text = context.pre_depth == 0
-        ? _sanitize_whitespace((const char*)node->content, context.fresh_line)
-        : _remove_carriage_returns((const char*)node->content);
-
-    if (!text.empty())
-    {
-        context.tokens.emplace_back(TokenType::Text, text);
-        context.fresh_line = false;
-
-        DEBUG_LOG(DocToken::text_token(text).to_string());
-    }
-}
-
-void _ensure_blocking_padded(xmlNodePtr node, Context &context)
-{
-    if (_element_is_blocking(node->name) && !context.fresh_line)
-    {
-        DEBUG_LOG(DocToken::block_token().to_string());
-        context.tokens.emplace_back(TokenType::Block);
-        context.fresh_line = true;
-    }
-}
-
-void _process_h(xmlNodePtr node, Context &context)
-{
-    WithToken section_padded(context, DocToken::section_token());
-
-    int n = node->name ? node->name[1] - '0' : 1;
-    context.tokens.emplace_back(TokenType::Text, std::string(n, '#') + " ");
-
-    _process_node(node->children, context);
-}
-
-void _process_li(xmlNodePtr node, Context &context)
-{
-    auto indent_level = std::max(0, (context.list_depth - 1) * 2);
-    context.tokens.emplace_back(TokenType::Text, std::string(indent_level, ' ') + "- ");
-
-    _process_node(node->children, context);
-}
-
-void _process_ul(xmlNodePtr node, Context &context)
-{
-    WithToken section_padded(context, DocToken::section_token());
-
-    context.list_depth++;
-    _process_node(node->children, context);
-    context.list_depth--;
-}
-
-void _process_pre(xmlNodePtr node, Context &context)
-{
-    WithToken section_padded(context, DocToken::section_token());
-
-    context.pre_depth++;
-    _process_node(node->children, context);
-    context.pre_depth--;
-}
-
-void _process_p(xmlNodePtr node, Context &context)
+void _on_enter_p(xmlNodePtr, Context &context)
 {
     if (context.list_depth == 0)
     {
-        WithToken section_padded(context, DocToken::section_token());
-        _process_node(node->children, context);
+        context.emit_token(TokenType::Section, EMPTY_STR);
     }
-    else
+}
+
+void _on_exit_p(xmlNodePtr, Context &context)
+{
+    if (context.list_depth == 0)
     {
-        // if inside a list, don't add section breaks
-        _process_node(node->children, context);
+        context.emit_token(TokenType::Section, EMPTY_STR);
+    }
+}
+
+/////////////////////////////
+
+void _on_enter_pre(xmlNodePtr, Context &context)
+{
+    context.emit_token(TokenType::Section, EMPTY_STR);
+    context.pre_depth++;
+}
+
+void _on_exit_pre(xmlNodePtr, Context &context)
+{
+    context.emit_token(TokenType::Section, EMPTY_STR);
+    context.pre_depth--;
+}
+
+/////////////////////////////
+
+const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>> _on_enter_handlers = {
+    {"h1", [](xmlNodePtr node, Context &context) {
+        _on_enter_h(1, node, context);
+    }},
+    {"h2", [](xmlNodePtr node, Context &context) {
+        _on_enter_h(2, node, context);
+    }},
+    {"h3", [](xmlNodePtr node, Context &context) {
+        _on_enter_h(3, node, context);
+    }},
+    {"h4", [](xmlNodePtr node, Context &context) {
+        _on_enter_h(4, node, context);
+    }},
+    {"h5", [](xmlNodePtr node, Context &context) {
+        _on_enter_h(5, node, context);
+    }},
+    {"h6", [](xmlNodePtr node, Context &context) {
+        _on_enter_h(6, node, context);
+    }},
+    {"ol", _on_enter_ul},
+    {"ul", _on_enter_ul},
+    {"p", _on_enter_p},
+    {"pre", _on_enter_pre}
+};
+
+const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>> _on_exit_handlers = {
+    {"h1", [](xmlNodePtr node, Context &context) {
+        _on_exit_h(1, node, context);
+    }},
+    {"h2", [](xmlNodePtr node, Context &context) {
+        _on_exit_h(2, node, context);
+    }},
+    {"h3", [](xmlNodePtr node, Context &context) {
+        _on_exit_h(3, node, context);
+    }},
+    {"h4", [](xmlNodePtr node, Context &context) {
+        _on_exit_h(4, node, context);
+    }},
+    {"h5", [](xmlNodePtr node, Context &context) {
+        _on_exit_h(5, node, context);
+    }},
+    {"h6", [](xmlNodePtr node, Context &context) {
+        _on_exit_h(6, node, context);
+    }},
+    {"ol", _on_exit_ul},
+    {"ul", _on_exit_ul},
+    {"p", _on_exit_p},
+    {"pre", _on_exit_pre}
+};
+
+/////////////////////////////
+
+void on_text_node(xmlNodePtr node, Context &context)
+{
+    const char *str = (const char*)node->content;
+    if (str)
+    {
+        context.emit_token(
+            TokenType::Text,
+            context.pre_depth > 0
+                ? remove_carriage_returns(str)
+                : compact_whitespace(str)
+        );
+    }
+}
+
+void on_enter_element_node(xmlNodePtr node, Context &context)
+{
+    if (_element_is_blocking(node->name))
+    {
+        context.emit_token(TokenType::Block, EMPTY_STR);
+    }
+
+    auto handler = _on_enter_handlers.find((const char*)node->name);
+    if (handler != _on_enter_handlers.end())
+    {
+        handler->second(node, context);
+    }
+}
+
+void on_exit_element_node(xmlNodePtr node, Context &context)
+{
+    if (_element_is_blocking(node->name))
+    {
+        context.emit_token(TokenType::Block, EMPTY_STR);
+    }
+
+    auto handler = _on_exit_handlers.find((const char*)node->name);
+    if (handler != _on_exit_handlers.end())
+    {
+        handler->second(node, context);
     }
 }
 
@@ -229,98 +209,117 @@ void _process_node(xmlNodePtr node, Context &context)
 {
     while (node)
     {
-        DEBUG_LOG("<node name=" << node->name << ">");
+        DEBUG_LOG("<node name=\"" << node->name << "\">");
         context.node_depth++;
 
+        // Enter handlers
         if (node->type == XML_TEXT_NODE)
         {
-            _process_text(node, context);
+            on_text_node(node, context);
         }
-        else if (node->type == XML_ELEMENT_NODE && node->children)
+        else if (node->type == XML_ELEMENT_NODE)
         {
-            _ensure_blocking_padded(node, context);
+            on_enter_element_node(node, context);
+        }
 
-            auto it = _element_handlers.find((const char*)node->name);
-            if (it == _element_handlers.end())
-            {
-                _process_node(node->children, context);
-            }
-            else
-            {
-                it->second(node, context);
-            }
+        // Descend
+        _process_node(node->children, context);
 
-            _ensure_blocking_padded(node, context);
+        // Exit handlers
+        if (node->type == XML_ELEMENT_NODE)
+        {
+            on_exit_element_node(node, context);
         }
 
         context.node_depth--;
-        DEBUG_LOG("</node name=" << node->name << ">");
+        DEBUG_LOG("</node name=\"" << node->name << "\">");
+
         node = node->next;
     }
 }
 
-// Output cleaner tokens. Compact text and break tokens.
-// TODO: simplify parsing logic to generate this in a single pass
-std::vector<DocToken> cleanup_tokens(const std::vector<DocToken> &tokens)
+
+class TokenProcessor
 {
-    std::vector<DocToken> out;
-    std::vector<std::string> pending_text;
+    uint32_t chapter_number;
+    std::vector<DocToken> &tokens;
+    uint32_t char_count = 0;
+    bool fresh_line = true;
 
-    auto compact_pending_text = [&out, &pending_text]() {
-        int len = 0;
-        for (auto &s : pending_text)
-        {
-            len += s.length();
-        }
-        if (len > 0)
-        {
-            std::string text;
-            text.reserve(len);
-            for (auto &s : pending_text)
-            {
-                text += s;
-            }
-            out.emplace_back(DocToken::text_token(text));
-            pending_text.clear();
-        }
-    };
-
-    for (const auto &token: tokens)
+public:
+    TokenProcessor(uint32_t chapter_number, std::vector<DocToken> &tokens)
+        : chapter_number(chapter_number), tokens(tokens)
     {
-        if (token.type == TokenType::Text)
+    }
+
+    void operator()(const Context &context, TokenType type, std::string text)
+    {
+        if (text.size())
         {
-            pending_text.push_back(token.text);
-        }
-        else if (token.type == TokenType::Block)
-        {
-            compact_pending_text();
-            if (!out.empty() && out.back().type == TokenType::Text)
+            const std::string *prev_text = (
+                !tokens.empty() ? &tokens.back().text : nullptr
+            );
+
+            bool strip_left = (
+                fresh_line ||
+                (
+                     is_whitespace(text[0]) &&
+                     prev_text->size() &&
+                     is_whitespace(prev_text->at(prev_text->size() - 1))
+                )
+            );
+
+            if (strip_left)
             {
-                out.emplace_back(token);
+                text = std::string(strip_whitespace_left(text.c_str()));
+            }
+        }
+
+        DocAddr address = make_address(chapter_number, char_count);
+        char_count += count_non_whitespace_chars(text.c_str());
+
+        if (type == TokenType::Text)
+        {
+            if (text.size())
+            {
+                tokens.emplace_back(TokenType::Text, address, text);
+                DEBUG_LOG(to_string(tokens.back()));
+
+                fresh_line = false;
             }
         }
         else
         {
-            compact_pending_text();
-            while (!out.empty() && out.back().type == TokenType::Block)
+            fresh_line = true;
+
+            if (type == TokenType::Block)
             {
-                out.pop_back();
+                if (!tokens.empty() && tokens.back().type == TokenType::Text)
+                {
+                    tokens.emplace_back(type, address, EMPTY_STR);
+                    DEBUG_LOG(to_string(tokens.back()));
+                }
             }
-            if (!out.empty() && out.back().type != TokenType::Section)
+            else if (type == TokenType::Section)
             {
-                out.emplace_back(token);
+                while (!tokens.empty() && tokens.back().type == TokenType::Block)
+                {
+                    tokens.pop_back();
+                    DEBUG_LOG("pop");
+                }
+                if (!tokens.empty() && tokens.back().type != TokenType::Section)
+                {
+                    tokens.emplace_back(type, address, EMPTY_STR);
+                    DEBUG_LOG(to_string(tokens.back()));
+                }
             }
         }
     }
-
-    compact_pending_text();
-
-    return out;
-}
+};
 
 } // namespace
 
-std::vector<DocToken> parse_xhtml_tokens(const char *xml_str, std::string name)
+std::vector<DocToken> parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_number)
 {
     xmlDocPtr doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, XML_PARSE_NOERROR | XML_PARSE_NOWARNING | XML_PARSE_RECOVER);
     if (doc == nullptr)
@@ -337,10 +336,10 @@ std::vector<DocToken> parse_xhtml_tokens(const char *xml_str, std::string name)
     std::vector<DocToken> tokens;
     if (node)
     {
-        Context context(tokens);
+        Context context(TokenProcessor(chapter_number, tokens));
         _process_node(node, context);
     }
 
     xmlFreeDoc(doc);
-    return cleanup_tokens(tokens);
+    return tokens;
 }

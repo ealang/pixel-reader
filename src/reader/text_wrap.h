@@ -5,11 +5,10 @@
 #include <string>
 #include <vector>
 
-using str_filter_func = std::function<bool(const char *, int)>;
-
-std::vector<std::string> wrap_lines(
-    const std::string &str,
-    const str_filter_func &fits_on_line,
+void wrap_lines(
+    const char *str,
+    std::function<bool(const char *, uint32_t)> fits_on_line,
+    std::function<void(const char *, uint32_t)> on_next_line,
     unsigned int max_line_search_chars = 1024
 );
 

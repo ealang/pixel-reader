@@ -2,7 +2,7 @@
 #define EPUB_READER_H_
 
 #include "./epub_metadata.h"
-#include "./doc_token.h"
+#include "doc_api/doc_token.h"
 
 #include <string>
 #include <vector>
@@ -32,7 +32,7 @@ public:
     std::vector<char> get_file_as_bytes(std::string href) const;
 
     const std::vector<TokItem> &get_tok() const;
-    const std::vector<DocToken> get_tokenized_document(std::string item_id) const;
+    std::vector<DocToken> get_tokenized_document(std::string item_id) const;
 };
 
 #endif

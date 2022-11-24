@@ -12,7 +12,8 @@ void ls(std::string path)
     }
 }
 
-void epub_iter_sandbox(std::string path);
+void display_epub(std::string path);
+void display_xhtml(std::string path);
 
 int main(int argc, char** argv)
 {
@@ -25,9 +26,12 @@ int main(int argc, char** argv)
         }
         else if (mode == "epub" && argc > 2)
         {
-            epub_iter_sandbox(argv[2]);
+            display_epub(argv[2]);
         }
-
+        else if (mode == "xhtml" && argc > 2)
+        {
+            display_xhtml(argv[2]);
+        }
     }
     else
     {

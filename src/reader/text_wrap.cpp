@@ -1,7 +1,13 @@
 #include "./text_wrap.h"
+
+#include "util/utf8.h"
+
+#include <cstring>
 #include <stdexcept>
 
 namespace {
+
+using str_filter_func = std::function<bool(const char *, uint32_t)>;
 
 bool is_whitespace(char c)
 {
@@ -20,14 +26,7 @@ const char *find_first_break(const char *pos, int max_search)
     return pos;
 }
 
-// Step to start of next character (utf-8 encoding)
-const char *utf8_step(const char *s)
-{
-    while ((*++s & 0xC0) == 0x80);
-    return s;
-}
-
-const char *find_last_whitespace(const char *start_pos, const str_filter_func &fits_on_line, uint32_t max_line_search_chars)
+const char *find_last_whitespace(const char *start_pos, str_filter_func &fits_on_line, uint32_t max_line_search_chars)
 {
     const char *best_candidate_pos = nullptr;
     const char *cur_pos = start_pos;
@@ -60,7 +59,7 @@ const char *find_last_whitespace(const char *start_pos, const str_filter_func &f
     return best_candidate_pos;
 }
 
-const char *find_last_character(const char *start_pos, const str_filter_func &fits_on_line, uint32_t max_line_search_chars)
+const char *find_last_character(const char *start_pos, str_filter_func &fits_on_line, uint32_t max_line_search_chars)
 {
     const char *cur_pos = start_pos;
     while (*cur_pos && max_line_search_chars-- > 0)
@@ -77,24 +76,27 @@ const char *find_last_character(const char *start_pos, const str_filter_func &fi
 
 } // namespace
 
-std::vector<std::string> wrap_lines(const std::string &str, const str_filter_func &fits_on_line, uint32_t max_line_search_chars)
+void wrap_lines(
+    const char *str,
+    std::function<bool(const char *, uint32_t)> fits_on_line,
+    std::function<void(const char *, uint32_t)> on_next_line,
+    uint32_t max_line_search_chars
+)
 {
-    std::vector<std::string> lines;
-
-    const char *cur_pos = str.c_str();
-    const char *string_end_pos = cur_pos + str.size();
+    const char *cur_pos = str;
+    const char *string_end_pos = cur_pos + strlen(str);
 
     while (cur_pos < string_end_pos)
     {
         const char *break_pos;
         if ((break_pos = find_last_whitespace(cur_pos, fits_on_line, max_line_search_chars)))
         {
-            lines.emplace_back(std::string(cur_pos, break_pos - cur_pos));
+            on_next_line(cur_pos, break_pos - cur_pos);
             cur_pos = break_pos + 1;
         }
         else if ((break_pos = find_last_character(cur_pos, fits_on_line, max_line_search_chars)))
         {
-            lines.emplace_back(std::string(cur_pos, break_pos - cur_pos));
+            on_next_line(cur_pos, break_pos - cur_pos);
             cur_pos = break_pos;
         }
         else
@@ -102,6 +104,4 @@ std::vector<std::string> wrap_lines(const std::string &str, const str_filter_fun
             throw std::runtime_error("Failed to wrap line");
         }
     }
-
-    return lines;
 }

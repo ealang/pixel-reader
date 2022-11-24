@@ -2,6 +2,7 @@
 #include "./xhtml_parser.h"
 #include "sys/filesystem_path.h"
 
+#include <algorithm>
 #include <iostream>
 #include <zip.h>
 
@@ -156,7 +157,7 @@ const std::vector<TokItem> &EPubReader::get_tok() const
     return _tok_items;
 }
 
-const std::vector<DocToken> EPubReader::get_tokenized_document(std::string item_id) const
+std::vector<DocToken> EPubReader::get_tokenized_document(std::string item_id) const
 {
     auto it = _package.id_to_manifest_item.find(item_id);
     if (it == _package.id_to_manifest_item.end())
@@ -173,11 +174,21 @@ const std::vector<DocToken> EPubReader::get_tokenized_document(std::string item_
         return {};
     }
 
-    if (item.media_type == APPLICATION_XHTML_XML)
+    if (item.media_type != APPLICATION_XHTML_XML)
     {
-        return parse_xhtml_tokens(bytes.data(), item_id);
+        std::cerr << "Unable to parse item " << item_id << " with media type " << item.media_type << std::endl;
+        return {};
     }
 
-    std::cerr << "Unable to parse item " << item_id << " with media type " << item.media_type << std::endl;
-    return {};
+    uint32_t tok_index = (
+        std::find(_package.spine_ids.begin(), _package.spine_ids.end(), item_id) -
+        _package.spine_ids.begin()
+    );
+    if (tok_index >= _tok_items.size())
+    {
+        std::cerr << "Unable to find item in toc " << item_id << std::endl;
+        return {};
+    }
+
+    return parse_xhtml_tokens(bytes.data(), item_id, tok_index);
 }

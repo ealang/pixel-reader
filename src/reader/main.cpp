@@ -39,7 +39,7 @@ std::vector<std::string> get_book_chapters(std::string epub_path)
 }
 std::vector<std::string> get_book_display_lines(std::string epub_path, std::string chapter_name, TTF_Font *font)
 {
-    auto line_fits_on_screen = [font](const char *s, int len) {
+    auto line_fits_on_screen = [font](const char *s, uint32_t len) {
 
         int w = SCREEN_WIDTH, h;
 

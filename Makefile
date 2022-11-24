@@ -12,7 +12,8 @@ ifeq ($(PLATFORM),miyoomini)
 CXXFLAGS := $(CXXFLAGS) \
 	    -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd \
 	    -Icross-compile/miyoo-mini/include/libxml2 \
-	    -Icross-compile/miyoo-mini/include
+	    -Icross-compile/miyoo-mini/include \
+	    -Wno-psabi  # silence "parameter passing for argument of type '...' changed in GCC 7.1" warnings
 LDFLAGS := $(LDFLAGS) \
 	-L$(PREFIX)/lib \
 	-Lcross-compile/miyoo-mini/lib \
@@ -25,10 +26,10 @@ OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)
 INCLUDE  := -Isrc -I${PREFIX}/include/libxml2
 
-COMMON_SRC := $(filter-out src/reader/main.cpp, $(wildcard src/epub/*.cpp src/reader/*.cpp src/sys/*.cpp))
+COMMON_SRC := $(filter-out src/reader/main.cpp, $(wildcard src/epub/*.cpp src/reader/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp))
 READER_SRC := $(COMMON_SRC) src/reader/main.cpp
 SANDBOX_SRC := $(COMMON_SRC) $(wildcard src/sandbox/*.cpp)
-TEST_SRC := $(COMMON_SRC) $(wildcard src/sys/tests/*.cpp src/reader/tests/*.cpp)
+TEST_SRC := $(COMMON_SRC) $(wildcard src/sys/tests/*.cpp src/reader/tests/*.cpp src/epub/tests/*.cpp src/util/tests/*.cpp src/doc_api/tests/*.cpp)
 
 APP_READER_TARGET := reader
 APP_SANDBOX_TARGET := sandbox
