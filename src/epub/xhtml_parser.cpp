@@ -2,6 +2,7 @@
 
 #include "./libxml_iter.h"
 #include "./xhtml_string_util.h"
+#include "doc_api/token_addressing.h"
 
 #include <libxml/parser.h>
 
@@ -243,7 +244,7 @@ class TokenProcessor
 {
     uint32_t chapter_number;
     std::vector<DocToken> &tokens;
-    uint32_t char_count = 0;
+    uint32_t address_offset = 0;
     bool fresh_line = true;
 
 public:
@@ -275,8 +276,7 @@ public:
             }
         }
 
-        DocAddr address = make_address(chapter_number, char_count);
-        char_count += count_non_whitespace_chars(text.c_str());
+        DocAddr address = make_address(chapter_number, address_offset);
 
         if (type == TokenType::Text)
         {
@@ -314,6 +314,9 @@ public:
                 }
             }
         }
+
+        // update address
+        address_offset += get_address_width(text.c_str());
     }
 };
 

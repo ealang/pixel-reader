@@ -9,7 +9,8 @@ namespace {
 
 using str_filter_func = std::function<bool(const char *, uint32_t)>;
 
-bool is_whitespace(char c)
+// Set of characters allowed to break on.
+inline bool is_whitespace(char c)
 {
     return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }

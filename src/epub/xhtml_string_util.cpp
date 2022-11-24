@@ -65,18 +65,3 @@ const char *strip_whitespace_left(const char *str)
     }
     return str;
 }
-
-uint32_t count_non_whitespace_chars(const char *str)
-{
-    uint32_t count = 0;
-    char c;
-    while ((c = *str))
-    {
-        if (!is_whitespace(c))
-        {
-            ++count;
-        }
-        str = utf8_step(str);
-    }
-    return count;
-}

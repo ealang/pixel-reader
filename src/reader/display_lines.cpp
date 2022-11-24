@@ -1,6 +1,7 @@
 #include "./display_lines.h"
+
 #include "./text_wrap.h"
-#include "epub/xhtml_string_util.h"
+#include "doc_api/token_addressing.h"
 
 #include <numeric>
 
@@ -25,7 +26,7 @@ void get_display_lines(
         }
 
         DocAddr start_addr = pending_text_tokens[0]->address;
-        uint32_t char_count = 0;
+        uint32_t address_offset = 0;
 
         uint32_t combined_size = std::accumulate(
             pending_text_tokens.begin(),
@@ -43,9 +44,9 @@ void get_display_lines(
         }
 
         wrap_lines(combined_text.c_str(), fits_on_line, [&](const char *str, uint32_t len) {
-            out_lines.emplace_back(std::string(str, len), increment_address(start_addr, char_count));
+            out_lines.emplace_back(std::string(str, len), increment_address(start_addr, address_offset));
 
-            char_count += count_non_whitespace_chars(out_lines.back().text.c_str());
+            address_offset += get_address_width(out_lines.back().text.c_str());
         });
 
         pending_text_tokens.clear();
