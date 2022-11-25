@@ -103,13 +103,14 @@ std::vector<std::string> get_book_display_lines(std::string epub_path, std::stri
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *font)
 {
+    auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
-        state_store.get_current_browse_path(),
+        browse_path,
         font
     );
 
     auto load_book = [&view_stack, &state_store, font](std::string path) {
-        state_store.store_current_book_path(path);
+        state_store.set_current_book_path(path);
 
         std::cerr << "Loading " << path << std::endl;
         auto chapters = get_book_chapters(path);
@@ -123,7 +124,12 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *
             view_stack.push(std::make_shared<TextView>(text, font, 2));
         });
     };
+
     fs->set_on_file_selected(load_book);
+    fs->set_on_file_focus([&state_store](std::string path) {
+        state_store.set_current_browse_path(path);
+    });
+
     view_stack.push(fs);
 
     if (state_store.get_current_book_path())

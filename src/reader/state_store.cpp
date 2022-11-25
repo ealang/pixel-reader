@@ -12,7 +12,7 @@ void write_store(const std::filesystem::path &path, const StateStore &store)
 {
     std::ofstream fp(path);
     fp << STORE_VERSION << std::endl;
-    fp << store.get_current_browse_path().string() << std::endl;
+    fp << store.get_current_browse_path().value_or("").string() << std::endl;
     fp << store.get_current_book_path().value_or("").string() << std::endl;
     fp.close();
 }
@@ -44,16 +44,16 @@ void load_store(const std::filesystem::path &path, StateStore &store)
 
     if (browse_path.size())
     {
-        store.store_current_browse_path(browse_path);
+        store.set_current_browse_path(browse_path);
     }
     else
     {
-        store.store_current_browse_path(std::filesystem::current_path());
+        store.remove_current_browse_path();
     }
 
     if (book_path.size())
     {
-        store.store_current_book_path(book_path);
+        store.set_current_book_path(book_path);
     }
     else
     {
@@ -74,14 +74,19 @@ StateStore::~StateStore()
 {
 }
 
-const std::filesystem::path &StateStore::get_current_browse_path() const
+const std::optional<std::filesystem::path> &StateStore::get_current_browse_path() const
 {
     return current_browse_path;
 }
 
-void StateStore::store_current_browse_path(std::filesystem::path path)
+void StateStore::set_current_browse_path(std::filesystem::path path)
 {
     current_browse_path = path;
+}
+
+void StateStore::remove_current_browse_path()
+{
+    current_browse_path.reset();
 }
 
 const std::optional<std::filesystem::path> &StateStore::get_current_book_path() const
@@ -89,7 +94,7 @@ const std::optional<std::filesystem::path> &StateStore::get_current_book_path() 
     return current_book_path;
 }
 
-void StateStore::store_current_book_path(std::filesystem::path path)
+void StateStore::set_current_book_path(std::filesystem::path path)
 {
     current_book_path = path;
 }

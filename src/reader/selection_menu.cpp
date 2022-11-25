@@ -24,22 +24,49 @@ SelectionMenu::~SelectionMenu()
 void SelectionMenu::set_entries(std::vector<std::string> new_entries)
 {
     entries = new_entries;
-    cursor_pos = 0;
-    scroll_pos = 0;
 }
 
-void SelectionMenu::set_on_selection(std::function<void(uint32_t)> _on_selection)
+void SelectionMenu::set_on_selection(std::function<void(uint32_t)> callback)
 {
-    on_selection = _on_selection;
+    on_selection = callback;
 }
 
-void SelectionMenu::set_cursor_pos(uint32_t pos)
+void SelectionMenu::set_on_focus(std::function<void(uint32_t)> callback)
 {
-    if (pos < entries.size())
+    on_focus = callback;
+}
+
+void SelectionMenu::set_cursor_pos(const std::string &entry)
+{
+    for (uint32_t i = 0; i < entries.size(); ++i)
     {
-        cursor_pos = pos;
-        // TODO: improve this
-        scroll_pos = std::max(0, static_cast<int>(pos) - (num_display_lines / 2));
+        if (entries[i] == entry)
+        {
+            set_cursor_pos(i);
+            break;
+        }
+    }
+}
+
+void SelectionMenu::set_cursor_pos(uint32_t new_cursor_pos)
+{
+    if (new_cursor_pos >= entries.size())
+    {
+        new_cursor_pos = 0;
+    }
+
+    if (new_cursor_pos != cursor_pos)
+    {
+        cursor_pos = new_cursor_pos;
+        if (on_focus)
+        {
+            on_focus(cursor_pos);
+        }
+
+        scroll_pos = std::max(
+            0, 
+            static_cast<int>(new_cursor_pos) - (static_cast<int>(num_display_lines) / 2 - 1)
+        );
     }
 }
 
@@ -62,10 +89,10 @@ bool SelectionMenu::render(SDL_Surface *dest_surface)
     SDL_FillRect(dest_surface, &rect, rect_bg_color);
 
     // Draw lines
-    for (int i = 0; i < num_display_lines; ++i)
+    for (uint32_t i = 0; i < num_display_lines; ++i)
     {
-        int global_i = i + scroll_pos;
-        if (global_i >= (int)entries.size())
+        uint32_t global_i = i + scroll_pos;
+        if (global_i >= entries.size())
         {
             break;
         }
@@ -97,21 +124,31 @@ bool SelectionMenu::render(SDL_Surface *dest_surface)
 
 void SelectionMenu::on_move_down()
 {
-    int num_entries = entries.size();
-    if (cursor_pos < num_entries - 1)
+    if (cursor_pos < entries.size() - 1)
     {
         cursor_pos++;
         if (cursor_pos >= scroll_pos + num_display_lines)
         {
             scroll_pos = cursor_pos - num_display_lines + 1;
         }
+        if (on_focus)
+        {
+            on_focus(cursor_pos);
+        }
     }
 }
 
 void SelectionMenu::on_move_up()
 {
-    cursor_pos = std::max(cursor_pos - 1, 0);
-    scroll_pos = std::min(scroll_pos, cursor_pos);
+    if (cursor_pos > 0)
+    {
+        cursor_pos--;
+        scroll_pos = std::min(scroll_pos, cursor_pos);
+        if (on_focus)
+        {
+            on_focus(cursor_pos);
+        }
+    }
 }
 
 void SelectionMenu::on_select_entry()

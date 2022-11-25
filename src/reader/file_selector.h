@@ -17,6 +17,7 @@ class FileSelector: public View
     std::unique_ptr<FSState> state;
 
 public:
+    // Expects to receive a path a file, or directory with trailing separator.
     FileSelector(std::filesystem::path path, TTF_Font *font);
     virtual ~FileSelector();
 
@@ -24,7 +25,8 @@ public:
     bool on_keypress(SDLKey key) override;
     bool is_done() override;
 
-    void set_on_file_selected(std::function<void(const std::string &)> on_file_selected);
+    void set_on_file_selected(std::function<void(const std::filesystem::path &)> on_file_selected);
+    void set_on_file_focus(std::function<void(const std::filesystem::path &)> on_file_focus);
 };
 
 #endif

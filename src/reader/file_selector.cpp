@@ -9,10 +9,10 @@
 
 struct FSState
 {
-    // file state
     std::filesystem::path path;
     std::vector<FSEntry> path_entries;
-    std::function<void(std::string)> on_file_selected;
+    std::function<void(const std::filesystem::path &)> on_file_selected;
+    std::function<void(const std::filesystem::path &)> on_file_focus;
 
     SelectionMenu menu;
 
@@ -28,7 +28,7 @@ namespace {
 void refresh_path_entries(FSState *s)
 {
     s->path_entries = directory_listing(s->path);
-    if (s->path != "/")
+    if (s->path.has_parent_path())
     {
         s->path_entries.insert(s->path_entries.begin(), FSEntry::directory(".."));
     }
@@ -45,49 +45,33 @@ void on_menu_entry_selected(FSState *s, uint32_t menu_index)
 {
     if (s->path_entries.empty())
     {
-        std::cerr << "Got selection with no menu entries" << std::endl;
         return;
     }
 
     const FSEntry &entry = s->path_entries[menu_index];
     if (entry.is_dir)
     {
-        std::string highlight_name;
         if (entry.name == "..")
         {
             if (s->path.has_parent_path())
             {
-                highlight_name = s->path.filename();
+                std::string highlight_name = s->path.filename();
+
                 s->path = s->path.parent_path();
+                refresh_path_entries(s);
+                s->menu.set_cursor_pos(highlight_name);
             }
         }
         else
         {
-            // go down a directory
+            // Go down a directory
             s->path /= entry.name;
+            refresh_path_entries(s);
+            s->menu.set_cursor_pos(1); // get past ".." entry
         }
-
-        refresh_path_entries(s);
-
-        // Update selected menu item
-        int new_cursor_pos = 1;
-        if (!highlight_name.empty())
-        {
-            for (int i = 0; i < (int)s->path_entries.size(); ++i)
-            {
-                if (s->path_entries[i].name == highlight_name && s->path_entries[i].is_dir)
-                {
-                    new_cursor_pos = i;
-                    break;
-                }
-            }
-        }
-
-        s->menu.set_cursor_pos(new_cursor_pos);
     }
     else
     {
-        // selected a file
         if (s->on_file_selected)
         {
             s->on_file_selected(s->path / entry.name);
@@ -95,19 +79,68 @@ void on_menu_entry_selected(FSState *s, uint32_t menu_index)
     }
 }
 
+void on_menu_entry_focused(FSState *s, uint32_t menu_index)
+{
+    if (!s->path_entries.empty() && s->on_file_focus)
+    {
+        const auto &entry = s->path_entries[menu_index];
+        s->on_file_focus(s->path / entry.name);
+    }
+}
+
+std::filesystem::path sanitize_starting_path(std::filesystem::path path)
+{
+    path = std::filesystem::absolute(path);
+
+    if (path.has_parent_path())
+    {
+        // get the directory component
+        path = path.parent_path();
+    }
+
+    // make sure path exists
+    while (!std::filesystem::is_directory(path))
+    {
+        std::cerr << "Directory " << path << " does not exist" << std::endl;
+        if (path.has_parent_path())
+        {
+            path = path.parent_path();
+        }
+        else
+        {
+            path = std::filesystem::current_path();
+            break;
+        }
+    }
+
+    return path;
+}
+
 } // namespace
 
 FileSelector::FileSelector(std::filesystem::path path, TTF_Font *font)
     : state(std::make_unique<FSState>(
-          std::filesystem::absolute(path),
+          sanitize_starting_path(path),
           font
       ))
 {
-    refresh_path_entries(state.get());
-
     state->menu.set_on_selection([this](uint32_t menu_index) {
         on_menu_entry_selected(this->state.get(), menu_index);
     });
+
+    state->menu.set_on_focus([this](uint32_t menu_index) {
+        on_menu_entry_focused(this->state.get(), menu_index);
+    });
+
+    refresh_path_entries(state.get());
+    if (path.has_filename())
+    {
+        state->menu.set_cursor_pos(path.filename());
+    }
+    else
+    {
+        state->menu.set_cursor_pos(1); // get past ".." entry
+    }
 }
 
 FileSelector::~FileSelector()
@@ -129,7 +162,12 @@ bool FileSelector::is_done()
     return state->menu.is_done();
 }
 
-void FileSelector::set_on_file_selected(std::function<void(const std::string &)> on_file_selected)
+void FileSelector::set_on_file_selected(std::function<void(const std::filesystem::path &)> callback)
 {
-    state->on_file_selected = on_file_selected;
+    state->on_file_selected = callback;
+}
+
+void FileSelector::set_on_file_focus(std::function<void(const std::filesystem::path &)> callback)
+{
+    state->on_file_focus = callback;
 }
