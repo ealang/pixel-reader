@@ -13,4 +13,7 @@ uint32_t get_text_number(DocAddr addr);
 
 std::string to_string(const DocAddr &address);
 
+std::string encode_address(const DocAddr &address);
+DocAddr decode_address(const std::string &address);
+
 #endif

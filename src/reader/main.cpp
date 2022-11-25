@@ -1,8 +1,8 @@
 #include "sys/screen.h"
 #include "sys/keymap.h"
 
-#include "./file_selector.h"
 #include "./state_store.h"
+#include "./file_selector.h"
 #include "./reader_view.h"
 #include "./view_stack.h"
 
@@ -27,9 +27,14 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *
         std::cerr << "Loading " << path << std::endl;
         auto reader_view = std::make_shared<ReaderView>(
             path,
+            state_store.get_book_address(path).value_or(0),
             font,
             view_stack
         );
+
+        reader_view->set_on_change_address([&state_store, path](const DocAddr &addr) {
+            state_store.set_book_address(path, addr);
+        });
         reader_view->set_on_quit([&state_store]() {
             state_store.remove_current_book_path();
         });
@@ -54,6 +59,7 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *
 
 int main (int, char *[])
 {
+    // SDL Init
     SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
     TTF_Init();
@@ -61,6 +67,7 @@ int main (int, char *[])
     SDL_Surface *video = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
 
+    // Font
     int font_size = 24;
     TTF_Font *font = TTF_OpenFont("fonts/DejaVuSerif.ttf", font_size);
 
@@ -70,9 +77,12 @@ int main (int, char *[])
         return 1;
     }
 
-    ViewStack view_stack;
-    StateStore state_store(std::filesystem::current_path() / ".state");
+    // Stores
+    auto base_dir = std::filesystem::current_path() / ".state";
+    StateStore state_store(base_dir);
 
+    // Views
+    ViewStack view_stack;
     initialize_views(view_stack, state_store, font);
     view_stack.render(screen);
 

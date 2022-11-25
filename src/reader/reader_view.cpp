@@ -18,9 +18,12 @@ struct ReaderViewState
     bool is_done = false;
 
     std::function<void()> on_quit;
+    std::function<void(const DocAddr &)> on_change_address;
+
     EPubReader reader;
     TTF_Font *font;
-    uint32_t chapter_index = 0;
+    DocAddr current_address;
+    uint32_t current_chapter_index;
 
     ViewStack &view_stack;
     std::shared_ptr<TextView> text_view;
@@ -102,15 +105,20 @@ void open_chapter_select(ReaderView &reader_view, ReaderViewState &state)
         return reader_view.open_chapter(chapter_index);
     });
     chapter_select->set_close_on_select();
-    chapter_select->set_cursor_pos(state.chapter_index);
+    chapter_select->set_cursor_pos(state.current_chapter_index);
 
     state.view_stack.push(chapter_select);
 }
 
 } // namespace
 
-ReaderView::ReaderView(std::filesystem::path path, TTF_Font *font, ViewStack &view_stack)
-    : state(std::make_unique<ReaderViewState>(path, font, view_stack))
+
+ReaderView::ReaderView(
+    std::filesystem::path path,
+    DocAddr address,
+    TTF_Font *font,
+    ViewStack &view_stack
+) : state(std::make_unique<ReaderViewState>(path, font, view_stack))
 {
     if (!state->reader.open())
     {
@@ -120,7 +128,7 @@ ReaderView::ReaderView(std::filesystem::path path, TTF_Font *font, ViewStack &vi
     }
     else
     {
-        state->text_view = make_chapter_view(*state, 0);
+        open_chapter(get_chapter_number(address));
     }
 }
 
@@ -171,8 +179,18 @@ void ReaderView::set_on_quit(std::function<void()> callback)
     state->on_quit = callback;
 }
 
+void ReaderView::set_on_change_address(std::function<void(const DocAddr &)> callback)
+{
+    state->on_change_address = callback;
+}
+
 void ReaderView::open_chapter(uint32_t chapter_index)
 {
     state->text_view = make_chapter_view(*state, chapter_index);
-    state->chapter_index = chapter_index;
+    state->current_address = make_address(chapter_index, 0);
+    state->current_chapter_index = chapter_index;
+    if (state->on_change_address)
+    {
+        state->on_change_address(state->current_address);
+    }
 }

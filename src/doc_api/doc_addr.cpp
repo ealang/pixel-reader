@@ -2,6 +2,8 @@
 
 #include <iomanip>
 
+#define ADDRESS_VERSION "v1"
+
 #define TEXT_START 0
 #define TEXT_BITS 32
 #define TEXT_MASK (((DocAddr)1 << TEXT_BITS) - 1)
@@ -47,4 +49,31 @@ std::string to_string(const DocAddr &address)
        << std::setw(4) << text_number;
 
     return ss.str();
+}
+
+std::string encode_address(const DocAddr &address)
+{
+    std::stringstream ss;
+    ss << ADDRESS_VERSION << " "
+       << std::hex << std::setfill('0') << std::setw(16)
+       << address;
+    return ss.str();
+}
+
+DocAddr decode_address(const std::string &address)
+{
+    std::stringstream ss(address);
+
+    std::string version, value;
+    ss >> version >> value;
+
+    if (version != ADDRESS_VERSION)
+    {
+        return 0;
+    }
+
+    DocAddr high = std::stoi(value.substr(0, 8), nullptr, 16);
+    DocAddr low = std::stoi(value.substr(8, 16), nullptr, 16);
+
+    return high << 32 | low;
 }
