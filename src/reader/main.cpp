@@ -1,15 +1,16 @@
-#include "sys/screen.h"
-#include "sys/keymap.h"
 #include "sys/filesystem.h"
+#include "sys/keymap.h"
+#include "sys/screen.h"
 #include "sys/timer.h"
 
 #include "epub/epub_reader.h"
 
 #include "./display_lines.h"
 #include "./file_selector.h"
+#include "./selection_menu.h"
+#include "./state_store.h"
 #include "./text_view.h"
 #include "./view_stack.h"
-#include "./selection_menu.h"
 
 #include <SDL/SDL.h>
 #include <iostream>
@@ -37,6 +38,7 @@ std::vector<std::string> get_book_chapters(std::string epub_path)
     }
     return {"error opening"};
 }
+
 std::vector<std::string> get_book_display_lines(std::string epub_path, std::string chapter_name, TTF_Font *font)
 {
     auto line_fits_on_screen = [font](const char *s, uint32_t len) {
@@ -99,36 +101,41 @@ std::vector<std::string> get_book_display_lines(std::string epub_path, std::stri
     return {"error opening"};
 }
 
-std::shared_ptr<View> app_main(ViewStack &view_stack, std::string starting_path, TTF_Font *font)
+void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *font)
 {
-    std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(starting_path, font);
+    std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
+        state_store.get_current_browse_path(),
+        font
+    );
 
-    fs->set_on_file_selected([font, &view_stack](std::string path) {
+    auto load_book = [&view_stack, &state_store, font](std::string path) {
+        state_store.store_current_book_path(path);
+
+        std::cerr << "Loading " << path << std::endl;
         auto chapters = get_book_chapters(path);
         auto chapter_select = std::make_shared<SelectionMenu>(chapters, font);
         view_stack.push(chapter_select);
 
         chapter_select->set_on_selection([font, path, chapters, &view_stack](uint32_t chapter_index) {
             auto chapter = chapters[chapter_index];
-            std::cout << "selected chapter " << chapter << std::endl;
+            std::cout << "Selected chapter " << chapter << std::endl;
             auto text = get_book_display_lines(path, chapter, font);
             view_stack.push(std::make_shared<TextView>(text, font, 2));
         });
-    });
+    };
+    fs->set_on_file_selected(load_book);
+    view_stack.push(fs);
 
-    return fs;
+    if (state_store.get_current_book_path())
+    {
+        load_book(state_store.get_current_book_path().value());
+    }
 }
 
 } // namespace
 
-int main (int argc, char *argv[])
+int main (int, char *[])
 {
-    std::string starting_path = get_cwd();
-    if (argc == 2)
-    {
-        starting_path = argv[1];
-    }
-
     SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
     TTF_Init();
@@ -146,7 +153,9 @@ int main (int argc, char *argv[])
     }
 
     ViewStack view_stack;
-    view_stack.push(app_main(view_stack, starting_path, font));
+    StateStore state_store(std::filesystem::current_path() / ".state");
+
+    initialize_views(view_stack, state_store, font);
     view_stack.render(screen);
 
     SDL_BlitSurface(screen, NULL, video, NULL);
@@ -193,6 +202,8 @@ int main (int argc, char *argv[])
             }
         }
     }
+
+    state_store.flush();
 
     TTF_CloseFont(font);
     SDL_FreeSurface(screen);
