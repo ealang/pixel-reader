@@ -1,9 +1,9 @@
 #include "./epub_metadata.h"
 #include "./libxml_iter.h"
-#include "sys/filesystem_path.h"
 
-#include <iostream>
 #include <cstring>
+#include <filesystem>
+#include <iostream>
 #include <libxml/parser.h>
 
 std::string epub_get_rootfile_path(const char *container_xml)
@@ -63,7 +63,7 @@ static std::unordered_map<std::string, ManifestItem> _parse_package_manifest(std
             manifest.emplace(
                 std::string((const char*) id),
                 ManifestItem{
-                    fs_path_join(base_href, (const char*) href),
+                    std::filesystem::path(base_href) / ((const char*) href),
                     std::string((const char*) media_type)
                 }
             );
@@ -106,7 +106,7 @@ bool epub_get_package_contents(std::string rootfile_path, const char *package_xm
     }
 
     xmlNodePtr node = xmlDocGetRootElement(package_doc);
-    std::string base_href = fs_path_split_dir(rootfile_path).first;
+    std::string base_href = std::filesystem::path(rootfile_path).parent_path();
 
     out_package.id_to_manifest_item = _parse_package_manifest(base_href, node);
     out_package.spine_ids = _parse_package_spine(node);

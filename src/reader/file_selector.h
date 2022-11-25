@@ -4,6 +4,7 @@
 #include "./view.h"
 
 #include <functional>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <SDL/SDL_ttf.h>
@@ -16,7 +17,7 @@ class FileSelector: public View
     std::unique_ptr<FSState> state;
 
 public:
-    FileSelector(std::string path, TTF_Font *font);
+    FileSelector(std::filesystem::path path, TTF_Font *font);
     virtual ~FileSelector();
 
     bool render(SDL_Surface *dest_surface);

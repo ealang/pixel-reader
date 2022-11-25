@@ -16,6 +16,5 @@ struct FSEntry
 };
 
 std::vector<FSEntry> directory_listing(const std::string& path);
-std::string get_cwd();
 
 #endif

@@ -1,8 +1,8 @@
 #include "./epub_reader.h"
 #include "./xhtml_parser.h"
-#include "sys/filesystem_path.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <zip.h>
 
@@ -129,7 +129,7 @@ bool EPubReader::open()
             auto &item = _package.id_to_manifest_item[doc_id];
             if (item.media_type == APPLICATION_XHTML_XML)
             {
-                auto name = fs_path_split_dir(item.href).second; // TODO: better name
+                auto name = std::filesystem::path(item.href).filename(); // TODO: better name
                 _tok_items.emplace_back(doc_id, name);
             }
         }

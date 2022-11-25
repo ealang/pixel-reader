@@ -6,7 +6,7 @@ endif
 PREFIX ?= /usr
 
 CXXFLAGS := -pedantic-errors -Wall -Wextra -std=c++17 -O2
-LDFLAGS  := -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2
+LDFLAGS  := -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2 -lstdc++fs
 
 ifeq ($(PLATFORM),miyoomini)
 CXXFLAGS := $(CXXFLAGS) \

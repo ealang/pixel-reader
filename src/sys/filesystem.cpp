@@ -1,17 +1,9 @@
 #include "./filesystem.h"
 
+#include <algorithm>
 #include <cstring>
 #include <dirent.h>
-#include <algorithm>
 #include <unistd.h>
-
-std::string get_cwd()
-{
-    char *cwd_buffer = get_current_dir_name();
-    std::string cwd = cwd_buffer;
-    free(cwd_buffer);
-    return cwd;
-}
 
 std::vector<FSEntry> directory_listing(const std::string& path)
 {
@@ -24,7 +16,7 @@ std::vector<FSEntry> directory_listing(const std::string& path)
     struct dirent* entry;
     while ((entry = readdir(dir)) != NULL) {
 
-        if (entry && entry->d_name)
+        if (entry && strlen(entry->d_name))
         {
             bool is_dir = entry->d_type == DT_DIR;
             bool is_file = entry->d_type == DT_REG;

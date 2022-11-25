@@ -2,21 +2,21 @@
 #include "./selection_menu.h"
 
 #include "sys/filesystem.h"
-#include "sys/filesystem_path.h"
 
+#include <filesystem>
 #include <iostream>
 #include <vector>
 
 struct FSState
 {
     // file state
-    std::string path;
+    std::filesystem::path path;
     std::vector<FSEntry> path_entries;
     std::function<void(std::string)> on_file_selected;
 
     SelectionMenu menu;
 
-    FSState(std::string path, TTF_Font *font)
+    FSState(std::filesystem::path path, TTF_Font *font)
         : path(path),
           menu(font)
     {
@@ -55,13 +55,16 @@ void on_menu_entry_selected(FSState *s, uint32_t menu_index)
         std::string highlight_name;
         if (entry.name == "..")
         {
-            highlight_name = fs_path_split_dir(s->path).second;
-            s->path = fs_path_parent(s->path);
+            if (s->path.has_parent_path())
+            {
+                highlight_name = s->path.filename();
+                s->path = s->path.parent_path();
+            }
         }
         else
         {
             // go down a directory
-            s->path = fs_path_join(s->path, entry.name);
+            s->path /= entry.name;
         }
 
         refresh_path_entries(s);
@@ -87,17 +90,16 @@ void on_menu_entry_selected(FSState *s, uint32_t menu_index)
         // selected a file
         if (s->on_file_selected)
         {
-            std::string full_path = fs_path_join(s->path, entry.name);
-            s->on_file_selected(full_path);
+            s->on_file_selected(s->path / entry.name);
         }
     }
 }
 
 } // namespace
 
-FileSelector::FileSelector(std::string path, TTF_Font *font)
+FileSelector::FileSelector(std::filesystem::path path, TTF_Font *font)
     : state(std::make_unique<FSState>(
-          fs_path_make_absolute(path, get_cwd()),
+          std::filesystem::absolute(path),
           font
       ))
 {

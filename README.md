@@ -4,12 +4,8 @@
 
 ## Build
 
-Dependencies:
-- libsdl1.2 (+image, ttf2)
-- libxml2
-- libzip
-
 ```
+apt install make c++ libxml2-dev libzip-dev libsdl1.2-dev libsdl-ttf2.0-dev libsdl-image1.2-dev
 make build
 ```
 
@@ -19,7 +15,7 @@ Find app in `build/reader`.
 
 Cross-compile env is provided by [shauninman/union-miyoomini-toolchain](https://github.com/shauninman/union-miyoomini-toolchain). Docker is required.
 
-Be sure to fetch submodules:
+Fetch submodules:
 
 ```
 git submodule init && git submodule update
