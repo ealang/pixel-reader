@@ -6,8 +6,6 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <SDL/SDL_ttf.h>
-#include <SDL/SDL_video.h>
 
 struct TextViewState;
 
@@ -16,16 +14,16 @@ class TextView: public View
     std::unique_ptr<TextViewState> state;
     TTF_Font *font;
     int line_height;
-    int line_padding;
-    bool _is_done = false;
+    int line_padding = 2;
 
 public:
-    TextView(std::vector<std::string> lines, TTF_Font *font, int line_padding);
+    TextView(std::vector<std::string> lines, TTF_Font *font);
     virtual ~TextView();
 
     bool render(SDL_Surface *dest_surface) override;
     bool on_keypress(SDLKey key) override;
     bool is_done() override;
+    void on_lose_focus() override;
 };
 
 #endif

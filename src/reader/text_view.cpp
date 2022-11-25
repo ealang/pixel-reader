@@ -18,11 +18,10 @@ struct TextViewState
     TextViewState(std::vector<std::string> lines) : lines(lines) {}
 };
 
-TextView::TextView(std::vector<std::string> lines, TTF_Font *font, int line_padding)
+TextView::TextView(std::vector<std::string> lines, TTF_Font *font)
     : state(std::make_unique<TextViewState>(lines)),
       font(font),
-      line_height(detect_line_height(font)),
-      line_padding(line_padding)
+      line_height(detect_line_height(font))
 {
 
     state->num_display_lines = (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
@@ -104,7 +103,6 @@ bool TextView::on_keypress(SDLKey key)
             }
             break;
         default:
-            _is_done = true;
             break;
     }
 
@@ -113,5 +111,10 @@ bool TextView::on_keypress(SDLKey key)
 
 bool TextView::is_done()
 {
-    return _is_done;
+    return false;
+}
+
+void TextView::on_lose_focus()
+{
+    state->needs_render = true;
 }

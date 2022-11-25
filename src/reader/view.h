@@ -1,8 +1,9 @@
 #ifndef VIEW_H_
 #define VIEW_H_
 
-#include <SDL/SDL_video.h>
 #include <SDL/SDL_keysym.h>
+#include <SDL/SDL_ttf.h>
+#include <SDL/SDL_video.h>
 
 class View
 {

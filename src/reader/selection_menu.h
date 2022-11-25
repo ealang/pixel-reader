@@ -14,10 +14,11 @@ class SelectionMenu: public View
     std::vector<std::string> entries;
     uint32_t cursor_pos = 0;
     uint32_t scroll_pos = 0;
+    bool close_on_select = false;
 
     TTF_Font *font;
     int line_height;
-    int line_padding = 2;
+    int line_padding = 2; // TODO
     uint32_t num_display_lines;
 
     bool _is_done = false;
@@ -37,6 +38,7 @@ public:
     void set_entries(std::vector<std::string> new_entries);
     void set_on_selection(std::function<void(uint32_t)> callback);
     void set_on_focus(std::function<void(uint32_t)> callback);
+    void set_close_on_select();
 
     void set_cursor_pos(const std::string &entry);
     void set_cursor_pos(uint32_t pos);

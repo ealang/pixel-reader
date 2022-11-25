@@ -36,6 +36,11 @@ void SelectionMenu::set_on_focus(std::function<void(uint32_t)> callback)
     on_focus = callback;
 }
 
+void SelectionMenu::set_close_on_select()
+{
+    close_on_select = true;
+}
+
 void SelectionMenu::set_cursor_pos(const std::string &entry)
 {
     for (uint32_t i = 0; i < entries.size(); ++i)
@@ -156,6 +161,11 @@ void SelectionMenu::on_select_entry()
     if (!entries.empty() && on_selection)
     {
         on_selection(cursor_pos);
+    }
+
+    if (close_on_select)
+    {
+        _is_done = true;
     }
 }
 
