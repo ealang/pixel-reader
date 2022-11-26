@@ -21,7 +21,11 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *
         font
     );
 
-    auto load_book = [&view_stack, &state_store, font](std::string path) {
+    auto load_book = [&view_stack, &state_store, font](std::filesystem::path path) {
+        if (path.extension() != ".epub")
+        {
+            return;
+        }
         state_store.set_current_book_path(path);
 
         std::cerr << "Loading " << path << std::endl;
@@ -32,8 +36,8 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *
             view_stack
         );
 
-        reader_view->set_on_change_address([&state_store, path](const DocAddr &addr) {
-            state_store.set_book_address(path, addr);
+        reader_view->set_on_change_address([&state_store, path_str=path.string()](const DocAddr &addr) {
+            state_store.set_book_address(path_str, addr);
         });
         reader_view->set_on_quit([&state_store]() {
             state_store.remove_current_book_path();
