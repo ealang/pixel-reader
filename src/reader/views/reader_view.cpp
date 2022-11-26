@@ -20,10 +20,11 @@ struct ReaderViewState
     std::function<void()> on_quit;
     std::function<void(const DocAddr &)> on_change_address;
 
+    uint32_t current_chapter_index = -1;
+    std::vector<uint32_t> line_addresses;
+
     EPubReader reader;
     TTF_Font *font;
-    DocAddr current_address;
-    uint32_t current_chapter_index;
 
     ViewStack &view_stack;
     std::shared_ptr<TextView> text_view;
@@ -72,27 +73,25 @@ std::shared_ptr<TextView> make_chapter_view(ReaderViewState &state, uint32_t cha
     auto tokens = state.reader.get_tokenized_document(chapter.doc_id);
     std::cerr << "Got " << tokens.size() << " tokens" << std::endl;
 
-    // TODO
-    std::vector<Line> display_lines;
+    std::vector<std::string> text_lines;
+    state.line_addresses.clear();
+
     get_display_lines(
         tokens,
         line_fits_on_screen,
-        display_lines
+        [&text_lines, &addresses=state.line_addresses](const std::string &text, const DocAddr &start_addr) {
+            text_lines.push_back(text);
+            addresses.push_back(get_text_number(start_addr));
+        }
     );
 
-    std::vector<std::string> lines;
-    for (auto &line : display_lines)
-    {
-        lines.emplace_back(line.text);
-    }
-
     return std::make_shared<TextView>(
-        lines,
+        text_lines,
         state.font
     );
 }
 
-void open_chapter_select(ReaderView &reader_view, ReaderViewState &state)
+void open_chapter_menu(ReaderView &reader_view, ReaderViewState &state)
 {
     std::vector<std::string> chapters;
     for (const auto &tok: state.reader.get_tok())
@@ -110,12 +109,27 @@ void open_chapter_select(ReaderView &reader_view, ReaderViewState &state)
     state.view_stack.push(chapter_select);
 }
 
+DocAddr get_current_address(ReaderViewState &state)
+{
+    uint32_t text_address = 0;
+    uint32_t line_index = state.text_view->get_line_number();
+    if (line_index < state.line_addresses.size())
+    {
+        text_address = state.line_addresses[line_index];
+    }
+
+    return make_address(
+        state.current_chapter_index,
+        text_address
+    );
+}
+
 } // namespace
 
 
 ReaderView::ReaderView(
     std::filesystem::path path,
-    DocAddr address,
+    DocAddr seek_address,
     TTF_Font *font,
     ViewStack &view_stack
 ) : state(std::make_unique<ReaderViewState>(path, font, view_stack))
@@ -128,7 +142,7 @@ ReaderView::ReaderView(
     }
     else
     {
-        open_chapter(get_chapter_number(address));
+        open_address(seek_address);
     }
 }
 
@@ -154,7 +168,7 @@ bool ReaderView::on_keypress(SDLKey key)
         case SW_BTN_SELECT:
             if (!state->is_zombie)
             {
-                open_chapter_select(*this, *state);
+                open_chapter_menu(*this, *state);
             }
             break;
         default:
@@ -174,7 +188,17 @@ void ReaderView::on_lose_focus()
     state->text_view->on_lose_focus();
 }
 
-void ReaderView::set_on_quit(std::function<void()> callback)
+void ReaderView::on_pop()
+{
+    if (state->on_change_address)
+    {
+        state->on_change_address(
+            get_current_address(*state)
+        );
+    }
+}
+
+void ReaderView::set_on_quit_requested(std::function<void()> callback)
 {
     state->on_quit = callback;
 }
@@ -186,11 +210,34 @@ void ReaderView::set_on_change_address(std::function<void(const DocAddr &)> call
 
 void ReaderView::open_chapter(uint32_t chapter_index)
 {
-    state->text_view = make_chapter_view(*state, chapter_index);
-    state->current_address = make_address(chapter_index, 0);
-    state->current_chapter_index = chapter_index;
-    if (state->on_change_address)
+    if (chapter_index != state->current_chapter_index)
     {
-        state->on_change_address(state->current_address);
+        state->text_view = make_chapter_view(*state, chapter_index);
+        state->current_chapter_index = chapter_index;
     }
+}
+
+void ReaderView::open_address(DocAddr address)
+{
+    // Find chapter
+    open_chapter(get_chapter_number(address));
+
+    // Find line
+    uint32_t text_address = get_text_number(address);
+
+    uint32_t best_line_number = 0;
+    uint32_t line_number = 0;
+    for (const auto &line_addr: state->line_addresses)
+    {
+        if (line_addr <= text_address)
+        {
+            best_line_number = line_number;
+        }
+        else
+        {
+            break;
+        }
+        ++line_number;
+    }
+    state->text_view->set_line_number(best_line_number);
 }

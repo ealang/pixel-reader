@@ -26,11 +26,9 @@ void display_epub(std::string path)
         auto tokens = epub.get_tokenized_document(tok.doc_id);
         std::cout << "Contains " << tokens.size() << " tokens" << std::endl;
 
-        std::vector<Line> display_lines;
-        get_display_lines(
+        std::vector<Line> display_lines = get_display_lines(
             tokens,
-            fits_on_line_by_char,
-            display_lines
+            fits_on_line_by_char
         );
 
         std::cout << "Contains " << display_lines.size() << " lines" << std::endl;

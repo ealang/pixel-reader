@@ -19,11 +19,9 @@ void display_xhtml(std::string path)
 
     auto tokens = parse_xhtml_tokens(buffer.str().c_str(), path);
 
-    std::vector<Line> display_lines;
-    get_display_lines(
+    std::vector<Line> display_lines = get_display_lines(
         tokens,
-        fits_on_line_by_char,
-        display_lines
+        fits_on_line_by_char
     );
 
     std::cout << path << std::endl;

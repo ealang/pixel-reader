@@ -39,7 +39,7 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *
         reader_view->set_on_change_address([&state_store, path_str=path.string()](const DocAddr &addr) {
             state_store.set_book_address(path_str, addr);
         });
-        reader_view->set_on_quit([&state_store]() {
+        reader_view->set_on_quit_requested([&state_store]() {
             state_store.remove_current_book_path();
         });
 
@@ -117,6 +117,8 @@ int main (int, char *[])
                             view_stack.on_keypress(key);
                         }
 
+                        view_stack.pop_completed_views();
+
                         if (view_stack.is_done())
                         {
                             quit = true;
@@ -135,6 +137,7 @@ int main (int, char *[])
         }
     }
 
+    view_stack.shutdown();
     state_store.flush();
 
     TTF_CloseFont(font);

@@ -24,6 +24,9 @@ public:
     bool on_keypress(SDLKey key) override;
     bool is_done() override;
     void on_lose_focus() override;
+
+    uint32_t get_line_number() const;
+    void set_line_number(uint32_t line_number);
 };
 
 #endif

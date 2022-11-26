@@ -34,9 +34,15 @@ bool ViewStack::on_keypress(SDLKey key)
 
 bool ViewStack::is_done()
 {
+    return views.empty();
+}
+
+void ViewStack::pop_completed_views()
+{
     bool changed_focus = false;
     while (!views.empty() && views.back()->is_done())
     {
+        views.back()->on_pop();
         views.pop_back();
         changed_focus = true;
     }
@@ -47,8 +53,14 @@ bool ViewStack::is_done()
         {
             views.back()->on_gain_focus();
         }
-        return false;
     }
+}
 
-    return true;
+void ViewStack::shutdown()
+{
+    while (!views.empty())
+    {
+        views.back()->on_pop();
+        views.pop_back();
+    }
 }

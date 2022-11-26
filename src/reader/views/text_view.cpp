@@ -118,3 +118,17 @@ void TextView::on_lose_focus()
 {
     state->needs_render = true;
 }
+
+uint32_t TextView::get_line_number() const
+{
+    return state->scroll_pos;
+}
+
+void TextView::set_line_number(uint32_t line_number)
+{
+    if (line_number < state->lines.size())
+    {
+        state->scroll_pos = line_number;
+        state->needs_render = true;
+    }
+}

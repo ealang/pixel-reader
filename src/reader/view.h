@@ -17,8 +17,14 @@ public:
     // Return true if the view is no longer needed.
     virtual bool is_done() = 0;
 
+    // A different view has been pushed on top.
     virtual void on_lose_focus() {}
+
+    // This view is now on top.
     virtual void on_gain_focus() {}
+
+    // This view has been popped from the stack (now defunct).
+    virtual void on_pop() {}
 };
 
 #endif

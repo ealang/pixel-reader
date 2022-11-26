@@ -18,7 +18,7 @@ class ReaderView: public View
 public:
     ReaderView(
         std::filesystem::path path,
-        DocAddr address,
+        DocAddr seek_address,
         TTF_Font *font,
         ViewStack &view_stack
     );
@@ -28,11 +28,13 @@ public:
     bool on_keypress(SDLKey key) override;
     bool is_done() override;
     void on_lose_focus() override;
+    void on_pop() override;
 
-    void set_on_quit(std::function<void()> callback);
+    void set_on_quit_requested(std::function<void()> callback);
     void set_on_change_address(std::function<void(const DocAddr &)> callback);
 
     void open_chapter(uint32_t chapter_index);
+    void open_address(DocAddr address);
 };
 
 #endif

@@ -16,6 +16,11 @@ public:
     bool render(SDL_Surface *dest) override;
     bool on_keypress(SDLKey key) override;
     bool is_done() override;
+
+    // Pop views that report as done.
+    void pop_completed_views();
+    // Pop all views.
+    void shutdown();
 };
 
 #endif

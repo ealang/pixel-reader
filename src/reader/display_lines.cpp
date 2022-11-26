@@ -13,7 +13,7 @@ Line::Line(std::string text, DocAddr address)
 void get_display_lines(
     const std::vector<DocToken> &tokens,
     const std::function<bool(const char *, uint32_t)> &fits_on_line,
-    std::vector<Line> &out_lines
+    std::function<void(const std::string &, const DocAddr &)> on_line
 )
 {
     std::vector<const DocToken *> pending_text_tokens;
@@ -44,9 +44,10 @@ void get_display_lines(
         }
 
         wrap_lines(combined_text.c_str(), fits_on_line, [&](const char *str, uint32_t len) {
-            out_lines.emplace_back(std::string(str, len), increment_address(start_addr, address_offset));
+            std::string line_text = std::string(str, len);
+            on_line(line_text, increment_address(start_addr, address_offset));
 
-            address_offset += get_address_width(out_lines.back().text.c_str());
+            address_offset += get_address_width(line_text.c_str());
         });
 
         pending_text_tokens.clear();
@@ -61,7 +62,7 @@ void get_display_lines(
         else if (token.type == TokenType::Section)
         {
             emit_pending_text();
-            out_lines.emplace_back("", token.address);
+            on_line("", token.address);
         }
         else if (token.type == TokenType::Block)
         {
@@ -70,4 +71,18 @@ void get_display_lines(
     }
 
     emit_pending_text();
+}
+
+std::vector<Line> get_display_lines(
+    const std::vector<DocToken> &tokens,
+    const std::function<bool(const char *, uint32_t)> &fits_on_line
+)
+{
+    std::vector<Line> lines;
+
+    get_display_lines(tokens, fits_on_line, [&](const std::string &text, const DocAddr &address) {
+        lines.push_back(Line(text, address));
+    });
+
+    return lines;
 }
