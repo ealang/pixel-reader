@@ -1,6 +1,6 @@
 #include "./text_view.h"
-#include "./text_wrap.h"
-#include "./sdl_utils.h"
+#include "reader/text_wrap.h"
+#include "reader/sdl_utils.h"
 
 #include "sys/keymap.h"
 #include "sys/screen.h"

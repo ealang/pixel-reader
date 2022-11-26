@@ -1,7 +1,7 @@
 #ifndef SELECTION_MENU_H_
 #define SELECTION_MENU_H_
 
-#include "./view.h"
+#include "reader/view.h"
 
 #include <SDL/SDL_ttf.h>
 

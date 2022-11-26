@@ -1,8 +1,8 @@
 #ifndef READER_VIEW_H_
 #define READER_VIEW_H_
 
-#include "./view.h"
-#include "./doc_api/doc_addr.h"
+#include "doc_api/doc_addr.h"
+#include "reader/view.h"
 
 #include <filesystem>
 #include <functional>

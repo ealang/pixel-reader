@@ -2,7 +2,7 @@
 
 #include "sys/screen.h"
 #include "sys/keymap.h"
-#include "./sdl_utils.h"
+#include "reader/sdl_utils.h"
 
 SelectionMenu::SelectionMenu(TTF_Font *font)
     : SelectionMenu({}, font)

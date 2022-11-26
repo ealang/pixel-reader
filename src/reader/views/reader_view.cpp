@@ -1,9 +1,9 @@
 #include "./reader_view.h"
 
-#include "./display_lines.h"
+#include "reader/display_lines.h"
+#include "reader/view_stack.h"
 #include "./selection_menu.h"
 #include "./text_view.h"
-#include "./view_stack.h"
 
 #include "epub/epub_reader.h"
 #include "sys/keymap.h"

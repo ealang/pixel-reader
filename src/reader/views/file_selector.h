@@ -1,7 +1,7 @@
 #ifndef FILE_SELECTOR_H_
 #define FILE_SELECTOR_H_
 
-#include "./view.h"
+#include "reader/view.h"
 
 #include <functional>
 #include <filesystem>

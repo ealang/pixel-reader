@@ -1,7 +1,7 @@
 #ifndef TEXT_VIEW_H_
 #define TEXT_VIEW_H_
 
-#include "./view.h"
+#include "reader/view.h"
 
 #include <memory>
 #include <vector>

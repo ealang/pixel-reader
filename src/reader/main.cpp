@@ -2,9 +2,9 @@
 #include "sys/keymap.h"
 
 #include "./state_store.h"
-#include "./file_selector.h"
-#include "./reader_view.h"
 #include "./view_stack.h"
+#include "./views/file_selector.h"
+#include "./views/reader_view.h"
 
 #include <SDL/SDL.h>
 #include <iostream>
