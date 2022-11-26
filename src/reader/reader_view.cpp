@@ -146,7 +146,7 @@ bool ReaderView::on_keypress(SDLKey key)
     switch (key) {
         case SW_BTN_B:
             state->is_done = true;
-            if (state->on_quit)
+            if (!state->is_zombie && state->on_quit)
             {
                 state->on_quit();
             }

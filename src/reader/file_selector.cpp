@@ -28,7 +28,7 @@ namespace {
 void refresh_path_entries(FSState *s)
 {
     s->path_entries = directory_listing(s->path);
-    if (s->path.has_parent_path())
+    if (s->path.has_parent_path() && s->path != s->path.root_path())
     {
         s->path_entries.insert(s->path_entries.begin(), FSEntry::directory(".."));
     }
@@ -53,14 +53,11 @@ void on_menu_entry_selected(FSState *s, uint32_t menu_index)
     {
         if (entry.name == "..")
         {
-            if (s->path.has_parent_path())
-            {
-                std::string highlight_name = s->path.filename();
+            std::string highlight_name = s->path.filename();
 
-                s->path = s->path.parent_path();
-                refresh_path_entries(s);
-                s->menu.set_cursor_pos(highlight_name);
-            }
+            s->path = s->path.parent_path();
+            refresh_path_entries(s);
+            s->menu.set_cursor_pos(highlight_name);
         }
         else
         {
@@ -102,7 +99,7 @@ std::filesystem::path sanitize_starting_path(std::filesystem::path path)
     while (!std::filesystem::is_directory(path))
     {
         std::cerr << "Directory " << path << " does not exist" << std::endl;
-        if (path.has_parent_path())
+        if (path.has_parent_path() && path != path.root_path())
         {
             path = path.parent_path();
         }

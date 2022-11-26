@@ -17,7 +17,7 @@ class FileSelector: public View
     std::unique_ptr<FSState> state;
 
 public:
-    // Expects to receive a path a file, or directory with trailing separator.
+    // Expects to receive a path to a file, or directory with trailing separator.
     FileSelector(std::filesystem::path path, TTF_Font *font);
     virtual ~FileSelector();
 
