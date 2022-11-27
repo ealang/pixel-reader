@@ -5,9 +5,10 @@
 
 std::string compact_whitespace(const char *str);
 std::string remove_carriage_returns(const char *str);
+std::string strip_whitespace(const char *str);
 
+// Advance to non-whitespace
 const char *strip_whitespace_left(const char *str);
-uint32_t count_non_whitespace_chars(const char *str);
 
 // Set of characters subject to compaction, etc.
 inline bool is_whitespace(char c)

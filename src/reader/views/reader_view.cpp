@@ -16,12 +16,11 @@ struct ReaderViewState
 
     bool is_zombie = false;
     bool is_done = false;
+    bool has_data = false;
 
     std::function<void()> on_quit;
     std::function<void(const DocAddr &)> on_change_address;
-
-    uint32_t current_chapter_index = -1;
-    std::vector<uint32_t> line_addresses;
+    std::vector<DocAddr> line_addresses;
 
     EPubReader reader;
     TTF_Font *font;
@@ -38,7 +37,7 @@ struct ReaderViewState
 namespace
 {
 
-std::shared_ptr<TextView> make_error_view(ReaderViewState &state)
+std::shared_ptr<TextView> make_error_text_view(ReaderViewState &state)
 {
     std::vector<std::string> lines = {"Error loading"};
     return std::make_shared<TextView>(
@@ -47,14 +46,8 @@ std::shared_ptr<TextView> make_error_view(ReaderViewState &state)
     );
 }
 
-std::shared_ptr<TextView> make_chapter_view(ReaderViewState &state, uint32_t chapter_index)
+std::shared_ptr<TextView> make_text_view(ReaderViewState &state, std::string document_id)
 {
-    const auto &tok = state.reader.get_tok();
-    if (chapter_index >= tok.size())
-    {
-        return make_error_view(state);
-    }
-
     auto line_fits_on_screen = [font=state.font](const char *s, uint32_t len) {
         int w = SCREEN_WIDTH, h;
 
@@ -68,10 +61,7 @@ std::shared_ptr<TextView> make_chapter_view(ReaderViewState &state, uint32_t cha
         return w <= SCREEN_WIDTH;
     };
 
-    std::cerr << "Loading chapter " << tok[chapter_index].name << std::endl;
-    auto chapter = tok[chapter_index];
-    auto tokens = state.reader.get_tokenized_document(chapter.doc_id);
-    std::cerr << "Got " << tokens.size() << " tokens" << std::endl;
+    auto tokens = state.reader.get_tokenized_document(document_id);
 
     std::vector<std::string> text_lines;
     state.line_addresses.clear();
@@ -81,7 +71,7 @@ std::shared_ptr<TextView> make_chapter_view(ReaderViewState &state, uint32_t cha
         line_fits_on_screen,
         [&text_lines, &addresses=state.line_addresses](const std::string &text, const DocAddr &start_addr) {
             text_lines.push_back(text);
-            addresses.push_back(get_text_number(start_addr));
+            addresses.push_back(start_addr);
         }
     );
 
@@ -91,37 +81,34 @@ std::shared_ptr<TextView> make_chapter_view(ReaderViewState &state, uint32_t cha
     );
 }
 
-void open_chapter_menu(ReaderView &reader_view, ReaderViewState &state)
-{
-    std::vector<std::string> chapters;
-    for (const auto &tok: state.reader.get_tok())
-    {
-        chapters.emplace_back(tok.name);
-    }
-
-    auto chapter_select = std::make_shared<SelectionMenu>(chapters, state.font);
-    chapter_select->set_on_selection([&reader_view](uint32_t chapter_index) {
-        return reader_view.open_chapter(chapter_index);
-    });
-    chapter_select->set_close_on_select();
-    chapter_select->set_cursor_pos(state.current_chapter_index);
-
-    state.view_stack.push(chapter_select);
-}
-
 DocAddr get_current_address(ReaderViewState &state)
 {
-    uint32_t text_address = 0;
     uint32_t line_index = state.text_view->get_line_number();
     if (line_index < state.line_addresses.size())
     {
-        text_address = state.line_addresses[line_index];
+        return state.line_addresses[line_index];
     }
 
-    return make_address(
-        state.current_chapter_index,
-        text_address
-    );
+    return 0;
+}
+
+void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
+{
+    std::vector<std::string> menu_names;
+    for (const auto &toc_item: state.reader.get_table_of_contents())
+    {
+        std::string indent(toc_item.indent_level * 2, ' ');
+        menu_names.push_back(indent + toc_item.display_name);
+    }
+
+    auto toc_select_menu = std::make_shared<SelectionMenu>(menu_names, state.font);
+    toc_select_menu->set_on_selection([&reader_view](uint32_t toc_index) {
+        return reader_view.seek_to_toc_index(toc_index);
+    });
+    toc_select_menu->set_close_on_select();
+    toc_select_menu->set_cursor_pos(state.reader.get_toc_index(get_current_address(state)));
+
+    state.view_stack.push(toc_select_menu);
 }
 
 } // namespace
@@ -137,12 +124,12 @@ ReaderView::ReaderView(
     if (!state->reader.open())
     {
         std::cerr << "Error opening " << path << std::endl;
-        state->text_view = make_error_view(*state);
+        state->text_view = make_error_text_view(*state);
         state->is_zombie = true;
     }
     else
     {
-        open_address(seek_address);
+        seek_to_address(seek_address);
     }
 }
 
@@ -168,7 +155,7 @@ bool ReaderView::on_keypress(SDLKey key)
         case SW_BTN_SELECT:
             if (!state->is_zombie)
             {
-                open_chapter_menu(*this, *state);
+                open_toc_menu(*this, *state);
             }
             break;
         default:
@@ -190,7 +177,7 @@ void ReaderView::on_lose_focus()
 
 void ReaderView::on_pop()
 {
-    if (state->on_change_address)
+    if (!state->is_zombie && state->on_change_address)
     {
         state->on_change_address(
             get_current_address(*state)
@@ -208,28 +195,44 @@ void ReaderView::set_on_change_address(std::function<void(const DocAddr &)> call
     state->on_change_address = callback;
 }
 
-void ReaderView::open_chapter(uint32_t chapter_index)
+void ReaderView::seek_to_toc_index(uint32_t new_toc_index)
 {
-    if (chapter_index != state->current_chapter_index)
+    DocAddr address = get_current_address(*state);
+    uint32_t cur_toc_index = state->reader.get_toc_index(address);
+
+    if (!state->has_data || new_toc_index != cur_toc_index)
     {
-        state->text_view = make_chapter_view(*state, chapter_index);
-        state->current_chapter_index = chapter_index;
+        const auto &toc = state->reader.get_table_of_contents();
+        if (new_toc_index < toc.size())
+        {
+            const auto &toc_item = toc[new_toc_index];
+
+            state->has_data = true;
+            state->text_view = make_text_view(*state, toc_item.document_id);
+        }
     }
 }
 
-void ReaderView::open_address(DocAddr address)
+void ReaderView::seek_to_address(DocAddr address)
 {
-    // Find chapter
-    open_chapter(get_chapter_number(address));
+    // Load document
+    auto document_id = state->reader.get_document_id(address);
+    if (!document_id)
+    {
+        state->text_view = make_error_text_view(*state);
+        state->is_zombie = true;
+        return;
+    }
 
-    // Find line
-    uint32_t text_address = get_text_number(address);
+    state->has_data = true;
+    state->text_view = make_text_view(*state, *document_id);
 
+    // Find line number
     uint32_t best_line_number = 0;
     uint32_t line_number = 0;
     for (const auto &line_addr: state->line_addresses)
     {
-        if (line_addr <= text_address)
+        if (line_addr <= address)
         {
             best_line_number = line_number;
         }
@@ -239,5 +242,6 @@ void ReaderView::open_address(DocAddr address)
         }
         ++line_number;
     }
+
     state->text_view->set_line_number(best_line_number);
 }

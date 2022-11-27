@@ -31,3 +31,11 @@ TEST(XHTML_STRING_UTIL, strip_whitespace_left)
     EXPECT_EQ(strip_count("  foo bar "), 2);
     EXPECT_EQ(strip_count("\nfoo bar\t"), 1);
 }
+
+TEST(XHTML_STRING_UTIL, strip_whitespace)
+{
+    EXPECT_EQ(strip_whitespace(""), "");
+    EXPECT_EQ(strip_whitespace(" "), "");
+    EXPECT_EQ(strip_whitespace("asdf"), "asdf");
+    EXPECT_EQ(strip_whitespace(" \tasdf\t\n\r "), "asdf");
+}

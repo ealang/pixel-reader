@@ -7,15 +7,18 @@
 #include <zip.h>
 
 #define APPLICATION_XHTML_XML "application/xhtml+xml"
+#define APPLICATION_X_DTBNCX_XML "application/x-dtbncx+xml"
 
-TokItem::TokItem(std::string doc_id, std::string name)
-    : doc_id(doc_id), name(name)
-{
-}
+namespace {
 
-// Read contents as a null-terminated string
-static std::vector<char> _read_zip_file_str(zip_t *zip, std::string filepath)
+// Read zip file contents as a null-terminated string
+std::vector<char> read_zip_file_str(zip_t *zip, const std::string &filepath)
 {
+    if (zip == nullptr)
+    {
+        throw std::runtime_error("Zip is not open");
+    }
+
     zip_stat_t stats;
     if (zip_stat(zip, filepath.c_str(), 0, &stats) != 0 || !(stats.valid & ZIP_STAT_SIZE))
     {
@@ -47,30 +50,106 @@ static std::vector<char> _read_zip_file_str(zip_t *zip, std::string filepath)
     return buffer;
 }
 
-static void assert_is_open(const EPubReader *reader)
+std::string strip_fragment(const std::string &url)
 {
-    if (!reader->is_open())
+    auto fragment_pos = url.find('#');
+    if (fragment_pos != std::string::npos)
     {
-        throw std::runtime_error("EpubReader is not open");
+        return url.substr(0, fragment_pos);
+    }
+    return url;
+}
+
+void _flatten_navmap_to_toc(
+    const PackageContents &package,
+    const std::unordered_map<std::string, std::string> &path_to_document_id,
+    const std::vector<NavPoint> &navmap,
+    std::vector<TocItem> &out_toc,
+    uint32_t indent_level = 0
+)
+{
+    for (const auto &navpoint : navmap)
+    {
+        auto doc_id_it = path_to_document_id.find(strip_fragment(navpoint.src_absolute));
+        if (doc_id_it != path_to_document_id.end())
+        {
+            const auto &doc_id = doc_id_it->second;
+            const auto &item = package.id_to_manifest_item.at(doc_id);
+            if (item.media_type == APPLICATION_XHTML_XML)
+            {
+                out_toc.emplace_back(
+                    doc_id,
+                    navpoint.label,
+                    indent_level
+                );
+            }
+            else
+            {
+                std::cerr << "TOC: Unknown media type for path " << navpoint.src_absolute << std::endl;
+            }
+        }
+        else
+        {
+            std::cerr << "TOC: Unable to find document id for path " << navpoint.src_absolute << std::endl;
+        }
+
+        _flatten_navmap_to_toc(
+            package,
+            path_to_document_id,
+            navpoint.children,
+            out_toc,
+            indent_level + 1
+        );
     }
 }
 
+void flatten_navmap_to_toc(
+    const PackageContents &package,
+    const std::vector<NavPoint> &navmap,
+    std::vector<TocItem> &out_toc
+)
+{
+    // Build path lookup
+    std::unordered_map<std::string, std::string> path_to_document_id;
+    for (const auto &[doc_id, item] : package.id_to_manifest_item)
+    {
+        path_to_document_id[item.href_absolute] = doc_id;
+    }
+
+    return _flatten_navmap_to_toc(
+        package,
+        path_to_document_id,
+        navmap,
+        out_toc
+    );
+}
+
+
+}  // namespace
+
+TocItem::TocItem(const std::string &document_id, const std::string &display_name, uint32_t indent_level)
+    : document_id(document_id)
+    , display_name(display_name)
+    , indent_level(indent_level)
+{
+}
+
 EPubReader::EPubReader(std::string path)
-    :_path(path), _zip(nullptr)
+    : path(path), zip(nullptr)
 {
 }
 
 EPubReader::~EPubReader()
 {
-    if (!_zip)
+    if (!zip)
     {
-        zip_close(_zip);
+        zip_close(zip);
     }
 }
 
 bool EPubReader::open()
 {
-    if (_zip)
+    if (zip)
     {
         return true;
     }
@@ -78,10 +157,10 @@ bool EPubReader::open()
     // open zip
     {
         int err = 0;
-        _zip = zip_open(_path.c_str(), ZIP_RDONLY, &err);
-        if (_zip == nullptr)
+        zip = zip_open(path.c_str(), ZIP_RDONLY, &err);
+        if (zip == nullptr)
         {
-            std::cerr << "Failed to epub " << _path
+            std::cerr << "Failed to epub " << path
                 << " code: " << err
                 << std::endl;
             return false;
@@ -91,7 +170,7 @@ bool EPubReader::open()
     // read container.xml
     std::string rootfile_path;
     {
-        auto container_xml = _read_zip_file_str(_zip, EPUB_CONTAINER_PATH);
+        auto container_xml = read_zip_file_str(zip, EPUB_CONTAINER_PATH);
         if (container_xml.empty())
         {
             std::cerr << "Failed to read epub container" << std::endl;
@@ -108,30 +187,62 @@ bool EPubReader::open()
 
     // read package document
     {
-        auto package_xml = _read_zip_file_str(_zip, rootfile_path);
+        auto package_xml = read_zip_file_str(zip, rootfile_path);
         if (package_xml.empty())
         {
             std::cerr << "Failed to open " << rootfile_path << std::endl;
             return false;
         }
 
-        if (!epub_get_package_contents(rootfile_path, package_xml.data(), _package))
+        if (!epub_get_package_contents(rootfile_path, package_xml.data(), package))
         {
             std::cerr << "Failed to parse " << rootfile_path << std::endl;
             return false;
         }
     }
 
-    // compile toc
+    // compile document order
     {
-        for (auto &doc_id : _package.spine_ids)
+        for (auto &doc_id : package.spine_ids)
         {
-            auto &item = _package.id_to_manifest_item[doc_id];
-            if (item.media_type == APPLICATION_XHTML_XML)
+            auto item = package.id_to_manifest_item.find(doc_id);
+            if (item != package.id_to_manifest_item.end() && item->second.media_type == APPLICATION_XHTML_XML)
             {
-                auto name = std::filesystem::path(item.href).filename(); // TODO: better name
-                _tok_items.emplace_back(doc_id, name);
+                document_id_order.emplace_back(doc_id);
             }
+        }
+    }
+
+    // compile toc
+    bool created_toc = false;
+    if (!package.toc_id.empty())
+    {
+        auto item = package.id_to_manifest_item.find(package.toc_id);
+        if (item != package.id_to_manifest_item.end() && item->second.media_type == APPLICATION_X_DTBNCX_XML)
+        {
+            std::string ncx_path = item->second.href_absolute;
+            auto ncx_xml = read_zip_file_str(zip, ncx_path);
+
+            std::vector<NavPoint> navmap;
+            if (epub_get_ncx(ncx_path, ncx_xml.data(), navmap))
+            {
+                created_toc = true;
+                flatten_navmap_to_toc(package, navmap, table_of_contents);
+            }
+        }
+        else
+        {
+            std::cerr << "Failed to find toc " << package.toc_id << " or unknown media type" << std::endl;
+        }
+    }
+
+    if (!created_toc)
+    {
+        std::cerr << "No toc, falling back to spine" << std::endl;
+        for (const auto &doc_id : document_id_order)
+        {
+            const auto &item = package.id_to_manifest_item.at(doc_id);
+            table_of_contents.emplace_back(doc_id, std::filesystem::path(item.href).filename(), 0);
         }
     }
 
@@ -140,55 +251,85 @@ bool EPubReader::open()
 
 bool EPubReader::is_open() const
 {
-    return _zip != nullptr;
+    return zip != nullptr;
 }
 
-std::vector<char> EPubReader::get_file_as_bytes(std::string href) const
+std::vector<char> EPubReader::read_file_as_bytes(std::string href) const
 {
-    assert_is_open(this);
-
-    return _read_zip_file_str(_zip, href);
+    return read_zip_file_str(zip, href);
 }
 
-const std::vector<TokItem> &EPubReader::get_tok() const
+const std::vector<TocItem> &EPubReader::get_table_of_contents() const
 {
-    assert_is_open(this);
-
-    return _tok_items;
+    return table_of_contents;
 }
 
-std::vector<DocToken> EPubReader::get_tokenized_document(std::string item_id) const
+uint32_t EPubReader::get_toc_index(DocAddr address) const
 {
-    auto it = _package.id_to_manifest_item.find(item_id);
-    if (it == _package.id_to_manifest_item.end())
+    auto document_id = get_document_id(address);
+    if (!document_id)
     {
-        std::cerr << "Unable to find item in manifest " << item_id << std::endl;
+        return 0;
+    }
+
+    for (uint32_t i = 0; i < table_of_contents.size(); i++)
+    {
+        if (table_of_contents[i].document_id == document_id)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+const std::vector<std::string> &EPubReader::get_document_id_order() const
+{
+    return document_id_order;
+}
+
+std::optional<std::string> EPubReader::get_document_id(DocAddr address) const
+{
+    uint32_t spine_index = get_chapter_number(address);
+    if (spine_index >= package.spine_ids.size())
+    {
+        return std::nullopt;
+    }
+
+    return package.spine_ids[spine_index];
+}
+
+std::vector<DocToken> EPubReader::get_tokenized_document(std::string doc_id) const
+{
+    auto it = package.id_to_manifest_item.find(doc_id);
+    if (it == package.id_to_manifest_item.end())
+    {
+        std::cerr << "Unable to find item in manifest " << doc_id << std::endl;
         return {};
     }
     auto item = it->second;
 
-    auto bytes = get_file_as_bytes(item.href);
+    auto bytes = read_file_as_bytes(item.href_absolute);
     if (bytes.empty())
     {
-        std::cerr << "Unable to read item " << item_id << std::endl;
+        std::cerr << "Unable to read item " << doc_id << std::endl;
         return {};
     }
 
     if (item.media_type != APPLICATION_XHTML_XML)
     {
-        std::cerr << "Unable to parse item " << item_id << " with media type " << item.media_type << std::endl;
+        std::cerr << "Unable to parse item " << doc_id << " with media type " << item.media_type << std::endl;
         return {};
     }
 
-    uint32_t tok_index = (
-        std::find(_package.spine_ids.begin(), _package.spine_ids.end(), item_id) -
-        _package.spine_ids.begin()
+    uint32_t chapter_index = (
+        std::find(package.spine_ids.begin(), package.spine_ids.end(), doc_id) -
+        package.spine_ids.begin()
     );
-    if (tok_index >= _tok_items.size())
+    if (chapter_index >= package.spine_ids.size())
     {
-        std::cerr << "Unable to find item in toc " << item_id << std::endl;
+        std::cerr << "Unable to find item in toc " << doc_id << std::endl;
         return {};
     }
 
-    return parse_xhtml_tokens(bytes.data(), item_id, tok_index);
+    return parse_xhtml_tokens(bytes.data(), doc_id, chapter_index);
 }

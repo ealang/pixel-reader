@@ -33,8 +33,8 @@ public:
     void set_on_quit_requested(std::function<void()> callback);
     void set_on_change_address(std::function<void(const DocAddr &)> callback);
 
-    void open_chapter(uint32_t chapter_index);
-    void open_address(DocAddr address);
+    void seek_to_toc_index(uint32_t toc_index);
+    void seek_to_address(DocAddr address);
 };
 
 #endif
