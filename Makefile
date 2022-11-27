@@ -39,8 +39,10 @@ READER_OBJECTS  := $(READER_SRC:%.cpp=$(OBJ_DIR)/%.o)
 SANDBOX_OBJECTS := $(SANDBOX_SRC:%.cpp=$(OBJ_DIR)/%.o)
 TEST_OBJECTS    := $(TEST_SRC:%.cpp=$(OBJ_DIR)/%.o)
 
-DEPENDENCIES \
-         := $(OBJECTS:.o=.d)
+DEPENDENCIES := \
+	    $(READER_OBJECTS:.o=.d) \
+	    $(SANDBOX_OBJECTS:.o=.d) \
+	    $(TEST_OBJECTS:.o=.d)
 
 all: build $(APP_DIR)/$(APP_READER_TARGET) $(APP_DIR)/$(APP_SANDBOX_TARGET)
 
