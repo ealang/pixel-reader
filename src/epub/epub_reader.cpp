@@ -60,9 +60,34 @@ std::string strip_fragment(const std::string &url)
     return url;
 }
 
+DocAddr get_document_start_address(const PackageContents &package, const std::string &document_id)
+{
+    auto it = std::find(package.spine_ids.begin(), package.spine_ids.end(), document_id);
+    if (it == package.spine_ids.end())
+    {
+        return 0;
+    }
+
+    return make_address(
+        it - package.spine_ids.begin(),
+        0
+    );
+}
+
+std::optional<std::string> get_document_id_for_address(const PackageContents &package, const DocAddr &address)
+{
+    uint32_t spine_index = get_chapter_number(address);
+    if (spine_index >= package.spine_ids.size())
+    {
+        return std::nullopt;
+    }
+
+    return package.spine_ids[spine_index];
+}
+
 void _flatten_navmap_to_toc(
     const PackageContents &package,
-    const std::unordered_map<std::string, std::string> &path_to_document_id,
+    const std::unordered_map<std::string, DocAddr> &toc_path_to_address,
     const std::vector<NavPoint> &navmap,
     std::vector<TocItem> &out_toc,
     uint32_t indent_level = 0
@@ -70,32 +95,24 @@ void _flatten_navmap_to_toc(
 {
     for (const auto &navpoint : navmap)
     {
-        auto doc_id_it = path_to_document_id.find(strip_fragment(navpoint.src_absolute));
-        if (doc_id_it != path_to_document_id.end())
+        // TODO: need to pay attention to fragment be able to link within document
+        auto address_it = toc_path_to_address.find(strip_fragment(navpoint.src_absolute));
+        if (address_it != toc_path_to_address.end())
         {
-            const auto &doc_id = doc_id_it->second;
-            const auto &item = package.id_to_manifest_item.at(doc_id);
-            if (item.media_type == APPLICATION_XHTML_XML)
-            {
-                out_toc.emplace_back(
-                    doc_id,
-                    navpoint.label,
-                    indent_level
-                );
-            }
-            else
-            {
-                std::cerr << "TOC: Unknown media type for path " << navpoint.src_absolute << std::endl;
-            }
+            out_toc.emplace_back(
+                address_it->second,
+                navpoint.label,
+                indent_level
+            );
         }
         else
         {
-            std::cerr << "TOC: Unable to find document id for path " << navpoint.src_absolute << std::endl;
+            std::cerr << "TOC: Unable to find document for " << navpoint.src << std::endl;
         }
 
         _flatten_navmap_to_toc(
             package,
-            path_to_document_id,
+            toc_path_to_address,
             navpoint.children,
             out_toc,
             indent_level + 1
@@ -109,16 +126,18 @@ void flatten_navmap_to_toc(
     std::vector<TocItem> &out_toc
 )
 {
-    // Build path lookup
-    std::unordered_map<std::string, std::string> path_to_document_id;
+    std::unordered_map<std::string, DocAddr> toc_path_to_address;
     for (const auto &[doc_id, item] : package.id_to_manifest_item)
     {
-        path_to_document_id[item.href_absolute] = doc_id;
+        if (item.media_type == APPLICATION_XHTML_XML)
+        {
+            toc_path_to_address[item.href_absolute] = get_document_start_address(package, doc_id);
+        }
     }
 
     return _flatten_navmap_to_toc(
         package,
-        path_to_document_id,
+        toc_path_to_address,
         navmap,
         out_toc
     );
@@ -127,8 +146,8 @@ void flatten_navmap_to_toc(
 
 }  // namespace
 
-TocItem::TocItem(const std::string &document_id, const std::string &display_name, uint32_t indent_level)
-    : document_id(document_id)
+TocItem::TocItem(DocAddr address, const std::string &display_name, uint32_t indent_level)
+    : address(address)
     , display_name(display_name)
     , indent_level(indent_level)
 {
@@ -242,7 +261,11 @@ bool EPubReader::open()
         for (const auto &doc_id : document_id_order)
         {
             const auto &item = package.id_to_manifest_item.at(doc_id);
-            table_of_contents.emplace_back(doc_id, std::filesystem::path(item.href).filename(), 0);
+            table_of_contents.emplace_back(
+                get_document_start_address(package, doc_id),
+                std::filesystem::path(item.href).filename(),
+                0
+            );
         }
     }
 
@@ -264,42 +287,32 @@ const std::vector<TocItem> &EPubReader::get_table_of_contents() const
     return table_of_contents;
 }
 
-uint32_t EPubReader::get_toc_index(DocAddr address) const
+uint32_t EPubReader::get_toc_index(const DocAddr &address) const
 {
-    auto document_id = get_document_id(address);
-    if (!document_id)
-    {
-        return 0;
-    }
-
+    uint32_t best_index = 0;
     for (uint32_t i = 0; i < table_of_contents.size(); i++)
     {
-        if (table_of_contents[i].document_id == document_id)
+        if (table_of_contents[i].address > address)
         {
-            return i;
+            break;
         }
+        best_index = i;
     }
-    return 0;
+
+    return best_index;
 }
 
-const std::vector<std::string> &EPubReader::get_document_id_order() const
+std::vector<DocToken> EPubReader::get_tokenized_document(const DocAddr &address) const
 {
-    return document_id_order;
-}
-
-std::optional<std::string> EPubReader::get_document_id(DocAddr address) const
-{
-    uint32_t spine_index = get_chapter_number(address);
-    if (spine_index >= package.spine_ids.size())
+    auto doc_id_opt = get_document_id_for_address(package, address);
+    if (!doc_id_opt)
     {
-        return std::nullopt;
+        std::cerr << "Unable to get document for address " << to_string(address) << std::endl;
+        return {};
     }
 
-    return package.spine_ids[spine_index];
-}
+    const std::string &doc_id = doc_id_opt.value();
 
-std::vector<DocToken> EPubReader::get_tokenized_document(std::string doc_id) const
-{
     auto it = package.id_to_manifest_item.find(doc_id);
     if (it == package.id_to_manifest_item.end())
     {
@@ -332,4 +345,74 @@ std::vector<DocToken> EPubReader::get_tokenized_document(std::string doc_id) con
     }
 
     return parse_xhtml_tokens(bytes.data(), doc_id, chapter_index);
+}
+
+std::optional<uint32_t> EPubReader::get_document_id_order_index(const DocAddr &address) const
+{
+    // Get the document id for the current address
+    auto cur_doc_id_opt = get_document_id_for_address(package, address);
+    if (!cur_doc_id_opt)
+    {
+        return std::nullopt;
+    }
+    auto &cur_doc_id = cur_doc_id_opt.value();
+
+    // Lookup index in document order
+    uint32_t order_index = 
+        std::find(document_id_order.begin(), document_id_order.end(), cur_doc_id) - 
+        document_id_order.begin();
+
+    if (order_index >= document_id_order.size())
+    {
+        return std::nullopt;
+    }
+
+    return order_index;
+}
+
+
+std::optional<DocAddr> EPubReader::get_start_address() const
+{
+    if (document_id_order.empty())
+    {
+        return std::nullopt;
+    }
+
+    return get_document_start_address(package, document_id_order.front());
+}
+
+std::optional<DocAddr> EPubReader::get_previous_doc_address(const DocAddr &address) const
+{
+    // Get index of document id order
+    auto doc_index_opt = get_document_id_order_index(address);
+    if (!doc_index_opt)
+    {
+        return std::nullopt;
+    }
+
+    // Get previous document id
+    uint32_t doc_index = *doc_index_opt;
+    if (doc_index == 0)
+    {
+        return std::nullopt;
+    }
+
+    return get_document_start_address(package, document_id_order[doc_index - 1]);
+}
+
+std::optional<DocAddr> EPubReader::get_next_doc_address(const DocAddr &address) const
+{
+    auto doc_index_opt = get_document_id_order_index(address);
+    if (!doc_index_opt)
+    {
+        return std::nullopt;
+    }
+
+    uint32_t doc_index = *doc_index_opt;
+    if (doc_index >= document_id_order.size() - 1)
+    {
+        return std::nullopt;
+    }
+
+    return get_document_start_address(package, document_id_order[doc_index + 1]);
 }

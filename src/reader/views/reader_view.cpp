@@ -46,7 +46,7 @@ std::shared_ptr<TextView> make_error_text_view(ReaderViewState &state)
     );
 }
 
-std::shared_ptr<TextView> make_text_view(ReaderViewState &state, std::string document_id)
+std::shared_ptr<TextView> make_text_view(ReaderViewState &state, const DocAddr &address)
 {
     auto line_fits_on_screen = [font=state.font](const char *s, uint32_t len) {
         int w = SCREEN_WIDTH, h;
@@ -61,7 +61,7 @@ std::shared_ptr<TextView> make_text_view(ReaderViewState &state, std::string doc
         return w <= SCREEN_WIDTH;
     };
 
-    auto tokens = state.reader.get_tokenized_document(document_id);
+    auto tokens = state.reader.get_tokenized_document(address);
 
     std::vector<std::string> text_lines;
     state.line_addresses.clear();
@@ -94,6 +94,12 @@ DocAddr get_current_address(ReaderViewState &state)
 
 void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
 {
+    if (state.reader.get_table_of_contents().empty())
+    {
+        return;
+    }
+
+    // setup toc entries & callbacks
     std::vector<std::string> menu_names;
     for (const auto &toc_item: state.reader.get_table_of_contents())
     {
@@ -106,13 +112,15 @@ void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
         return reader_view.seek_to_toc_index(toc_index);
     });
     toc_select_menu->set_close_on_select();
-    toc_select_menu->set_cursor_pos(state.reader.get_toc_index(get_current_address(state)));
+
+    // select current toc item
+    uint32_t current_toc_index = state.reader.get_toc_index(get_current_address(state));
+    toc_select_menu->set_cursor_pos(current_toc_index);
 
     state.view_stack.push(toc_select_menu);
 }
 
 } // namespace
-
 
 ReaderView::ReaderView(
     std::filesystem::path path,
@@ -206,26 +214,16 @@ void ReaderView::seek_to_toc_index(uint32_t new_toc_index)
         if (new_toc_index < toc.size())
         {
             const auto &toc_item = toc[new_toc_index];
-
-            state->has_data = true;
-            state->text_view = make_text_view(*state, toc_item.document_id);
+            seek_to_address(toc_item.address);
         }
     }
 }
 
-void ReaderView::seek_to_address(DocAddr address)
+void ReaderView::seek_to_address(const DocAddr &address)
 {
     // Load document
-    auto document_id = state->reader.get_document_id(address);
-    if (!document_id)
-    {
-        state->text_view = make_error_text_view(*state);
-        state->is_zombie = true;
-        return;
-    }
-
     state->has_data = true;
-    state->text_view = make_text_view(*state, *document_id);
+    state->text_view = make_text_view(*state, address);
 
     // Find line number
     uint32_t best_line_number = 0;

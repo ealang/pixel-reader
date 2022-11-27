@@ -12,62 +12,46 @@ typedef struct zip zip_t;
 
 struct TocItem
 {
-    std::string document_id;
+    DocAddr address;
     std::string display_name;
     uint32_t indent_level;
 
     TocItem(
-        const std::string &document_id,
+        DocAddr address,
         const std::string &display_name,
         uint32_t indent_level
     );
 };
 
-// Abstract interface to a specific ebook format
-class Reader
-{
-public:
-    virtual bool open() = 0;
-    virtual bool is_open() const = 0;
-
-    virtual const std::vector<TocItem> &get_table_of_contents() const = 0;
-    virtual uint32_t get_toc_index(DocAddr address) const = 0;
-
-    // Return item ids in linear document order
-    virtual const std::vector<std::string> &get_document_id_order() const = 0;
-
-    virtual std::optional<std::string> get_document_id(DocAddr address) const = 0;
-
-    virtual std::vector<DocToken> get_tokenized_document(std::string document_id) const = 0;
-};
-
-class EPubReader: public Reader
+class EPubReader
 {
     const std::string path;
     zip_t *zip;
 
     PackageContents package;
-    std::vector<TocItem> table_of_contents;
-    std::vector<std::string> document_id_order;
+    std::vector<TocItem> table_of_contents;     // Table of contents (may not include all documents)
+    std::vector<std::string> document_id_order; // All documents in order
 
     std::vector<char> read_file_as_bytes(std::string href) const;
+
+    // Get index of the address in the `document_id_order` vector
+    std::optional<uint32_t> get_document_id_order_index(const DocAddr &address) const;
 
 public:
     EPubReader(std::string path);
     virtual ~EPubReader();
 
-    bool open() override;
-    bool is_open() const override;
+    bool open();
+    bool is_open() const;
 
-    virtual const std::vector<TocItem> &get_table_of_contents() const override;
-    virtual uint32_t get_toc_index(DocAddr address) const override;
+    const std::vector<TocItem> &get_table_of_contents() const;
+    uint32_t get_toc_index(const DocAddr &address) const;
 
-    // Return item ids in linear document order
-    virtual const std::vector<std::string> &get_document_id_order() const override;
+    std::vector<DocToken> get_tokenized_document(const DocAddr &address) const;
 
-    virtual std::optional<std::string> get_document_id(DocAddr address) const override;
-
-    virtual std::vector<DocToken> get_tokenized_document(std::string document_id) const override;
+    std::optional<DocAddr> get_start_address() const;
+    std::optional<DocAddr> get_previous_doc_address(const DocAddr &address) const;
+    std::optional<DocAddr> get_next_doc_address(const DocAddr &address) const;
 };
 
 #endif
