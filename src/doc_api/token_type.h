@@ -8,6 +8,7 @@ enum class TokenType
     Text,
     Block,
     Section,
+    Image,
 };
 
 std::string to_string(TokenType type);

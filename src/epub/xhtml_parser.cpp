@@ -7,6 +7,7 @@
 #include <libxml/parser.h>
 
 #include <cstring>
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <set>
@@ -112,6 +113,27 @@ void _on_exit_pre(xmlNodePtr, Context &context)
 
 /////////////////////////////
 
+void _on_enter_image(xmlNodePtr node, Context &context)
+{
+    context.emit_token(TokenType::Section, EMPTY_STR);
+
+    // Placeholder image
+    const xmlChar *img_path = xmlGetProp(node, BAD_CAST "href");
+    if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
+
+    std::string token_text = (
+        "[Image" +
+        (img_path ? " " + std::filesystem::path((const char*)img_path).filename().string() : "") +
+        "]"
+    );
+
+    context.emit_token(TokenType::Image, token_text);
+
+    context.emit_token(TokenType::Section, EMPTY_STR);
+}
+
+/////////////////////////////
+
 const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>> _on_enter_handlers = {
     {"h1", [](xmlNodePtr node, Context &context) {
         _on_enter_h(1, node, context);
@@ -134,7 +156,9 @@ const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>
     {"ol", _on_enter_ul},
     {"ul", _on_enter_ul},
     {"p", _on_enter_p},
-    {"pre", _on_enter_pre}
+    {"pre", _on_enter_pre},
+    {"image", _on_enter_image},
+    {"img", _on_enter_image}
 };
 
 const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>> _on_exit_handlers = {
@@ -312,6 +336,11 @@ public:
                     tokens.emplace_back(type, address, EMPTY_STR);
                     DEBUG_LOG(to_string(tokens.back()));
                 }
+            }
+            else
+            {
+                tokens.emplace_back(type, address, text);
+                DEBUG_LOG(to_string(tokens.back()));
             }
         }
 

@@ -10,6 +10,8 @@ std::string to_string(TokenType type)
             return "Block";
         case TokenType::Section:
             return "Section";
+        case TokenType::Image:
+            return "Image";
         default:
             return "Unknown";
     }

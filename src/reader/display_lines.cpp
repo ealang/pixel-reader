@@ -59,14 +59,18 @@ void get_display_lines(
         {
             pending_text_tokens.push_back(&token);
         }
-        else if (token.type == TokenType::Section)
+        else
         {
             emit_pending_text();
-            on_line("", token.address);
-        }
-        else if (token.type == TokenType::Block)
-        {
-            emit_pending_text();
+            if (token.type == TokenType::Section)
+            {
+                on_line("", token.address);
+            }
+            else if (token.type == TokenType::Image)
+            {
+                // Placeholder image
+                on_line(token.text, token.address);
+            }
         }
     }
 
