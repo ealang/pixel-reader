@@ -99,11 +99,15 @@ void _flatten_navmap_to_toc(
         auto address_it = toc_path_to_address.find(strip_fragment(navpoint.src_absolute));
         if (address_it != toc_path_to_address.end())
         {
-            out_toc.emplace_back(
-                address_it->second,
-                navpoint.label,
-                indent_level
-            );
+            // This check removes entries linking to the same document since the fragment is being ignored.
+            if (!out_toc.size() || out_toc.back().address != address_it->second)
+            {
+                out_toc.emplace_back(
+                    address_it->second,
+                    navpoint.label,
+                    indent_level
+                );
+            }
         }
         else
         {
