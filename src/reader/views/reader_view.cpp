@@ -18,6 +18,7 @@ struct ReaderViewState
     bool is_done = false;
     bool has_data = false;
 
+    DocAddr last_loaded_address = 0;
     std::function<void()> on_quit;
     std::function<void(const DocAddr &)> on_change_address;
     std::vector<DocAddr> line_addresses;
@@ -46,7 +47,7 @@ std::shared_ptr<TextView> make_error_text_view(ReaderViewState &state)
     );
 }
 
-std::shared_ptr<TextView> make_text_view(ReaderViewState &state, const DocAddr &address)
+std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewState &state, const DocAddr &address)
 {
     auto line_fits_on_screen = [font=state.font](const char *s, uint32_t len) {
         int w = SCREEN_WIDTH, h;
@@ -75,10 +76,20 @@ std::shared_ptr<TextView> make_text_view(ReaderViewState &state, const DocAddr &
         }
     );
 
-    return std::make_shared<TextView>(
+    auto text_view = std::make_shared<TextView>(
         text_lines,
         state.font
     );
+
+    text_view->set_on_resist_up([&reader_view]() {
+        reader_view.seek_to_prev_doc();
+    });
+
+    text_view->set_on_resist_down([&reader_view]() {
+        reader_view.seek_to_next_doc();
+    });
+
+    return text_view;
 }
 
 DocAddr get_current_address(ReaderViewState &state)
@@ -89,7 +100,7 @@ DocAddr get_current_address(ReaderViewState &state)
         return state.line_addresses[line_index];
     }
 
-    return 0;
+    return state.last_loaded_address;
 }
 
 void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
@@ -223,7 +234,8 @@ void ReaderView::seek_to_address(const DocAddr &address)
 {
     // Load document
     state->has_data = true;
-    state->text_view = make_text_view(*state, address);
+    state->text_view = make_text_view(*this, *state, address);
+    state->last_loaded_address = address;
 
     // Find line number
     uint32_t best_line_number = 0;
@@ -243,3 +255,29 @@ void ReaderView::seek_to_address(const DocAddr &address)
 
     state->text_view->set_line_number(best_line_number);
 }
+
+void ReaderView::seek_to_prev_doc()
+{
+    DocAddr address = get_current_address(*state);
+    auto next_address = state->reader.get_previous_doc_address(address);
+    if (next_address)
+    {
+        seek_to_address(*next_address);
+
+        if (!state->line_addresses.empty())
+        {
+            state->text_view->set_line_number(state->line_addresses.size() - 1);
+        }
+    }
+}
+
+void ReaderView::seek_to_next_doc()
+{
+    DocAddr address = get_current_address(*state);
+    auto next_address = state->reader.get_next_doc_address(address);
+    if (next_address)
+    {
+        seek_to_address(*next_address);
+    }
+}
+

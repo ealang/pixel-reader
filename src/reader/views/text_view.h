@@ -3,9 +3,10 @@
 
 #include "reader/view.h"
 
+#include <functional>
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 struct TextViewState;
 
@@ -15,6 +16,9 @@ class TextView: public View
     TTF_Font *font;
     int line_height;
     int line_padding = 2;
+
+    void scroll_up(int num_lines);
+    void scroll_down(int num_lines);
 
 public:
     TextView(std::vector<std::string> lines, TTF_Font *font);
@@ -27,6 +31,12 @@ public:
 
     uint32_t get_line_number() const;
     void set_line_number(uint32_t line_number);
+
+    // user tried to scroll up when already at the top
+    void set_on_resist_up(std::function<void()> callback);
+
+    // user tried to scroll down when already at the bottom
+    void set_on_resist_down(std::function<void()> callback);
 };
 
 #endif

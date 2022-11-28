@@ -15,6 +15,9 @@ struct TextViewState
     int scroll_pos = 0;
     int num_display_lines = 0;
 
+    std::function<void()> on_resist_up;
+    std::function<void()> on_resist_down;
+
     TextViewState(std::vector<std::string> lines) : lines(lines) {}
 };
 
@@ -68,39 +71,68 @@ bool TextView::render(SDL_Surface *dest_surface)
     return true;
 }
 
+static int bounded_scroll(int scroll_pos, int num_display_lines, int num_lines)
+{
+    return std::max(
+        0, 
+        std::min(
+            scroll_pos,
+            num_lines - num_display_lines
+        )
+    );
+}
+
+void TextView::scroll_up(int num_lines)
+{
+    int new_scroll_pos = bounded_scroll(
+        state->scroll_pos - num_lines,
+        state->num_display_lines,
+        state->lines.size()
+    );
+
+    if (new_scroll_pos != state->scroll_pos)
+    {
+        state->scroll_pos = new_scroll_pos;
+        state->needs_render = true;
+    }
+    else if (state->on_resist_up)
+    {
+        state->on_resist_up();
+    }
+}
+
+void TextView::scroll_down(int num_lines)
+{
+    int new_scroll_pos = bounded_scroll(
+        state->scroll_pos + num_lines,
+        state->num_display_lines,
+        state->lines.size()
+    );
+    if (new_scroll_pos != state->scroll_pos)
+    {
+        state->scroll_pos = new_scroll_pos;
+        state->needs_render = true;
+    }
+    else if (state->on_resist_down)
+    {
+        state->on_resist_down();
+    }
+}
+
 bool TextView::on_keypress(SDLKey key)
 {
     switch (key) {
         case SW_BTN_UP:
-            if (state->scroll_pos > 0)
-            {
-                state->scroll_pos--;
-                state->needs_render = true;
-            }
+            scroll_up(1);
             break;
         case SW_BTN_DOWN:
-            if (state->scroll_pos < static_cast<int>(state->lines.size()) - state->num_display_lines)
-            {
-                state->scroll_pos++;
-                state->needs_render = true;
-            }
+            scroll_down(1);
             break;
         case SW_BTN_LEFT:
-            if (state->scroll_pos >= 0)
-            {
-                state->scroll_pos = std::max(0, state->scroll_pos - state->num_display_lines);
-                state->needs_render = true;
-            }
+            scroll_up(state->num_display_lines);
             break;
         case SW_BTN_RIGHT:
-            if (state->scroll_pos < static_cast<int>(state->lines.size()) - state->num_display_lines)
-            {
-                state->scroll_pos = std::min(
-                    static_cast<int>(state->lines.size()) - state->num_display_lines,
-                    state->scroll_pos + state->num_display_lines
-                );
-                state->needs_render = true;
-            }
+            scroll_down(state->num_display_lines);
             break;
         default:
             break;
@@ -128,7 +160,21 @@ void TextView::set_line_number(uint32_t line_number)
 {
     if (line_number < state->lines.size())
     {
-        state->scroll_pos = line_number;
+        state->scroll_pos = bounded_scroll(
+            line_number,
+            state->num_display_lines,
+            state->lines.size()
+        );
         state->needs_render = true;
     }
+}
+
+void TextView::set_on_resist_up(std::function<void()> callback)
+{
+    state->on_resist_up = callback;
+}
+
+void TextView::set_on_resist_down(std::function<void()> callback)
+{
+    state->on_resist_down = callback;
 }
