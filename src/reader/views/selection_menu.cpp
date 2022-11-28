@@ -68,10 +68,17 @@ void SelectionMenu::set_cursor_pos(uint32_t new_cursor_pos)
             on_focus(cursor_pos);
         }
 
-        scroll_pos = std::max(
-            0, 
-            static_cast<int>(new_cursor_pos) - (static_cast<int>(num_display_lines) / 2 - 1)
-        );
+        if (entries.size() <= num_display_lines)
+        {
+            scroll_pos = 0;
+        }
+        else
+        {
+            scroll_pos = std::max(
+                0,
+                static_cast<int>(new_cursor_pos) - (static_cast<int>(num_display_lines) / 2 - 1)
+            );
+        }
     }
 }
 
@@ -127,11 +134,15 @@ bool SelectionMenu::render(SDL_Surface *dest_surface)
     return true;
 }
 
-void SelectionMenu::on_move_down()
+void SelectionMenu::on_move_down(uint32_t step)
 {
     if (cursor_pos < entries.size() - 1)
     {
-        cursor_pos++;
+        cursor_pos = std::min(
+            cursor_pos + step,
+            static_cast<uint32_t>(entries.size()) - 1
+        );
+
         if (cursor_pos >= scroll_pos + num_display_lines)
         {
             scroll_pos = cursor_pos - num_display_lines + 1;
@@ -143,12 +154,13 @@ void SelectionMenu::on_move_down()
     }
 }
 
-void SelectionMenu::on_move_up()
+void SelectionMenu::on_move_up(uint32_t step)
 {
     if (cursor_pos > 0)
     {
-        cursor_pos--;
+        cursor_pos = cursor_pos <= step ? 0 : cursor_pos - step;
         scroll_pos = std::min(scroll_pos, cursor_pos);
+
         if (on_focus)
         {
             on_focus(cursor_pos);
@@ -172,11 +184,19 @@ void SelectionMenu::on_select_entry()
 bool SelectionMenu::on_keypress(SDLKey key)
 {
     switch (key) {
-        case SW_BTN_DOWN:
-            on_move_down();
-            break;
         case SW_BTN_UP:
-            on_move_up();
+            on_move_up(1);
+            break;
+        case SW_BTN_DOWN:
+            on_move_down(1);
+            break;
+        case SW_BTN_LEFT:
+        case SW_BTN_L1:
+            on_move_up(num_display_lines);
+            break;
+        case SW_BTN_RIGHT:
+        case SW_BTN_R1:
+            on_move_down(num_display_lines);
             break;
         case SW_BTN_A:
             on_select_entry();

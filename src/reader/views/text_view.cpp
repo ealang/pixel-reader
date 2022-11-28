@@ -129,9 +129,11 @@ bool TextView::on_keypress(SDLKey key)
             scroll_down(1);
             break;
         case SW_BTN_LEFT:
+        case SW_BTN_L1:
             scroll_up(state->num_display_lines);
             break;
         case SW_BTN_RIGHT:
+        case SW_BTN_R1:
             scroll_down(state->num_display_lines);
             break;
         default:

@@ -25,8 +25,8 @@ class SelectionMenu: public View
     std::function<void(uint32_t)> on_selection;
     std::function<void(uint32_t)> on_focus;
 
-    void on_move_down();
-    void on_move_up();
+    void on_move_down(uint32_t step);
+    void on_move_up(uint32_t step);
     void on_select_entry();
 
 public:
