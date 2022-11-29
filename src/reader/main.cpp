@@ -1,5 +1,6 @@
-#include "sys/screen.h"
+#include "sys/fps_limiter.h"
 #include "sys/keymap.h"
+#include "sys/screen.h"
 
 #include "./state_store.h"
 #include "./view_stack.h"
@@ -94,9 +95,11 @@ int main (int, char *[])
     SDL_Flip(video);
 
     bool quit = false;
-
+    FPSLimiter limit_fps(20);
     while (!quit)
     {
+        bool ran_app_code = false;
+
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -115,25 +118,34 @@ int main (int, char *[])
                         else
                         {
                             view_stack.on_keypress(key);
-                        }
-
-                        view_stack.pop_completed_views();
-
-                        if (view_stack.is_done())
-                        {
-                            quit = true;
-                        }
-
-                        if (view_stack.render(screen))
-                        {
-                            SDL_BlitSurface(screen, NULL, video, NULL);
-                            SDL_Flip(video);
+                            ran_app_code = true;
                         }
                     }
                     break;
                 default:
                     break;
             }
+        }
+
+        if (ran_app_code)
+        {
+            view_stack.pop_completed_views();
+
+            if (view_stack.is_done())
+            {
+                quit = true;
+            }
+
+            if (view_stack.render(screen))
+            {
+                SDL_BlitSurface(screen, NULL, video, NULL);
+                SDL_Flip(video);
+            }
+        }
+
+        if (!quit)
+        {
+            limit_fps();
         }
     }
 
