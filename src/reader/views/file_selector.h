@@ -22,8 +22,9 @@ public:
     virtual ~FileSelector();
 
     bool render(SDL_Surface *dest_surface);
-    bool on_keypress(SDLKey key) override;
     bool is_done() override;
+    void on_keypress(SDLKey key) override;
+    void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
 
     void set_on_file_selected(std::function<void(const std::filesystem::path &)> on_file_selected);
     void set_on_file_focus(std::function<void(const std::filesystem::path &)> on_file_focus);

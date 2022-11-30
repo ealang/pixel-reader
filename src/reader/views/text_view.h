@@ -14,19 +14,21 @@ class TextView: public View
 {
     std::unique_ptr<TextViewState> state;
     TTF_Font *font;
-    int line_height;
-    int line_padding = 2;
+    const int line_height;
+    const int line_padding = 2;
+    const int num_display_lines;
 
-    void scroll_up(int num_lines);
-    void scroll_down(int num_lines);
+    void scroll(int num_lines, bool is_held_key);
+    void on_keypress(SDLKey key, bool is_held_key);
 
 public:
     TextView(std::vector<std::string> lines, TTF_Font *font);
     virtual ~TextView();
 
     bool render(SDL_Surface *dest_surface) override;
-    bool on_keypress(SDLKey key) override;
     bool is_done() override;
+    void on_keypress(SDLKey key) override;
+    void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
     void on_lose_focus() override;
 
     uint32_t get_line_number() const;

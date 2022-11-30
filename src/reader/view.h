@@ -11,11 +11,14 @@ public:
     // Returns true if rendering was performed.
     virtual bool render(SDL_Surface *dest) = 0;
 
-    // Return true if the event was handled.
-    virtual bool on_keypress(SDLKey key) = 0;
-
     // Return true if the view is no longer needed.
     virtual bool is_done() = 0;
+
+    // Key down event.
+    virtual void on_keypress(SDLKey key) = 0;
+
+    // Pass key and held time in ms.
+    virtual void on_keyheld(SDLKey, uint32_t) {}
 
     // A different view has been pushed on top.
     virtual void on_lose_focus() {}

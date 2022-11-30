@@ -14,8 +14,10 @@ public:
     virtual ~ViewStack();
 
     bool render(SDL_Surface *dest) override;
-    bool on_keypress(SDLKey key) override;
     bool is_done() override;
+
+    void on_keypress(SDLKey key) override;
+    void on_keyheld(SDLKey key, uint32_t hold_time_ms) override;
 
     // Pop views that report as done.
     void pop_completed_views();

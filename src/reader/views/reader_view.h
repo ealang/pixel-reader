@@ -25,8 +25,10 @@ public:
     virtual ~ReaderView();
 
     bool render(SDL_Surface *dest_surface) override;
-    bool on_keypress(SDLKey key) override;
     bool is_done() override;
+
+    void on_keypress(SDLKey key) override;
+    void on_keyheld(SDLKey key, uint32_t hold_time_ms) override;
     void on_lose_focus() override;
     void on_pop() override;
 

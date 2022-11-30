@@ -149,14 +149,19 @@ bool FileSelector::render(SDL_Surface *dest_surface)
     return state->menu.render(dest_surface);
 }
 
-bool FileSelector::on_keypress(SDLKey key)
-{
-    return state->menu.on_keypress(key);
-}
-
 bool FileSelector::is_done()
 {
     return state->menu.is_done();
+}
+
+void FileSelector::on_keypress(SDLKey key)
+{
+    state->menu.on_keypress(key);
+}
+
+void FileSelector::on_keyheld(SDLKey key, uint32_t held_time_ms)
+{
+    state->menu.on_keyheld(key, held_time_ms);
 }
 
 void FileSelector::set_on_file_selected(std::function<void(const std::filesystem::path &)> callback)

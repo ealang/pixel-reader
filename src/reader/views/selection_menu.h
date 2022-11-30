@@ -2,6 +2,7 @@
 #define SELECTION_MENU_H_
 
 #include "reader/view.h"
+#include "util/throttled.h"
 
 #include <SDL/SDL_ttf.h>
 
@@ -17,9 +18,11 @@ class SelectionMenu: public View
     bool close_on_select = false;
 
     TTF_Font *font;
-    int line_height;
-    int line_padding = 2; // TODO
-    uint32_t num_display_lines;
+    const int line_height;
+    const int line_padding = 2; // TODO
+    const uint32_t num_display_lines;
+
+    Throttled scroll_throttle;
 
     bool _is_done = false;
     std::function<void(uint32_t)> on_selection;
@@ -44,8 +47,9 @@ public:
     void set_cursor_pos(uint32_t pos);
 
     bool render(SDL_Surface *dest_surface) override;
-    bool on_keypress(SDLKey key) override;
     bool is_done() override;
+    void on_keypress(SDLKey key) override;
+    void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
 };
 
 #endif

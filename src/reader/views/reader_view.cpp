@@ -161,7 +161,12 @@ bool ReaderView::render(SDL_Surface *dest_surface)
     return state->text_view->render(dest_surface);
 }
 
-bool ReaderView::on_keypress(SDLKey key)
+bool ReaderView::is_done()
+{
+    return state->is_done;
+}
+
+void ReaderView::on_keypress(SDLKey key)
 {
     switch (key) {
         case SW_BTN_B:
@@ -178,15 +183,13 @@ bool ReaderView::on_keypress(SDLKey key)
             }
             break;
         default:
-            return state->text_view->on_keypress(key);
+            state->text_view->on_keypress(key);
     }
-
-    return true;
 }
 
-bool ReaderView::is_done()
+void ReaderView::on_keyheld(SDLKey key, uint32_t hold_time_ms)
 {
-    return state->is_done;
+    state->text_view->on_keyheld(key, hold_time_ms);
 }
 
 void ReaderView::on_lose_focus()

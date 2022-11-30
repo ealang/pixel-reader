@@ -1,15 +1,17 @@
-#include "sys/fps_limiter.h"
-#include "sys/keymap.h"
-#include "sys/screen.h"
-
 #include "./state_store.h"
-#include "./view_stack.h"
 #include "./views/file_selector.h"
 #include "./views/reader_view.h"
+#include "./view_stack.h"
+#include "sys/keymap.h"
+#include "sys/screen.h"
+#include "sys/timing.h"
+#include "util/fps_limiter.h"
+#include "util/held_key_tracker.h"
 
-#include <SDL/SDL.h>
-#include <iostream>
 #include <libxml/parser.h>
+#include <SDL/SDL.h>
+
+#include <iostream>
 
 namespace
 {
@@ -73,8 +75,8 @@ int main (int, char *[])
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
 
     // Font
-    int font_size = 24;
-    TTF_Font *font = TTF_OpenFont("fonts/DejaVuSerif.ttf", font_size);
+    int font_size = 18;
+    TTF_Font *font = TTF_OpenFont("fonts/DejaVuSans.ttf", font_size);
 
     if (!font)
     {
@@ -94,8 +96,29 @@ int main (int, char *[])
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
 
+    // Track held keys
+    HeldKeyTracker held_key_tracker(
+        {
+            SW_BTN_UP,
+            SW_BTN_DOWN,
+            SW_BTN_LEFT,
+            SW_BTN_RIGHT,
+            SW_BTN_L1,
+            SW_BTN_R1,
+            SW_BTN_L2,
+            SW_BTN_R2
+        }
+    );
+
+    auto key_held_callback = [&view_stack](SDLKey key, uint32_t held_ms) {
+        view_stack.on_keyheld(key, held_ms);
+    };
+
+    // Timing
+    FPSLimiter limit_fps(TARGET_FPS);
+    const uint32_t avg_loop_time = 1000 / TARGET_FPS;
+
     bool quit = false;
-    FPSLimiter limit_fps(20);
     while (!quit)
     {
         bool ran_app_code = false;
@@ -126,6 +149,9 @@ int main (int, char *[])
                     break;
             }
         }
+
+        held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
+        ran_app_code = held_key_tracker.for_each_held_key(key_held_callback) || ran_app_code;
 
         if (ran_app_code)
         {

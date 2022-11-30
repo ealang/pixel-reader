@@ -23,18 +23,25 @@ bool ViewStack::render(SDL_Surface *dest)
     return false;
 }
 
-bool ViewStack::on_keypress(SDLKey key)
-{
-    if (!views.empty())
-    {
-        return views.back()->on_keypress(key);
-    }
-    return false;
-}
-
 bool ViewStack::is_done()
 {
     return views.empty();
+}
+
+void ViewStack::on_keypress(SDLKey key)
+{
+    if (!views.empty())
+    {
+        views.back()->on_keypress(key);
+    }
+}
+
+void ViewStack::on_keyheld(SDLKey key, uint32_t hold_time_ms)
+{
+    if (!views.empty())
+    {
+        views.back()->on_keyheld(key, hold_time_ms);
+    }
 }
 
 void ViewStack::pop_completed_views()

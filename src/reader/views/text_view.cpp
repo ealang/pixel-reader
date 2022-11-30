@@ -1,33 +1,37 @@
 #include "./text_view.h"
+
 #include "reader/text_wrap.h"
 #include "reader/sdl_utils.h"
-
 #include "sys/keymap.h"
 #include "sys/screen.h"
-#include "sys/timer.h"
-
-#include <vector>
+#include "util/throttled.h"
 
 struct TextViewState
 {
     bool needs_render = true;
     std::vector<std::string> lines;
     int scroll_pos = 0;
-    int num_display_lines = 0;
 
     std::function<void()> on_resist_up;
     std::function<void()> on_resist_down;
 
-    TextViewState(std::vector<std::string> lines) : lines(lines) {}
+    Throttled line_scroll_throttle;
+    Throttled page_scroll_throttle;
+
+    TextViewState(std::vector<std::string> lines)
+        : lines(lines),
+          line_scroll_throttle(250, 50),
+          page_scroll_throttle(250, 150)
+    {
+    }
 };
 
 TextView::TextView(std::vector<std::string> lines, TTF_Font *font)
     : state(std::make_unique<TextViewState>(lines)),
       font(font),
-      line_height(detect_line_height(font))
+      line_height(detect_line_height(font)),
+      num_display_lines((SCREEN_HEIGHT - line_padding) / (line_height + line_padding))
 {
-
-    state->num_display_lines = (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
 }
 
 TextView::~TextView()
@@ -52,7 +56,7 @@ bool TextView::render(SDL_Surface *dest_surface)
     SDL_FillRect(dest_surface, &rect, rect_bg_color);
 
     Sint16 y = line_padding;
-    for (int i = 0; i < state->num_display_lines; ++i)
+    for (int i = 0; i < num_display_lines; ++i)
     {
         int global_i = i + state->scroll_pos;
         if (global_i >= static_cast<int>(state->lines.size()))
@@ -82,65 +86,90 @@ static int bounded_scroll(int scroll_pos, int num_display_lines, int num_lines)
     );
 }
 
-void TextView::scroll_up(int num_lines)
-{
-    int new_scroll_pos = bounded_scroll(
-        state->scroll_pos - num_lines,
-        state->num_display_lines,
-        state->lines.size()
-    );
-
-    if (new_scroll_pos != state->scroll_pos)
-    {
-        state->scroll_pos = new_scroll_pos;
-        state->needs_render = true;
-    }
-    else if (state->on_resist_up)
-    {
-        state->on_resist_up();
-    }
-}
-
-void TextView::scroll_down(int num_lines)
+void TextView::scroll(int num_lines, bool is_held_key)
 {
     int new_scroll_pos = bounded_scroll(
         state->scroll_pos + num_lines,
-        state->num_display_lines,
+        num_display_lines,
         state->lines.size()
     );
+
     if (new_scroll_pos != state->scroll_pos)
     {
         state->scroll_pos = new_scroll_pos;
         state->needs_render = true;
     }
-    else if (state->on_resist_down)
+    else if (!is_held_key)
     {
-        state->on_resist_down();
+        if (num_lines > 0)
+        {
+            if (state->on_resist_down)
+            {
+                state->on_resist_down();
+            }
+        }
+        else
+        {
+            if (state->on_resist_up)
+            {
+                state->on_resist_up();
+            }
+        }
     }
 }
 
-bool TextView::on_keypress(SDLKey key)
+void TextView::on_keypress(SDLKey key, bool is_held_key)
 {
     switch (key) {
         case SW_BTN_UP:
-            scroll_up(1);
+            scroll(-1, is_held_key);
             break;
         case SW_BTN_DOWN:
-            scroll_down(1);
+            scroll(1, is_held_key);
             break;
         case SW_BTN_LEFT:
         case SW_BTN_L1:
-            scroll_up(state->num_display_lines);
+            scroll(-num_display_lines, is_held_key);
             break;
         case SW_BTN_RIGHT:
         case SW_BTN_R1:
-            scroll_down(state->num_display_lines);
+            scroll(num_display_lines, is_held_key);
             break;
         default:
             break;
     }
+}
 
-    return true;
+void TextView::on_keypress(SDLKey key)
+{
+    bool is_heldkey = false;
+    on_keypress(key, is_heldkey);
+}
+
+void TextView::on_keyheld(SDLKey key, uint32_t held_time_ms)
+{
+    switch (key) {
+        case SW_BTN_UP:
+        case SW_BTN_DOWN:
+            if (state->line_scroll_throttle(held_time_ms))
+            {
+                bool is_heldkey = true;
+                on_keypress(key, is_heldkey);
+            }
+            break;
+        case SW_BTN_LEFT:
+        case SW_BTN_RIGHT:
+        case SW_BTN_L1:
+        case SW_BTN_R1:
+            if (state->page_scroll_throttle(held_time_ms))
+            {
+                bool is_heldkey = true;
+                on_keypress(key, is_heldkey);
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 bool TextView::is_done()
@@ -164,7 +193,7 @@ void TextView::set_line_number(uint32_t line_number)
     {
         state->scroll_pos = bounded_scroll(
             line_number,
-            state->num_display_lines,
+            num_display_lines,
             state->lines.size()
         );
         state->needs_render = true;

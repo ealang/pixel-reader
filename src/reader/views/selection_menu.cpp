@@ -13,7 +13,8 @@ SelectionMenu::SelectionMenu(std::vector<std::string> entries, TTF_Font *font)
     : entries(entries),
       font(font),
       line_height(detect_line_height(font)),
-      num_display_lines((SCREEN_HEIGHT - line_padding) / (line_height + line_padding))
+      num_display_lines((SCREEN_HEIGHT - line_padding) / (line_height + line_padding)),
+      scroll_throttle(250, 100)
 {
 }
 
@@ -134,6 +135,11 @@ bool SelectionMenu::render(SDL_Surface *dest_surface)
     return true;
 }
 
+bool SelectionMenu::is_done()
+{
+    return _is_done;
+}
+
 void SelectionMenu::on_move_down(uint32_t step)
 {
     if (cursor_pos < entries.size() - 1)
@@ -181,7 +187,7 @@ void SelectionMenu::on_select_entry()
     }
 }
 
-bool SelectionMenu::on_keypress(SDLKey key)
+void SelectionMenu::on_keypress(SDLKey key)
 {
     switch (key) {
         case SW_BTN_UP:
@@ -192,11 +198,11 @@ bool SelectionMenu::on_keypress(SDLKey key)
             break;
         case SW_BTN_LEFT:
         case SW_BTN_L1:
-            on_move_up(num_display_lines);
+            on_move_up(num_display_lines / 2);
             break;
         case SW_BTN_RIGHT:
         case SW_BTN_R1:
-            on_move_down(num_display_lines);
+            on_move_down(num_display_lines / 2);
             break;
         case SW_BTN_A:
             on_select_entry();
@@ -207,10 +213,23 @@ bool SelectionMenu::on_keypress(SDLKey key)
         default:
             break;
     }
-    return true;
 }
 
-bool SelectionMenu::is_done()
+void SelectionMenu::on_keyheld(SDLKey key, uint32_t held_time_ms)
 {
-    return _is_done;
+    switch (key) {
+        case SW_BTN_UP:
+        case SW_BTN_DOWN:
+        case SW_BTN_LEFT:
+        case SW_BTN_RIGHT:
+        case SW_BTN_L1:
+        case SW_BTN_R1:
+            if (scroll_throttle(held_time_ms))
+            {
+                on_keypress(key);
+            }
+            break;
+        default:
+            break;
+    }
 }
