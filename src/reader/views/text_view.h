@@ -13,10 +13,6 @@ struct TextViewState;
 class TextView: public View
 {
     std::unique_ptr<TextViewState> state;
-    TTF_Font *font;
-    const int line_height;
-    const int line_padding = 2;
-    const int num_display_lines;
 
     void scroll(int num_lines, bool is_held_key);
     void on_keypress(SDLKey key, bool is_held_key);
@@ -33,6 +29,9 @@ public:
 
     uint32_t get_line_number() const;
     void set_line_number(uint32_t line_number);
+
+    void set_show_title_bar(bool enabled);
+    void set_title(std::string title);
 
     // user tried to scroll up when already at the top
     void set_on_resist_up(std::function<void()> callback);
