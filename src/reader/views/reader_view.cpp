@@ -104,7 +104,7 @@ std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewStat
     return text_view;
 }
 
-DocAddr get_current_address(ReaderViewState &state)
+DocAddr get_current_address(const ReaderViewState &state)
 {
     uint32_t line_index = state.text_view->get_line_number();
     if (line_index < state.line_addresses.size())
@@ -115,7 +115,7 @@ DocAddr get_current_address(ReaderViewState &state)
     return state.last_loaded_address;
 }
 
-void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
+void open_toc_menu(ReaderView &reader_view, const ReaderViewState &state)
 {
     if (state.reader.get_table_of_contents().empty())
     {
@@ -139,6 +139,13 @@ void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
     // select current toc item
     uint32_t current_toc_index = state.reader.get_toc_index(get_current_address(state));
     toc_select_menu->set_cursor_pos(current_toc_index);
+
+    toc_select_menu->set_default_on_keypress([toc_select_menu](SDLKey key) {
+        if (key == SW_BTN_SELECT)
+        {
+            toc_select_menu->close();
+        }
+    });
 
     state.view_stack.push(toc_select_menu);
 }

@@ -37,6 +37,11 @@ void SelectionMenu::set_on_focus(std::function<void(uint32_t)> callback)
     on_focus = callback;
 }
 
+void SelectionMenu::set_default_on_keypress(std::function<void(SDLKey)> callback)
+{
+    default_on_keypress = callback;
+}
+
 void SelectionMenu::set_close_on_select()
 {
     close_on_select = true;
@@ -81,6 +86,11 @@ void SelectionMenu::set_cursor_pos(uint32_t new_cursor_pos)
             );
         }
     }
+}
+
+void SelectionMenu::close()
+{
+    _is_done = true;
 }
 
 bool SelectionMenu::render(SDL_Surface *dest_surface)
@@ -211,6 +221,10 @@ void SelectionMenu::on_keypress(SDLKey key)
             _is_done = true;
             break;
         default:
+            if (default_on_keypress)
+            {
+                default_on_keypress(key);
+            }
             break;
     }
 }
