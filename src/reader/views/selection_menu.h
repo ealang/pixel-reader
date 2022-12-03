@@ -21,11 +21,11 @@ class SelectionMenu: public View
     uint32_t scroll_pos = 0;
     bool close_on_select = false;
 
-    TTF_Font *font;
+    std::string font;
     SystemStyling &styling;
     const uint32_t styling_sub_id;
 
-    const int line_height;
+    int line_height;
     const int line_padding = 2; // TODO
     const uint32_t num_display_lines;
 
@@ -42,8 +42,8 @@ class SelectionMenu: public View
 
 public:
 
-    SelectionMenu(SystemStyling &styling, TTF_Font *font);
-    SelectionMenu(std::vector<std::string> entries, SystemStyling &styling, TTF_Font *font);
+    SelectionMenu(SystemStyling &styling, std::string font);
+    SelectionMenu(std::vector<std::string> entries, SystemStyling &styling, std::string font);
     virtual ~SelectionMenu();
 
     void set_entries(std::vector<std::string> new_entries);

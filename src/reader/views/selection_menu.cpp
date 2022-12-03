@@ -2,22 +2,24 @@
 
 #include "sys/screen.h"
 #include "sys/keymap.h"
-#include "reader/sdl_utils.h"
 #include "reader/system_styling.h"
+#include "util/sdl_font_cache.h"
+#include "util/sdl_utils.h"
 
-SelectionMenu::SelectionMenu(SystemStyling &styling, TTF_Font *font)
+SelectionMenu::SelectionMenu(SystemStyling &styling, std::string font)
     : SelectionMenu({}, styling, font)
 {
 }
 
-SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &styling, TTF_Font *font)
+SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &styling, std::string font)
     : entries(entries),
       font(font),
       styling(styling),
       styling_sub_id(styling.subscribe_to_changes([this]() {
           needs_render = true;
+          line_height = detect_line_height(this->font, this->styling.get_font_size());
       })),
-      line_height(detect_line_height(font)),
+      line_height(detect_line_height(font, styling.get_font_size())),
       num_display_lines((SCREEN_HEIGHT - line_padding) / (line_height + line_padding)),
       scroll_throttle(250, 100)
 {
@@ -108,6 +110,8 @@ bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
     }
     needs_render = false;
 
+    TTF_Font *loaded_font = cached_load_font(font, styling.get_font_size());
+
     const SDL_PixelFormat *pixel_format = dest_surface->format;
 
     const auto &theme = styling.get_loaded_color_theme();
@@ -148,7 +152,7 @@ bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
         // Draw text
         {
             SDL_Rect rectMessage = {x, y, 0, 0};
-            SDL_Surface *message = TTF_RenderUTF8_Shaded(font, entry.c_str(), fg_color, is_highlighted ? hl_color : bg_color);
+            SDL_Surface *message = TTF_RenderUTF8_Shaded(loaded_font, entry.c_str(), fg_color, is_highlighted ? hl_color : bg_color);
             SDL_BlitSurface(message, NULL, dest_surface, &rectMessage);
             SDL_FreeSurface(message);
         }

@@ -14,8 +14,12 @@ class SystemStyling {
     void notify_subscribers() const;
 
 public:
-    SystemStyling(std::string color_theme);
+    SystemStyling(uint32_t font_size, std::string color_theme);
     virtual ~SystemStyling();
+
+    // Font size
+    void set_font_size(uint32_t font_size);
+    uint32_t get_font_size() const;
 
     // Color theme definition
     void set_color_theme(std::string color_theme);

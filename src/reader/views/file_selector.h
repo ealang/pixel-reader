@@ -4,7 +4,6 @@
 #include "reader/view.h"
 
 #include <SDL/SDL_video.h>
-#include <SDL/SDL_ttf.h>
 
 #include <functional>
 #include <filesystem>
@@ -20,7 +19,7 @@ class FileSelector: public View
 
 public:
     // Expects to receive a path to a file, or directory with trailing separator.
-    FileSelector(std::filesystem::path path, SystemStyling &styling, TTF_Font *font);
+    FileSelector(std::filesystem::path path, SystemStyling &styling, std::string font);
     virtual ~FileSelector();
 
     bool render(SDL_Surface *dest_surface, bool force_render);

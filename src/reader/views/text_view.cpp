@@ -2,10 +2,11 @@
 
 #include "./text_view_styling.h"
 #include "reader/text_wrap.h"
-#include "reader/sdl_utils.h"
 #include "reader/system_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
+#include "util/sdl_font_cache.h"
+#include "util/sdl_utils.h"
 #include "util/throttled.h"
 
 struct TextViewState
@@ -80,14 +81,17 @@ struct TextViewState
         : sys_styling(sys_styling),
           text_view_styling(text_view_styling),
           sys_styling_sub_id(sys_styling.subscribe_to_changes([this]() {
-              // Color theme
+              // Color theme and font size
               needs_render = true;
+              line_height = detect_line_height(
+                  this->text_view_styling.get_font(),
+                  this->sys_styling.get_font_size()
+              );
           })),
           text_view_styling_sub_id(text_view_styling.subscribe_to_changes([this]() {
               needs_render = true;
-              line_height = detect_line_height(this->text_view_styling.get_loaded_font());
           })),
-          line_height(detect_line_height(text_view_styling.get_loaded_font())),
+          line_height(detect_line_height(text_view_styling.get_font(), sys_styling.get_font_size())),
           lines(lines),
           line_scroll_throttle(250, 50),
           page_scroll_throttle(750, 150)
@@ -118,7 +122,7 @@ bool TextView::render(SDL_Surface *dest_surface, bool force_render)
     }
     state->needs_render = false;
 
-    TTF_Font *font = state->text_view_styling.get_loaded_font();
+    TTF_Font *font = cached_load_font(state->text_view_styling.get_font(), state->sys_styling.get_font_size());
     const auto &theme = state->sys_styling.get_loaded_color_theme();
     const int line_height = state->line_height;
     const int line_padding = state->line_padding;

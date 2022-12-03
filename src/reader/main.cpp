@@ -1,16 +1,17 @@
 #include "./color_theme_def.h"
+#include "./settings_store.h"
 #include "./state_store.h"
 #include "./system_styling.h"
+#include "./view_stack.h"
 #include "./views/file_selector.h"
 #include "./views/reader_view.h"
-#include "./view_stack.h"
 #include "./views/text_view_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "sys/timing.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
-#include "util/sdl_pointer.h"
+#include "util/sdl_font_cache.h"
 
 #include <libxml/parser.h>
 #include <SDL/SDL.h>
@@ -20,36 +21,13 @@
 namespace
 {
 
-constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
-constexpr const char *SETTINGS_KEY_SHOW_TITLE_BAR = "show_title_bar";
-
-bool settings_get_show_title_bar(const StateStore &state_store)
-{
-    return state_store.get_setting(SETTINGS_KEY_SHOW_TITLE_BAR).value_or("true") == "true";
-}
-
-void settings_set_show_title_bar(StateStore &state_store, bool show_title_bar)
-{
-    state_store.set_setting(SETTINGS_KEY_SHOW_TITLE_BAR, show_title_bar ? "true" : "false");
-}
-
-std::string settings_get_color_theme(const StateStore &state_store)
-{
-    return state_store.get_setting(SETTINGS_KEY_COLOR_THEME).value_or(get_next_theme(""));
-}
-
-void settings_set_color_theme(StateStore &state_store, const std::string &color_theme)
-{
-    state_store.set_setting(SETTINGS_KEY_COLOR_THEME, color_theme);
-}
-
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, TTF_Font *mono_font)
+void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, std::string control_font)
 {
     auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
         browse_path,
         sys_styling,
-        mono_font
+        control_font
     );
 
     auto load_book = [&view_stack, &state_store, &sys_styling, &text_view_styling](std::filesystem::path path) {
@@ -103,45 +81,45 @@ int main(int, char *[])
     auto base_dir = std::filesystem::current_path() / ".state";
     StateStore state_store(base_dir);
 
-    // System styling
-    int font_size = 18;
-    std::string mono_font_path = "fonts/DejaVuSansMono.ttf";
-    ttf_font_unique_ptr mono_font(
-        TTF_OpenFont(mono_font_path.c_str(), font_size)
-    );
-    if (!mono_font)
+    // Preload & check fonts
+    std::string control_font = "fonts/DejaVuSansMono.ttf";
+    std::string reader_font = "fonts/DejaVuSans.ttf";
+
+    uint32_t init_font_size = settings_get_font_size(state_store);
+    if (
+        !cached_load_font(control_font, init_font_size, FontLoadErrorOpt::NoThrow) ||
+        !cached_load_font(reader_font, init_font_size, FontLoadErrorOpt::NoThrow)
+    )
     {
-        std::cerr << "Failed to load font" << std::endl;
+        std::cerr << "Failed to load one or more fonts" << std::endl;
         return 1;
     }
 
+    // System styling
     SystemStyling sys_styling(
+        settings_get_font_size(state_store),
         settings_get_color_theme(state_store)
     );
     sys_styling.subscribe_to_changes([&state_store, &sys_styling]() {
         // Persist changes to system styling
         settings_set_color_theme(state_store, sys_styling.get_color_theme());
+        settings_set_font_size(state_store, sys_styling.get_font_size());
     });
 
     // Text Styling
     TextViewStyling text_view_styling(
-        "fonts/DejaVuSans.ttf",
-        font_size,
+        reader_font,
         settings_get_show_title_bar(state_store)
     );
     text_view_styling.subscribe_to_changes([&text_view_styling, &state_store]() {
         // Persist changes to text view styling
         settings_set_show_title_bar(state_store, text_view_styling.get_show_title_bar());
     });
-    if (!text_view_styling.get_loaded_font())
-    {
-        std::cerr << "Failed to load font" << std::endl;
-        return 1;
-    }
 
     // Views
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, sys_styling, text_view_styling, mono_font.get());
+
+    initialize_views(view_stack, state_store, sys_styling, text_view_styling, control_font);
 
     // Track held keys
     HeldKeyTracker held_key_tracker(

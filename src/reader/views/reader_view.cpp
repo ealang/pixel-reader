@@ -6,11 +6,13 @@
 
 #include "reader/color_theme_def.h"
 #include "reader/display_lines.h"
+#include "reader/system_styling.h"
 #include "reader/view_stack.h"
 
 #include "epub/epub_reader.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
+#include "util/sdl_font_cache.h"
 
 #include <iostream>
 
@@ -53,7 +55,9 @@ std::shared_ptr<TextView> make_error_text_view(ReaderViewState &state)
 
 std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewState &state, const DocAddr &address)
 {
-    auto line_fits_on_screen = [font=state.text_view_styling.get_loaded_font()](const char *s, uint32_t len) {
+    TTF_Font *font = cached_load_font(state.text_view_styling.get_font(), state.sys_styling.get_font_size());
+
+    auto line_fits_on_screen = [font](const char *s, uint32_t len) {
         int w = SCREEN_WIDTH, h;
 
         char *mut_s = (char*)s;
@@ -134,7 +138,11 @@ void open_toc_menu(ReaderView &reader_view, const ReaderViewState &state)
         menu_names.push_back(indent + toc_item.display_name);
     }
 
-    auto toc_select_menu = std::make_shared<SelectionMenu>(menu_names, state.sys_styling, state.text_view_styling.get_loaded_font());
+    auto toc_select_menu = std::make_shared<SelectionMenu>(
+        menu_names,
+        state.sys_styling,
+        state.text_view_styling.get_font()
+    );
     toc_select_menu->set_on_selection([&reader_view](uint32_t toc_index) {
         return reader_view.seek_to_toc_index(toc_index);
     });

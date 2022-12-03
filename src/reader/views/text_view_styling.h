@@ -1,8 +1,6 @@
 #ifndef TEXT_VIEW_STYLING_H_
 #define TEXT_VIEW_STYLING_H_
 
-#include <SDL/SDL_ttf.h>
-
 #include <functional>
 #include <memory>
 #include <string>
@@ -15,11 +13,11 @@ class TextViewStyling
     void notify_subscribers() const;
 
 public:
-    TextViewStyling(std::string font, uint32_t font_size, bool show_title_bar);
+    TextViewStyling(std::string font, bool show_title_bar);
     virtual ~TextViewStyling();
 
     // Font
-    TTF_Font *get_loaded_font() const;
+    const std::string &get_font() const;
 
     // Title bar
     bool get_show_title_bar() const;

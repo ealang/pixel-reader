@@ -1,13 +1,10 @@
 #include "./text_view_styling.h"
 
-#include "util/sdl_pointer.h"
-
-#include <iostream>
 #include <unordered_map>
 
 struct TextViewStylingState
 {
-    ttf_font_unique_ptr loaded_font;
+    std::string font;
     bool show_title_bar;
 
     uint32_t next_subscriber_id = 1;
@@ -15,20 +12,15 @@ struct TextViewStylingState
 
     TextViewStylingState(
         std::string font,
-        uint32_t font_size,
         bool show_title_bar
-    ) : loaded_font(TTF_OpenFont(font.c_str(), font_size)),
+    ) : font(font),
         show_title_bar(show_title_bar)
     {}
 };
 
-TextViewStyling::TextViewStyling(std::string font, uint32_t font_size, bool show_title_bar)
-    : state(std::make_unique<TextViewStylingState>(font, font_size, show_title_bar))
+TextViewStyling::TextViewStyling(std::string font, bool show_title_bar)
+    : state(std::make_unique<TextViewStylingState>(font, show_title_bar))
 {
-    if (!state->loaded_font)
-    {
-        std::cerr << "Unable to load font: " << font << std::endl;
-    }
 }
 
 TextViewStyling::~TextViewStyling()
@@ -43,9 +35,9 @@ void TextViewStyling::notify_subscribers() const
     }
 }
 
-TTF_Font *TextViewStyling::get_loaded_font() const
+const std::string &TextViewStyling::get_font() const
 {
-    return state->loaded_font.get();
+    return state->font;
 }
 
 bool TextViewStyling::get_show_title_bar() const
