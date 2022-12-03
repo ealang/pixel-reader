@@ -21,6 +21,27 @@ namespace
 {
 
 constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
+constexpr const char *SETTINGS_KEY_SHOW_TITLE_BAR = "show_title_bar";
+
+bool settings_get_show_title_bar(const StateStore &state_store)
+{
+    return state_store.get_setting(SETTINGS_KEY_SHOW_TITLE_BAR).value_or("true") == "true";
+}
+
+void settings_set_show_title_bar(StateStore &state_store, bool show_title_bar)
+{
+    state_store.set_setting(SETTINGS_KEY_SHOW_TITLE_BAR, show_title_bar ? "true" : "false");
+}
+
+std::string settings_get_color_theme(const StateStore &state_store)
+{
+    return state_store.get_setting(SETTINGS_KEY_COLOR_THEME).value_or(get_next_theme(""));
+}
+
+void settings_set_color_theme(StateStore &state_store, const std::string &color_theme)
+{
+    state_store.set_setting(SETTINGS_KEY_COLOR_THEME, color_theme);
+}
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, TTF_Font *mono_font)
 {
@@ -95,20 +116,22 @@ int main(int, char *[])
     }
 
     SystemStyling sys_styling(
-        state_store.get_setting(SETTINGS_KEY_COLOR_THEME).value_or(get_next_theme(""))
+        settings_get_color_theme(state_store)
     );
     sys_styling.subscribe_to_changes([&state_store, &sys_styling]() {
-        const auto &theme = sys_styling.get_color_theme();
-        state_store.set_setting(SETTINGS_KEY_COLOR_THEME, theme);
+        // Persist changes to system styling
+        settings_set_color_theme(state_store, sys_styling.get_color_theme());
     });
 
     // Text Styling
     TextViewStyling text_view_styling(
         "fonts/DejaVuSans.ttf",
-        font_size
+        font_size,
+        settings_get_show_title_bar(state_store)
     );
-    text_view_styling.subscribe_to_changes([]() {
-        // TODO
+    text_view_styling.subscribe_to_changes([&text_view_styling, &state_store]() {
+        // Persist changes to text view styling
+        settings_set_show_title_bar(state_store, text_view_styling.get_show_title_bar());
     });
     if (!text_view_styling.get_loaded_font())
     {

@@ -19,7 +19,6 @@ struct ReaderViewState
     bool is_zombie = false;
     bool is_done = false;
     bool has_data = false;
-    bool show_text_title_bar = true;
 
     DocAddr last_loaded_address = 0;
     std::function<void()> on_quit;
@@ -96,7 +95,7 @@ std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewStat
             text_view->set_title(toc[toc_index].display_name);
         }
     }
-    text_view->set_show_title_bar(state.show_text_title_bar);
+    text_view->set_show_title_bar(state.text_view_styling.get_show_title_bar());
 
     text_view->set_on_resist_up([&reader_view]() {
         reader_view.seek_to_prev_doc();
@@ -195,8 +194,11 @@ void ReaderView::on_keypress(SDLKey key)
 {
     switch (key) {
         case SW_BTN_A:
-            state->show_text_title_bar = !state->show_text_title_bar;
-            state->text_view->set_show_title_bar(state->show_text_title_bar);
+            {
+                bool show = !state->text_view_styling.get_show_title_bar();
+                state->text_view_styling.set_show_title_bar(show);
+                state->text_view->set_show_title_bar(show);
+            }
             break;
         case SW_BTN_B:
             state->is_done = true;
