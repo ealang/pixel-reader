@@ -147,9 +147,9 @@ FileSelector::~FileSelector()
 {
 }
 
-bool FileSelector::render(SDL_Surface *dest_surface)
+bool FileSelector::render(SDL_Surface *dest_surface, bool force_render)
 {
-    return state->menu.render(dest_surface);
+    return state->menu.render(dest_surface, force_render);
 }
 
 bool FileSelector::is_done()

@@ -180,9 +180,9 @@ ReaderView::~ReaderView()
 {
 }
 
-bool ReaderView::render(SDL_Surface *dest_surface)
+bool ReaderView::render(SDL_Surface *dest_surface, bool force_render)
 {
-    return state->text_view->render(dest_surface);
+    return state->text_view->render(dest_surface, force_render);
 }
 
 bool ReaderView::is_done()
@@ -221,11 +221,6 @@ void ReaderView::on_keypress(SDLKey key)
 void ReaderView::on_keyheld(SDLKey key, uint32_t hold_time_ms)
 {
     state->text_view->on_keyheld(key, hold_time_ms);
-}
-
-void ReaderView::on_lose_focus()
-{
-    state->text_view->on_lose_focus();
 }
 
 void ReaderView::on_pop()

@@ -110,9 +110,9 @@ TextView::~TextView()
 {
 }
 
-bool TextView::render(SDL_Surface *dest_surface)
+bool TextView::render(SDL_Surface *dest_surface, bool force_render)
 {
-    if (!state->needs_render)
+    if (!state->needs_render && !force_render)
     {
         return false;
     }
@@ -272,11 +272,6 @@ void TextView::on_keyheld(SDLKey key, uint32_t held_time_ms)
 bool TextView::is_done()
 {
     return false;
-}
-
-void TextView::on_lose_focus()
-{
-    state->needs_render = true;
 }
 
 uint32_t TextView::get_line_number() const

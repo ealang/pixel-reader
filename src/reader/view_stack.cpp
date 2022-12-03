@@ -2,11 +2,6 @@
 
 void ViewStack::push(std::shared_ptr<View> view)
 {
-    if (!views.empty())
-    {
-        views.back()->on_lose_focus();
-    }
-    view->on_gain_focus();
     views.push_back(view);
 }
 
@@ -14,11 +9,11 @@ ViewStack::~ViewStack()
 {
 }
 
-bool ViewStack::render(SDL_Surface *dest)
+bool ViewStack::render(SDL_Surface *dest, bool force_render)
 {
     if (!views.empty())
     {
-        return views.back()->render(dest);
+        return views.back()->render(dest, force_render);
     }
     return false;
 }
@@ -44,7 +39,7 @@ void ViewStack::on_keyheld(SDLKey key, uint32_t hold_time_ms)
     }
 }
 
-void ViewStack::pop_completed_views()
+bool ViewStack::pop_completed_views()
 {
     bool changed_focus = false;
     while (!views.empty() && views.back()->is_done())
@@ -54,13 +49,7 @@ void ViewStack::pop_completed_views()
         changed_focus = true;
     }
 
-    if (!views.empty())
-    {
-        if (changed_focus)
-        {
-            views.back()->on_gain_focus();
-        }
-    }
+    return changed_focus;
 }
 
 void ViewStack::shutdown()

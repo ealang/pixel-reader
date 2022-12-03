@@ -100,9 +100,9 @@ void SelectionMenu::close()
     _is_done = true;
 }
 
-bool SelectionMenu::render(SDL_Surface *dest_surface)
+bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
 {
-    if (!needs_render)
+    if (!needs_render && !force_render)
     {
         return false;
     }

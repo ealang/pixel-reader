@@ -166,7 +166,7 @@ int main(int, char *[])
     // Surfaces
     SDL_Surface *video = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
-    view_stack.render(screen);
+    view_stack.render(screen, true);
 
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
@@ -215,14 +215,14 @@ int main(int, char *[])
 
         if (needs_render)
         {
-            view_stack.pop_completed_views();
+            bool force_render = view_stack.pop_completed_views();
 
             if (view_stack.is_done())
             {
                 quit = true;
             }
 
-            if (view_stack.render(screen))
+            if (view_stack.render(screen, force_render))
             {
                 SDL_BlitSurface(screen, NULL, video, NULL);
                 SDL_Flip(video);

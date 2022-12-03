@@ -23,11 +23,10 @@ public:
     TextView(std::vector<std::string> lines, SystemStyling &sys_styling, TextViewStyling &text_view_styling);
     virtual ~TextView();
 
-    bool render(SDL_Surface *dest_surface) override;
+    bool render(SDL_Surface *dest_surface, bool force_render) override;
     bool is_done() override;
     void on_keypress(SDLKey key) override;
     void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
-    void on_lose_focus() override;
 
     uint32_t get_line_number() const;
     void set_line_number(uint32_t line_number);

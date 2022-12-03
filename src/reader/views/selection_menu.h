@@ -58,7 +58,7 @@ public:
 
     void close();
 
-    bool render(SDL_Surface *dest_surface) override;
+    bool render(SDL_Surface *dest_surface, bool force_render) override;
     bool is_done() override;
     void on_keypress(SDLKey key) override;
     void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
