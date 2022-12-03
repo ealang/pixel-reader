@@ -1,60 +1,84 @@
 #include "./state_store.h"
 
 #include <fstream>
-#include <iostream>
-
-#define ACTIVITY_STORE_VERSION "v1"
+#include <unordered_map>
 
 namespace
 {
 
-void write_activity_store(const std::filesystem::path &path, const StateStore &store)
+constexpr const char *ACTIVITY_KEY_BROWSER_PATH = "browser_path";
+constexpr const char *ACTIVITY_KEY_BOOK_PATH = "book_path";
+
+void write_key_value(const std::string &path, const std::unordered_map<std::string, std::string> &settings)
 {
     std::ofstream fp(path);
-    fp << ACTIVITY_STORE_VERSION << std::endl;
-    fp << store.get_current_browse_path().value_or("").string() << std::endl;
-    fp << store.get_current_book_path().value_or("").string() << std::endl;
+    for (const auto& [key, value]: settings)
+    {
+        fp << key << "=" << value << std::endl;
+    }
     fp.close();
 }
 
-void load_activity_store(const std::filesystem::path &path, StateStore &store)
+std::unordered_map<std::string, std::string> load_key_value(const std::string &path)
 {
-    std::string browse_path, book_path;
-
+    std::unordered_map<std::string, std::string> settings;
     std::ifstream fp(path);
-    if (fp.is_open())
+
+    std::string line;
+    while (std::getline(fp, line))
     {
-        std::string version;
-        std::getline(fp, version);
-        if (version == ACTIVITY_STORE_VERSION)
+        auto pos = line.find('=');
+        if (pos == std::string::npos)
         {
-            std::getline(fp, browse_path);
-            std::getline(fp, book_path);
+            continue;
         }
-        else
-        {
-            std::cerr << "Unknown activity store version: " << version << std::endl;
-        }
-        fp.close();
+        auto key = line.substr(0, pos);
+        auto value = line.substr(pos + 1);
+        settings[key] = value;
+    }
+    fp.close();
+
+    return settings;
+}
+
+void write_activity_store(const std::filesystem::path &path, const StateStore &store)
+{
+    std::unordered_map<std::string, std::string> kv;
+
+    const auto &browse_path = store.get_current_browse_path();
+    if (browse_path)
+    {
+        kv[ACTIVITY_KEY_BROWSER_PATH] = browse_path.value().string();
     }
 
-    if (browse_path.size())
+    const auto &book_path = store.get_current_book_path();
+    if (book_path)
     {
-        store.set_current_browse_path(browse_path);
-    }
-    else
-    {
-        store.remove_current_browse_path();
+        kv[ACTIVITY_KEY_BOOK_PATH] = book_path.value().string();
     }
 
-    if (book_path.size())
+    write_key_value(path, kv);
+}
+
+std::pair<std::optional<std::string>, std::optional<std::string>> load_activity_store(const std::filesystem::path &path)
+{
+    std::optional<std::string> browse_path, book_path;
+
+    auto kv = load_key_value(path);
+
+    auto browse_it = kv.find(ACTIVITY_KEY_BROWSER_PATH);
+    if (browse_it != kv.end())
     {
-        store.set_current_book_path(book_path);
+        browse_path = browse_it->second;
     }
-    else
+
+    auto book_it = kv.find(ACTIVITY_KEY_BOOK_PATH);
+    if (book_it != kv.end())
     {
-        store.remove_current_book_path();
+        book_path = book_it->second;
     }
+
+    return {browse_path, book_path};
 }
 
 std::filesystem::path address_store_path_for_book(const std::filesystem::path &base_path, const std::filesystem::path &book_path)
@@ -90,11 +114,16 @@ std::optional<DocAddr> load_book_address(const std::filesystem::path &path)
 
 StateStore::StateStore(std::filesystem::path base_dir)
     : activity_store_path(base_dir / "activity"),
-      addresses_root_path(base_dir / "books")
+      addresses_root_path(base_dir / "books"),
+      settings_store_path(base_dir / "settings"),
+      settings(load_key_value(settings_store_path))
 {
     std::filesystem::create_directories(base_dir);
     std::filesystem::create_directories(addresses_root_path);
-    load_activity_store(activity_store_path, *this);
+
+    auto [browse_path, book_path] = load_activity_store(activity_store_path);
+    current_browse_path = browse_path;
+    current_book_path = book_path;
 }
 
 StateStore::~StateStore()
@@ -111,7 +140,7 @@ void StateStore::set_current_browse_path(std::filesystem::path path)
     if (current_browse_path != path)
     {
         current_browse_path = path;
-        dirty = true;
+        activity_dirty = true;
     }
 }
 
@@ -120,7 +149,7 @@ void StateStore::remove_current_browse_path()
     if (current_browse_path)
     {
         current_browse_path.reset();
-        dirty = true;
+        activity_dirty = true;
     }
 }
 
@@ -134,7 +163,7 @@ void StateStore::set_current_book_path(std::filesystem::path path)
     if (current_book_path != path)
     {
         current_book_path = path;
-        dirty = true;
+        activity_dirty = true;
     }
 }
 
@@ -143,7 +172,7 @@ void StateStore::remove_current_book_path()
     if (current_book_path)
     {
         current_book_path.reset();
-        dirty = true;
+        activity_dirty = true;
     }
 }
 
@@ -172,16 +201,19 @@ void StateStore::set_book_address(const std::string &book_path, const DocAddr &a
     if (it == book_addresses.end() || it->second != address)
     {
         book_addresses[book_path] = address;
-        dirty = true;
     }
 }
 
 void StateStore::flush() const
 {
-    if (dirty)
+    if (activity_dirty)
     {
         write_activity_store(activity_store_path, *this);
+        activity_dirty = false;
+    }
 
+    // book addresses
+    {
         for (const auto &[book_path, address] : book_addresses)
         {
             write_book_address(
@@ -189,9 +221,32 @@ void StateStore::flush() const
                 address
             );
         }
-
         book_addresses.clear();
-        dirty = false;
+    }
+
+    if (settings_dirty)
+    {
+        write_key_value(settings_store_path, settings);
+        settings_dirty = false;
     }
 }
 
+std::optional<std::string> StateStore::get_setting(const std::string &name) const
+{
+    auto it = settings.find(name);
+    if (it != settings.end())
+    {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+void StateStore::set_setting(const std::string &name, const std::string &value)
+{
+    auto it = settings.find(name);
+    if (it == settings.end() || it->second != value)
+    {
+        settings[name] = value;
+        settings_dirty = true;
+    }
+}

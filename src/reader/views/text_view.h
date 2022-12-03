@@ -8,7 +8,9 @@
 #include <string>
 #include <vector>
 
+struct SystemStyling;
 struct TextViewState;
+struct TextViewStyling;
 
 class TextView: public View
 {
@@ -18,7 +20,7 @@ class TextView: public View
     void on_keypress(SDLKey key, bool is_held_key);
 
 public:
-    TextView(std::vector<std::string> lines, TTF_Font *font);
+    TextView(std::vector<std::string> lines, SystemStyling &sys_styling, TextViewStyling &text_view_styling);
     virtual ~TextView();
 
     bool render(SDL_Surface *dest_surface) override;

@@ -10,14 +10,21 @@
 #include <string>
 #include <vector>
 
+struct SystemStyling;
+
 class SelectionMenu: public View
 {
+    bool needs_render = true;
+
     std::vector<std::string> entries;
     uint32_t cursor_pos = 0;
     uint32_t scroll_pos = 0;
     bool close_on_select = false;
 
     TTF_Font *font;
+    SystemStyling &styling;
+    const uint32_t styling_sub_id;
+
     const int line_height;
     const int line_padding = 2; // TODO
     const uint32_t num_display_lines;
@@ -35,8 +42,8 @@ class SelectionMenu: public View
 
 public:
 
-    SelectionMenu(TTF_Font *font);
-    SelectionMenu(std::vector<std::string> entries, TTF_Font *font);
+    SelectionMenu(SystemStyling &styling, TTF_Font *font);
+    SelectionMenu(std::vector<std::string> entries, SystemStyling &styling, TTF_Font *font);
     virtual ~SelectionMenu();
 
     void set_entries(std::vector<std::string> new_entries);

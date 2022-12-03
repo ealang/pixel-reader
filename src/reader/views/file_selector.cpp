@@ -1,6 +1,8 @@
 #include "./file_selector.h"
-#include "./selection_menu.h"
 
+#include "./selection_menu.h"
+#include "./text_view_styling.h"
+#include "reader/system_styling.h"
 #include "sys/filesystem.h"
 
 #include <filesystem>
@@ -16,9 +18,9 @@ struct FSState
 
     SelectionMenu menu;
 
-    FSState(std::filesystem::path path, TTF_Font *font)
+    FSState(std::filesystem::path path, SystemStyling &styling, TTF_Font *font)
         : path(path),
-          menu(font)
+          menu(styling, font)
     {
     }
 };
@@ -115,9 +117,10 @@ std::filesystem::path sanitize_starting_path(std::filesystem::path path)
 
 } // namespace
 
-FileSelector::FileSelector(std::filesystem::path path, TTF_Font *font)
+FileSelector::FileSelector(std::filesystem::path path, SystemStyling &styling, TTF_Font *font)
     : state(std::make_unique<FSState>(
           sanitize_starting_path(path),
+          styling,
           font
       ))
 {

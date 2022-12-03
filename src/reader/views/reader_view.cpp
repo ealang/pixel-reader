@@ -1,9 +1,12 @@
 #include "./reader_view.h"
 
-#include "reader/display_lines.h"
-#include "reader/view_stack.h"
 #include "./selection_menu.h"
 #include "./text_view.h"
+#include "./text_view_styling.h"
+
+#include "reader/color_theme_def.h"
+#include "reader/display_lines.h"
+#include "reader/view_stack.h"
 
 #include "epub/epub_reader.h"
 #include "sys/keymap.h"
@@ -13,7 +16,6 @@
 
 struct ReaderViewState
 {
-
     bool is_zombie = false;
     bool is_done = false;
     bool has_data = false;
@@ -25,13 +27,14 @@ struct ReaderViewState
     std::vector<DocAddr> line_addresses;
 
     EPubReader reader;
-    TTF_Font *font;
+    SystemStyling &sys_styling;
+    TextViewStyling &text_view_styling;
 
     ViewStack &view_stack;
     std::shared_ptr<TextView> text_view;
     
-    ReaderViewState(std::filesystem::path path, TTF_Font *font, ViewStack &view_stack)
-        : reader(path), font(font), view_stack(view_stack)
+    ReaderViewState(std::filesystem::path path, SystemStyling &sys_styling, TextViewStyling &text_view_styling, ViewStack &view_stack)
+        : reader(path), sys_styling(sys_styling), text_view_styling(text_view_styling), view_stack(view_stack)
     {
     }
 };
@@ -44,13 +47,14 @@ std::shared_ptr<TextView> make_error_text_view(ReaderViewState &state)
     std::vector<std::string> lines = {"Error loading"};
     return std::make_shared<TextView>(
         lines,
-        state.font
+        state.sys_styling,
+        state.text_view_styling
     );
 }
 
 std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewState &state, const DocAddr &address)
 {
-    auto line_fits_on_screen = [font=state.font](const char *s, uint32_t len) {
+    auto line_fits_on_screen = [font=state.text_view_styling.get_loaded_font()](const char *s, uint32_t len) {
         int w = SCREEN_WIDTH, h;
 
         char *mut_s = (char*)s;
@@ -79,7 +83,8 @@ std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewStat
 
     auto text_view = std::make_shared<TextView>(
         text_lines,
-        state.font
+        state.sys_styling,
+        state.text_view_styling
     );
 
     // title
@@ -130,7 +135,7 @@ void open_toc_menu(ReaderView &reader_view, const ReaderViewState &state)
         menu_names.push_back(indent + toc_item.display_name);
     }
 
-    auto toc_select_menu = std::make_shared<SelectionMenu>(menu_names, state.font);
+    auto toc_select_menu = std::make_shared<SelectionMenu>(menu_names, state.sys_styling, state.text_view_styling.get_loaded_font());
     toc_select_menu->set_on_selection([&reader_view](uint32_t toc_index) {
         return reader_view.seek_to_toc_index(toc_index);
     });
@@ -155,9 +160,10 @@ void open_toc_menu(ReaderView &reader_view, const ReaderViewState &state)
 ReaderView::ReaderView(
     std::filesystem::path path,
     DocAddr seek_address,
-    TTF_Font *font,
+    SystemStyling &sys_styling,
+    TextViewStyling &text_view_styling,
     ViewStack &view_stack
-) : state(std::make_unique<ReaderViewState>(path, font, view_stack))
+) : state(std::make_unique<ReaderViewState>(path, sys_styling, text_view_styling, view_stack))
 {
     if (!state->reader.open())
     {

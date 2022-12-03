@@ -8,8 +8,10 @@
 #include <functional>
 #include <string>
 
-class ViewStack;
 struct ReaderViewState;
+struct SystemStyling;
+struct TextViewStyling;
+struct ViewStack;
 
 class ReaderView: public View
 {
@@ -19,7 +21,8 @@ public:
     ReaderView(
         std::filesystem::path path,
         DocAddr seek_address,
-        TTF_Font *font,
+        SystemStyling &sys_styling,
+        TextViewStyling &text_view_styling,
         ViewStack &view_stack
     );
     virtual ~ReaderView();

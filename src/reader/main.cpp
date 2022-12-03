@@ -1,12 +1,16 @@
+#include "./color_theme_def.h"
 #include "./state_store.h"
+#include "./system_styling.h"
 #include "./views/file_selector.h"
 #include "./views/reader_view.h"
 #include "./view_stack.h"
+#include "./views/text_view_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "sys/timing.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
+#include "util/sdl_pointer.h"
 
 #include <libxml/parser.h>
 #include <SDL/SDL.h>
@@ -16,26 +20,29 @@
 namespace
 {
 
-void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *font)
+constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
+
+void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, TTF_Font *mono_font)
 {
     auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
         browse_path,
-        font
+        sys_styling,
+        mono_font
     );
 
-    auto load_book = [&view_stack, &state_store, font](std::filesystem::path path) {
+    auto load_book = [&view_stack, &state_store, &sys_styling, &text_view_styling](std::filesystem::path path) {
         if (path.extension() != ".epub")
         {
             return;
         }
         state_store.set_current_book_path(path);
 
-        std::cerr << "Loading " << path << std::endl;
         auto reader_view = std::make_shared<ReaderView>(
             path,
             state_store.get_book_address(path).value_or(0),
-            font,
+            sys_styling,
+            text_view_styling,
             view_stack
         );
 
@@ -64,37 +71,54 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, TTF_Font *
 
 } // namespace
 
-int main (int, char *[])
+int main(int, char *[])
 {
     // SDL Init
     SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
     TTF_Init();
 
-    SDL_Surface *video = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
-    SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
-
-    // Font
-    int font_size = 18;
-    TTF_Font *font = TTF_OpenFont("fonts/DejaVuSans.ttf", font_size);
-
-    if (!font)
-    {
-        std::cerr << "TTF_OpenFont: " << TTF_GetError() << std::endl;
-        return 1;
-    }
-
     // Stores
     auto base_dir = std::filesystem::current_path() / ".state";
     StateStore state_store(base_dir);
 
+    // System styling
+    int font_size = 18;
+    std::string mono_font_path = "fonts/DejaVuSansMono.ttf";
+    ttf_font_unique_ptr mono_font(
+        TTF_OpenFont(mono_font_path.c_str(), font_size)
+    );
+    if (!mono_font)
+    {
+        std::cerr << "Failed to load font" << std::endl;
+        return 1;
+    }
+
+    SystemStyling sys_styling(
+        state_store.get_setting(SETTINGS_KEY_COLOR_THEME).value_or(get_next_theme(""))
+    );
+    sys_styling.subscribe_to_changes([&state_store, &sys_styling]() {
+        const auto &theme = sys_styling.get_color_theme();
+        state_store.set_setting(SETTINGS_KEY_COLOR_THEME, theme);
+    });
+
+    // Text Styling
+    TextViewStyling text_view_styling(
+        "fonts/DejaVuSans.ttf",
+        font_size
+    );
+    text_view_styling.subscribe_to_changes([]() {
+        // TODO
+    });
+    if (!text_view_styling.get_loaded_font())
+    {
+        std::cerr << "Failed to load font" << std::endl;
+        return 1;
+    }
+
     // Views
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, font);
-    view_stack.render(screen);
-
-    SDL_BlitSurface(screen, NULL, video, NULL);
-    SDL_Flip(video);
+    initialize_views(view_stack, state_store, sys_styling, text_view_styling, mono_font.get());
 
     // Track held keys
     HeldKeyTracker held_key_tracker(
@@ -104,9 +128,7 @@ int main (int, char *[])
             SW_BTN_LEFT,
             SW_BTN_RIGHT,
             SW_BTN_L1,
-            SW_BTN_R1,
-            SW_BTN_L2,
-            SW_BTN_R2
+            SW_BTN_R1
         }
     );
 
@@ -118,10 +140,18 @@ int main (int, char *[])
     FPSLimiter limit_fps(TARGET_FPS);
     const uint32_t avg_loop_time = 1000 / TARGET_FPS;
 
+    // Surfaces
+    SDL_Surface *video = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
+    SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
+    view_stack.render(screen);
+
+    SDL_BlitSurface(screen, NULL, video, NULL);
+    SDL_Flip(video);
+
     bool quit = false;
     while (!quit)
     {
-        bool ran_app_code = false;
+        bool needs_render = false;
 
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -138,10 +168,17 @@ int main (int, char *[])
                         {
                             quit = true;
                         }
+                        else if (key == SW_BTN_X)
+                        {
+                            sys_styling.set_color_theme(
+                                get_next_theme(sys_styling.get_color_theme())
+                            );
+                            needs_render = true;
+                        }
                         else
                         {
                             view_stack.on_keypress(key);
-                            ran_app_code = true;
+                            needs_render = true;
                         }
                     }
                     break;
@@ -151,9 +188,9 @@ int main (int, char *[])
         }
 
         held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
-        ran_app_code = held_key_tracker.for_each_held_key(key_held_callback) || ran_app_code;
+        needs_render = held_key_tracker.for_each_held_key(key_held_callback) || needs_render;
 
-        if (ran_app_code)
+        if (needs_render)
         {
             view_stack.pop_completed_views();
 
@@ -178,7 +215,6 @@ int main (int, char *[])
     view_stack.shutdown();
     state_store.flush();
 
-    TTF_CloseFont(font);
     SDL_FreeSurface(screen);
     SDL_Quit();
     xmlCleanupParser();

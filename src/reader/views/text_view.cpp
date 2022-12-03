@@ -1,17 +1,22 @@
 #include "./text_view.h"
 
+#include "./text_view_styling.h"
 #include "reader/text_wrap.h"
 #include "reader/sdl_utils.h"
+#include "reader/system_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "util/throttled.h"
 
 struct TextViewState
 {
-    TTF_Font *font;
-    const int line_height;
+    SystemStyling &sys_styling;
+    TextViewStyling &text_view_styling;
+    const uint32_t sys_styling_sub_id;
+    const uint32_t text_view_styling_sub_id;
+
+    int line_height;
     const int line_padding = 2; // TODO
-    const int num_display_lines;
 
     bool needs_render = true;
     std::vector<std::string> lines;
@@ -28,6 +33,7 @@ struct TextViewState
 
     int num_text_display_lines() const
     {
+        int num_display_lines = (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
         return num_display_lines - (show_title_bar ? 1 : 0);
     }
 
@@ -70,19 +76,33 @@ struct TextViewState
         );
     }
 
-    TextViewState(std::vector<std::string> lines, TTF_Font *font)
-        : font(font),
-          line_height(detect_line_height(font)),
-          num_display_lines((SCREEN_HEIGHT - line_padding) / (line_height + line_padding)),
+    TextViewState(std::vector<std::string> lines, SystemStyling &sys_styling, TextViewStyling &text_view_styling)
+        : sys_styling(sys_styling),
+          text_view_styling(text_view_styling),
+          sys_styling_sub_id(sys_styling.subscribe_to_changes([this]() {
+              // Color theme
+              needs_render = true;
+          })),
+          text_view_styling_sub_id(text_view_styling.subscribe_to_changes([this]() {
+              needs_render = true;
+              line_height = detect_line_height(this->text_view_styling.get_loaded_font());
+          })),
+          line_height(detect_line_height(text_view_styling.get_loaded_font())),
           lines(lines),
           line_scroll_throttle(250, 50),
-          page_scroll_throttle(250, 150)
+          page_scroll_throttle(750, 150)
     {
+    }
+
+    ~TextViewState()
+    {
+        sys_styling.unsubscribe_from_changes(sys_styling_sub_id);
+        text_view_styling.unsubscribe_from_changes(text_view_styling_sub_id);
     }
 };
 
-TextView::TextView(std::vector<std::string> lines, TTF_Font *font)
-    : state(std::make_unique<TextViewState>(lines, font))
+TextView::TextView(std::vector<std::string> lines, SystemStyling &sys_styling, TextViewStyling &text_view_styling)
+    : state(std::make_unique<TextViewState>(lines, sys_styling, text_view_styling))
 {
 }
 
@@ -92,27 +112,28 @@ TextView::~TextView()
 
 bool TextView::render(SDL_Surface *dest_surface)
 {
-    TTF_Font *font = state->font;
-    const int line_height = state->line_height;
-    const int line_padding = state->line_padding;
-
     if (!state->needs_render)
     {
         return false;
     }
     state->needs_render = false;
 
-    const SDL_PixelFormat *pixel_format = dest_surface->format;
-
-    // TODO
-    SDL_Color fg_color = {188, 182, 128, 0}; 
-    SDL_Color bg_color = {0, 0, 0, 0};
-    SDL_Color fg_title_color = {188 / 2, 182 / 2, 128 / 2, 0};
-    uint32_t rect_bg_color = SDL_MapRGB(pixel_format, 0, 0, 0);
+    TTF_Font *font = state->text_view_styling.get_loaded_font();
+    const auto &theme = state->sys_styling.get_loaded_color_theme();
+    const int line_height = state->line_height;
+    const int line_padding = state->line_padding;
 
     // Clear screen
-    SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-    SDL_FillRect(dest_surface, &rect, rect_bg_color);
+    {
+        SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+        const auto &bgcolor = theme.background;
+
+        SDL_FillRect(
+            dest_surface,
+            &rect,
+            SDL_MapRGB(dest_surface->format, bgcolor.r, bgcolor.g, bgcolor.b)
+        );
+    }
 
     Sint16 y = line_padding;
 
@@ -126,7 +147,7 @@ bool TextView::render(SDL_Surface *dest_surface)
         }
 
         SDL_Rect dest_rect = {0, y, 0, 0};
-        SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, state->lines[global_i].c_str(), fg_color, bg_color);
+        SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, state->lines[global_i].c_str(), theme.main_text, theme.background);
         SDL_BlitSurface(surface, nullptr, dest_surface, &dest_rect);
         SDL_FreeSurface(surface);
 
@@ -145,7 +166,7 @@ bool TextView::render(SDL_Surface *dest_surface)
             char page_number[32];
             snprintf(page_number, sizeof(page_number), " %d/%d", state->current_pages(), state->num_pages());
 
-            SDL_Surface *page_surface = TTF_RenderUTF8_Shaded(font, page_number, fg_title_color, bg_color);
+            SDL_Surface *page_surface = TTF_RenderUTF8_Shaded(font, page_number, theme.secondary_text, theme.background);
 
             dest_rect.x = SCREEN_WIDTH - page_surface->w - line_padding;
             title_crop_rect.w = SCREEN_WIDTH - line_padding * 2 - page_surface->w;
@@ -157,7 +178,7 @@ bool TextView::render(SDL_Surface *dest_surface)
         if (state->title.size() > 0)
         {
             dest_rect.x = 0;
-            SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, state->title.c_str(), fg_title_color, bg_color);
+            SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, state->title.c_str(), theme.secondary_text, theme.background);
             SDL_BlitSurface(surface, &title_crop_rect, dest_surface, &dest_rect);
             SDL_FreeSurface(surface);
         }
