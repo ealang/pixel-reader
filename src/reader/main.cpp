@@ -31,7 +31,7 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
     );
 
     auto load_book = [&view_stack, &state_store, &sys_styling, &text_view_styling](std::filesystem::path path) {
-        if (path.extension() != ".epub")
+        if (path.extension() != ".epub" || !std::filesystem::exists(path))
         {
             return;
         }
