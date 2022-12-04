@@ -8,7 +8,10 @@ constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
 constexpr const char *SETTINGS_KEY_SHOW_TITLE_BAR = "show_title_bar";
 constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
 
-constexpr uint32_t DEFAULT_FONT_SIZE = 22;
+constexpr uint32_t FONT_SIZE_SM = 16;
+constexpr uint32_t FONT_SIZE_MD = 20;
+constexpr uint32_t FONT_SIZE_LG = 24;
+constexpr uint32_t DEFAULT_FONT_SIZE = FONT_SIZE_MD;
 
 bool settings_get_show_title_bar(const StateStore &state_store)
 {
@@ -55,21 +58,17 @@ void settings_set_font_size(StateStore &state_store, uint32_t font_size)
 
 uint32_t get_next_font_size(uint32_t font_size)
 {
-    if (font_size == 18)
+    if (font_size == FONT_SIZE_SM)
     {
-        return DEFAULT_FONT_SIZE;
+        return FONT_SIZE_MD;
     }
-    if (font_size == DEFAULT_FONT_SIZE)
+    if (font_size == FONT_SIZE_MD)
     {
-        return 24;
+        return FONT_SIZE_LG;
     }
-    if (font_size == 24)
+    if (font_size == FONT_SIZE_LG)
     {
-        return 28;
-    }
-    if (font_size == 28)
-    {
-        return 18;
+        return FONT_SIZE_SM;
     }
 
     return DEFAULT_FONT_SIZE;
