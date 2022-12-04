@@ -27,14 +27,14 @@ class SelectionMenu: public View
 
     int line_height;
     const int line_padding = 2; // TODO
-    const uint32_t num_display_lines;
+    uint32_t num_display_lines() const;
 
     Throttled scroll_throttle;
 
     bool _is_done = false;
     std::function<void(uint32_t)> on_selection;
     std::function<void(uint32_t)> on_focus;
-    std::function<void(SDLKey)> default_on_keypress;
+    std::function<void(SDLKey, SelectionMenu&)> default_on_keypress;
 
     void on_move_down(uint32_t step);
     void on_move_up(uint32_t step);
@@ -50,7 +50,7 @@ public:
     void set_on_selection(std::function<void(uint32_t)> callback);
     void set_on_focus(std::function<void(uint32_t)> callback);
     // Define fallback keypress handler
-    void set_default_on_keypress(std::function<void(SDLKey)> callback);
+    void set_default_on_keypress(std::function<void(SDLKey, SelectionMenu &)> callback);
     void set_close_on_select();
 
     void set_cursor_pos(const std::string &entry);

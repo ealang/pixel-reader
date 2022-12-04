@@ -7,7 +7,8 @@
 constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
 constexpr const char *SETTINGS_KEY_SHOW_TITLE_BAR = "show_title_bar";
 constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
-constexpr uint32_t DEFAULT_FONT_SIZE = 18;
+
+constexpr uint32_t DEFAULT_FONT_SIZE = 22;
 
 bool settings_get_show_title_bar(const StateStore &state_store)
 {
@@ -50,4 +51,26 @@ uint32_t settings_get_font_size(const StateStore &state_store)
 void settings_set_font_size(StateStore &state_store, uint32_t font_size)
 {
     state_store.set_setting(SETTINGS_KEY_FONT_SIZE, std::to_string(font_size));
+}
+
+uint32_t get_next_font_size(uint32_t font_size)
+{
+    if (font_size == 18)
+    {
+        return DEFAULT_FONT_SIZE;
+    }
+    if (font_size == DEFAULT_FONT_SIZE)
+    {
+        return 24;
+    }
+    if (font_size == 24)
+    {
+        return 28;
+    }
+    if (font_size == 28)
+    {
+        return 18;
+    }
+
+    return DEFAULT_FONT_SIZE;
 }

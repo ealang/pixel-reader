@@ -176,6 +176,13 @@ int main(int, char *[])
                             );
                             needs_render = true;
                         }
+                        else if (key == SW_BTN_Y)
+                        {
+                            sys_styling.set_font_size(
+                                get_next_font_size(sys_styling.get_font_size())
+                            );
+                            needs_render = true;
+                        }
                         else
                         {
                             view_stack.on_keypress(key);

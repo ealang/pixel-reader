@@ -29,13 +29,24 @@ struct ReaderViewState
 
     EPubReader reader;
     SystemStyling &sys_styling;
+    std::optional<uint32_t> sys_styling_sub_id;
+
     TextViewStyling &text_view_styling;
+    uint32_t last_font_size;
 
     ViewStack &view_stack;
     std::shared_ptr<TextView> text_view;
     
     ReaderViewState(std::filesystem::path path, SystemStyling &sys_styling, TextViewStyling &text_view_styling, ViewStack &view_stack)
-        : reader(path), sys_styling(sys_styling), text_view_styling(text_view_styling), view_stack(view_stack)
+        : reader(path),
+          sys_styling(sys_styling),
+          text_view_styling(text_view_styling),
+          last_font_size(sys_styling.get_font_size()),
+          view_stack(view_stack)
+    {
+    }
+
+    ~ReaderViewState()
     {
     }
 };
@@ -152,10 +163,10 @@ void open_toc_menu(ReaderView &reader_view, const ReaderViewState &state)
     uint32_t current_toc_index = state.reader.get_toc_index(get_current_address(state));
     toc_select_menu->set_cursor_pos(current_toc_index);
 
-    toc_select_menu->set_default_on_keypress([toc_select_menu](SDLKey key) {
+    toc_select_menu->set_default_on_keypress([](SDLKey key, SelectionMenu &toc) {
         if (key == SW_BTN_SELECT)
         {
-            toc_select_menu->close();
+            toc.close();
         }
     });
 
@@ -181,11 +192,23 @@ ReaderView::ReaderView(
     else
     {
         seek_to_address(seek_address);
+        state->sys_styling_sub_id = sys_styling.subscribe_to_changes([this]() {
+            if (state->last_font_size != state->sys_styling.get_font_size())
+            {
+                state->last_font_size = state->sys_styling.get_font_size();
+                seek_to_address(get_current_address(*state));
+            }
+        });
     }
 }
 
 ReaderView::~ReaderView()
 {
+    auto &sub_id = state->sys_styling_sub_id;
+    if (sub_id)
+    {
+        state->sys_styling.unsubscribe_from_changes(*sub_id);
+    }
 }
 
 bool ReaderView::render(SDL_Surface *dest_surface, bool force_render)

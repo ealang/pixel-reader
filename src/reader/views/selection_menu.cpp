@@ -1,3 +1,4 @@
+#include <iostream>
 #include "./selection_menu.h"
 
 #include "sys/screen.h"
@@ -5,6 +6,11 @@
 #include "reader/system_styling.h"
 #include "util/sdl_font_cache.h"
 #include "util/sdl_utils.h"
+
+uint32_t SelectionMenu::num_display_lines() const
+{
+    return (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
+}
 
 SelectionMenu::SelectionMenu(SystemStyling &styling, std::string font)
     : SelectionMenu({}, styling, font)
@@ -18,9 +24,9 @@ SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &st
       styling_sub_id(styling.subscribe_to_changes([this]() {
           needs_render = true;
           line_height = detect_line_height(this->font, this->styling.get_font_size());
+          set_cursor_pos(cursor_pos);
       })),
       line_height(detect_line_height(font, styling.get_font_size())),
-      num_display_lines((SCREEN_HEIGHT - line_padding) / (line_height + line_padding)),
       scroll_throttle(250, 100)
 {
 }
@@ -47,7 +53,7 @@ void SelectionMenu::set_on_focus(std::function<void(uint32_t)> callback)
     on_focus = callback;
 }
 
-void SelectionMenu::set_default_on_keypress(std::function<void(SDLKey)> callback)
+void SelectionMenu::set_default_on_keypress(std::function<void(SDLKey, SelectionMenu &)> callback)
 {
     default_on_keypress = callback;
 }
@@ -82,17 +88,15 @@ void SelectionMenu::set_cursor_pos(uint32_t new_cursor_pos)
         on_focus(cursor_pos);
     }
 
-    if (entries.size() <= num_display_lines)
-    {
-        scroll_pos = 0;
-    }
-    else
-    {
-        scroll_pos = std::max(
-            0,
-            static_cast<int>(new_cursor_pos) - (static_cast<int>(num_display_lines) / 2 - 1)
-        );
-    }
+    int num_lines = num_display_lines();
+    int num_entries = entries.size();
+    scroll_pos = std::max(
+        0,
+        std::min(
+            num_entries - num_lines,
+            static_cast<int>(new_cursor_pos) - num_lines / 4 - 1
+        )
+    );
 
     needs_render = true;
 }
@@ -130,7 +134,8 @@ bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
     SDL_FillRect(dest_surface, &rect, rect_bg_color);
 
     // Draw lines
-    for (uint32_t i = 0; i < num_display_lines; ++i)
+    uint32_t num_lines = num_display_lines();
+    for (uint32_t i = 0; i < num_lines; ++i)
     {
         uint32_t global_i = i + scroll_pos;
         if (global_i >= entries.size())
@@ -177,9 +182,9 @@ void SelectionMenu::on_move_down(uint32_t step)
             static_cast<uint32_t>(entries.size()) - 1
         );
 
-        if (cursor_pos >= scroll_pos + num_display_lines)
+        if (cursor_pos >= scroll_pos + num_display_lines())
         {
-            scroll_pos = cursor_pos - num_display_lines + 1;
+            scroll_pos = cursor_pos - num_display_lines() + 1;
         }
         if (on_focus)
         {
@@ -230,11 +235,11 @@ void SelectionMenu::on_keypress(SDLKey key)
             break;
         case SW_BTN_LEFT:
         case SW_BTN_L1:
-            on_move_up(num_display_lines / 2);
+            on_move_up(num_display_lines() / 2);
             break;
         case SW_BTN_RIGHT:
         case SW_BTN_R1:
-            on_move_down(num_display_lines / 2);
+            on_move_down(num_display_lines() / 2);
             break;
         case SW_BTN_A:
             on_select_entry();
@@ -245,7 +250,7 @@ void SelectionMenu::on_keypress(SDLKey key)
         default:
             if (default_on_keypress)
             {
-                default_on_keypress(key);
+                default_on_keypress(key, *this);
             }
             break;
     }
