@@ -3,6 +3,9 @@
 
 #define EPUB_CONTAINER_PATH "META-INF/container.xml"
 
+#define APPLICATION_XHTML_XML "application/xhtml+xml"
+#define APPLICATION_X_DTBNCX_XML "application/x-dtbncx+xml"
+
 #include <string>
 #include <unordered_map>
 #include <vector>

@@ -27,16 +27,23 @@ struct Context
     int pre_depth = 0;      // depth inside pre nodes
 
     std::function<void(const Context&, TokenType, std::string)> _emit_token;
+    std::function<void(std::string)> _emit_id;
 
     void emit_token(TokenType type, std::string text)
     {
-        _emit_token(*this, type, text);
+        _emit_token(*this, type, std::move(text));
     }
 
-    Context(std::function<void(const Context&, TokenType, std::string)> _emit_token)
-        : _emit_token(_emit_token)
+    void emit_id(std::string id)
     {
+        _emit_id(std::move(id));
     }
+
+    Context(
+        std::function<void(const Context&, TokenType, std::string)> _emit_token,
+        std::function<void(std::string)> _emit_id
+    ) : _emit_token(_emit_token), _emit_id(_emit_id)
+    { }
 };
 
 bool _element_is_blocking(const xmlChar *name)
@@ -59,7 +66,6 @@ bool _element_is_blocking(const xmlChar *name)
 void _on_enter_h(int, xmlNodePtr, Context &context)
 {
     context.emit_token(TokenType::Section, EMPTY_STR);
-    // TODO: emit header type
 }
 
 void _on_exit_h(int, xmlNodePtr, Context &context)
@@ -204,6 +210,12 @@ void on_text_node(xmlNodePtr node, Context &context)
 
 void on_enter_element_node(xmlNodePtr node, Context &context)
 {
+    const xmlChar *elem_id = xmlGetProp(node, BAD_CAST "id");
+    if (elem_id && xmlStrlen(elem_id) > 0)
+    {
+        context.emit_id((const char*)elem_id);
+    }
+
     if (_element_is_blocking(node->name))
     {
         context.emit_token(TokenType::Block, EMPTY_STR);
@@ -263,22 +275,33 @@ void _process_node(xmlNodePtr node, Context &context)
     }
 }
 
-
 class TokenProcessor
 {
     uint32_t chapter_number;
     std::vector<DocToken> &tokens;
+    std::unordered_map<std::string, DocAddr> &id_to_addr;
     uint32_t address_offset = 0;
     bool fresh_line = true;
 
 public:
-    TokenProcessor(uint32_t chapter_number, std::vector<DocToken> &tokens)
-        : chapter_number(chapter_number), tokens(tokens)
+    TokenProcessor(
+        uint32_t chapter_number,
+        std::vector<DocToken> &out_tokens,
+        std::unordered_map<std::string, DocAddr> &out_id_to_addr
+    ) : chapter_number(chapter_number),
+        tokens(out_tokens),
+        id_to_addr(out_id_to_addr)
+    { }
+
+    void on_id(std::string id)
     {
+        id_to_addr[id] = make_address(chapter_number, address_offset);
     }
 
-    void operator()(const Context &context, TokenType type, std::string text)
+    void on_token(const Context &context, TokenType type, std::string text)
     {
+        DocAddr address = make_address(chapter_number, address_offset);
+
         if (text.size())
         {
             const std::string *prev_text = (
@@ -299,8 +322,6 @@ public:
                 text = std::string(strip_whitespace_left(text.c_str()));
             }
         }
-
-        DocAddr address = make_address(chapter_number, address_offset);
 
         if (type == TokenType::Text)
         {
@@ -344,20 +365,20 @@ public:
             }
         }
 
-        // update address
+        // Update address. Important that this be a consistent calculation across code revisions.
         address_offset += get_address_width(text.c_str());
     }
 };
 
 } // namespace
 
-std::vector<DocToken> parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_number)
+bool parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_number, std::vector<DocToken> &tokens_out, std::unordered_map<std::string, DocAddr> &id_to_addr_out)
 {
     xmlDocPtr doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, XML_PARSE_NOERROR | XML_PARSE_NOWARNING | XML_PARSE_RECOVER);
     if (doc == nullptr)
     {
         std::cerr << "Unable to parse " << name << " as xml" << std::endl;
-        return {};
+        return false;
     }
 
     xmlNodePtr node = xmlDocGetRootElement(doc);
@@ -365,13 +386,20 @@ std::vector<DocToken> parse_xhtml_tokens(const char *xml_str, std::string name, 
     node = elem_first_child(elem_first_by_name(node, BAD_CAST "html"));
     node = elem_first_child(elem_first_by_name(node, BAD_CAST "body"));
 
-    std::vector<DocToken> tokens;
+    TokenProcessor processor(chapter_number, tokens_out, id_to_addr_out);
     if (node)
     {
-        Context context(TokenProcessor(chapter_number, tokens));
+        Context context(
+            [&processor](const Context &context, TokenType type, std::string text){
+                processor.on_token(context, type, std::move(text));
+            },
+            [&processor](std::string id){
+                processor.on_id(std::move(id));
+            }
+        );
         _process_node(node, context);
     }
-
     xmlFreeDoc(doc);
-    return tokens;
+
+    return true;
 }

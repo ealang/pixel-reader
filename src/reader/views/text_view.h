@@ -32,7 +32,10 @@ public:
     void set_line_number(uint32_t line_number);
 
     void set_show_title_bar(bool enabled);
-    void set_title(std::string title);
+    void set_title(const std::string &title);
+    void set_title_progress(int percent);
+
+    void set_on_scroll(std::function<void(uint32_t)> callback);
 
     // user tried to scroll up when already at the top
     void set_on_resist_up(std::function<void()> callback);

@@ -17,7 +17,9 @@ void display_xhtml(std::string path)
     std::stringstream buffer;
     buffer << fp.rdbuf();
 
-    auto tokens = parse_xhtml_tokens(buffer.str().c_str(), path);
+    std::vector<DocToken> tokens;
+    std::unordered_map<std::string, DocAddr> ids;
+    parse_xhtml_tokens(buffer.str().c_str(), path, 0, tokens, ids);
 
     std::vector<Line> display_lines = get_display_lines(
         tokens,

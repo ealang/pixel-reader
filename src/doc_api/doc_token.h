@@ -12,6 +12,7 @@ struct DocToken
     const std::string text;
 
     DocToken(TokenType type, DocAddr address, std::string text = "");
+    bool operator==(const DocToken &other) const;
 };
 
 std::string to_string(const DocToken &token);

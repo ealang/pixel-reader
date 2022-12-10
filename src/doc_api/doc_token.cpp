@@ -1,8 +1,13 @@
 #include "./doc_token.h"
 
 DocToken::DocToken(TokenType type, DocAddr address, std::string text)
-    : type(type), address(address), text(text)
+    : type(type), address(address), text(std::move(text))
 {
+}
+
+bool DocToken::operator==(const DocToken &other) const
+{
+    return type == other.type && address == other.address && text == other.text;
 }
 
 std::string to_string(const DocToken &token)

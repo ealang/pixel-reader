@@ -25,9 +25,11 @@ struct TextViewState
 
     bool show_title_bar = true;
     std::string title;
+    int title_progress_percent = 0;
 
     std::function<void()> on_resist_up;
     std::function<void()> on_resist_down;
+    std::function<void(uint32_t)> on_scroll;
 
     Throttled line_scroll_throttle;
     Throttled page_scroll_throttle;
@@ -36,34 +38,6 @@ struct TextViewState
     {
         int num_display_lines = (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
         return num_display_lines - (show_title_bar ? 1 : 0);
-    }
-
-    int num_pages() const
-    {
-        int tot_lines = lines.size();
-        int lines_per_screen = num_text_display_lines();
-        if (tot_lines == 0 || lines_per_screen == 0)
-        {
-            return 0;
-        }
-        if (tot_lines <= lines_per_screen)
-        {
-            return 1;
-        }
-
-        int max_scroll_pos = tot_lines - lines_per_screen;
-        return (max_scroll_pos / lines_per_screen) + 1;
-    }
-
-    int current_pages() const
-    {
-        int lines_per_screen = num_text_display_lines();
-        if (lines_per_screen == 0)
-        {
-            return 0;
-        }
-
-        return (scroll_pos / lines_per_screen) + 1;
     }
 
     int get_bounded_scroll_position(int scroll_pos)
@@ -160,7 +134,6 @@ bool TextView::render(SDL_Surface *dest_surface, bool force_render)
 
     if (state->show_title_bar)
     {
-        // y = SCREEN_HEIGHT - line_height - line_padding;
         y = 2 * line_padding + (line_height + line_padding) * num_text_display_lines;
 
         SDL_Rect dest_rect = {0, y, 0, 0};
@@ -168,7 +141,7 @@ bool TextView::render(SDL_Surface *dest_surface, bool force_render)
 
         {
             char page_number[32];
-            snprintf(page_number, sizeof(page_number), " %d/%d", state->current_pages(), state->num_pages());
+            snprintf(page_number, sizeof(page_number), " %d%%", state->title_progress_percent);
 
             SDL_Surface *page_surface = TTF_RenderUTF8_Shaded(font, page_number, theme.secondary_text, theme.background);
 
@@ -199,6 +172,10 @@ void TextView::scroll(int num_lines, bool is_held_key)
     {
         state->scroll_pos = new_scroll_pos;
         state->needs_render = true;
+        if (state->on_scroll)
+        {
+            state->on_scroll(new_scroll_pos);
+        }
     }
     else if (!is_held_key)
     {
@@ -302,13 +279,27 @@ void TextView::set_show_title_bar(bool enabled)
     }
 }
 
-void TextView::set_title(std::string title)
+void TextView::set_title(const std::string &title)
 {
     if (title != state->title)
     {
         state->title = title;
         state->needs_render = true;
     }
+}
+
+void TextView::set_title_progress(int percent)
+{
+    if (percent != state->title_progress_percent)
+    {
+        state->title_progress_percent = percent;
+        state->needs_render = true;
+    }
+}
+
+void TextView::set_on_scroll(std::function<void(uint32_t)> callback)
+{
+    state->on_scroll = callback;
 }
 
 void TextView::set_on_resist_up(std::function<void()> callback)

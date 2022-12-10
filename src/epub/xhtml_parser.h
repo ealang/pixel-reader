@@ -4,8 +4,9 @@
 #include "doc_api/doc_token.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-std::vector<DocToken> parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_number = 0);
+bool parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_number, std::vector<DocToken> &tokens_out, std::unordered_map<std::string, DocAddr> &id_to_addr_out);
 
 #endif

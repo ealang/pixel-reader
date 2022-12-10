@@ -9,6 +9,7 @@
 #include "reader/system_styling.h"
 #include "reader/view_stack.h"
 
+#include "doc_api/token_addressing.h"
 #include "epub/epub_reader.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
@@ -20,7 +21,6 @@ struct ReaderViewState
 {
     bool is_zombie = false;
     bool is_done = false;
-    bool has_data = false;
 
     DocAddr last_loaded_address = 0;
     std::function<void()> on_quit;
@@ -81,7 +81,7 @@ std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewStat
         return w <= SCREEN_WIDTH;
     };
 
-    auto tokens = state.reader.get_tokenized_document(address);
+    const std::vector<DocToken> &tokens = state.reader.load_chapter(address);
 
     std::vector<std::string> text_lines;
     state.line_addresses.clear();
@@ -102,22 +102,55 @@ std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewStat
     );
 
     // title
+    const auto &toc = state.reader.get_table_of_contents();
+    auto toc_position = state.reader.get_toc_position(address);
+    if (toc_position.toc_index < toc.size())
     {
-        auto toc_index = state.reader.get_toc_index(address);
-        const auto &toc = state.reader.get_table_of_contents();
-        if (toc_index < toc.size())
+        text_view->set_title(toc[toc_position.toc_index].display_name);
+        text_view->set_title_progress(toc_position.progress_percent);
+    }
+
+    // set line number
+    if (state.line_addresses.size())
+    {
+        uint32_t best_line_number = 0;
+        uint32_t line_number = 0;
+        for (const auto &line_addr: state.line_addresses)
         {
-            text_view->set_title(toc[toc_index].display_name);
+            if (line_addr <= address)
+            {
+                best_line_number = line_number;
+            }
+            else
+            {
+                break;
+            }
+            ++line_number;
         }
+        text_view->set_line_number(best_line_number);
     }
     text_view->set_show_title_bar(state.text_view_styling.get_show_title_bar());
 
-    text_view->set_on_resist_up([&reader_view]() {
-        reader_view.seek_to_prev_doc();
+    // Update title info on scroll
+    text_view->set_on_scroll([tv_ptr=text_view.get(), &reader=state.reader, &addresses=state.line_addresses](uint32_t line_pos) {
+        if (line_pos < addresses.size())
+        {
+            auto toc_position = reader.get_toc_position(addresses[line_pos]);
+            const auto &toc = reader.get_table_of_contents();
+            if (toc_position.toc_index < toc.size())
+            {
+                tv_ptr->set_title(toc[toc_position.toc_index].display_name);
+                tv_ptr->set_title_progress(toc_position.progress_percent);
+            }
+        }
     });
 
+    // Navigation between sections
+    text_view->set_on_resist_up([&reader_view]() {
+        reader_view.seek_to_previous_chapter();
+    });
     text_view->set_on_resist_down([&reader_view]() {
-        reader_view.seek_to_next_doc();
+        reader_view.seek_to_next_chapter();
     });
 
     return text_view;
@@ -131,37 +164,45 @@ DocAddr get_current_address(const ReaderViewState &state)
         return state.line_addresses[line_index];
     }
 
+    // Case where the current document is empty
     return state.last_loaded_address;
 }
 
-void open_toc_menu(ReaderView &reader_view, const ReaderViewState &state)
+void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
 {
-    if (state.reader.get_table_of_contents().empty())
+    const auto &toc = state.reader.get_table_of_contents();
+    if (toc.empty())
     {
         return;
     }
 
     // setup toc entries & callbacks
     std::vector<std::string> menu_names;
-    for (const auto &toc_item: state.reader.get_table_of_contents())
+    for (const auto &toc_item: toc)
     {
         std::string indent(toc_item.indent_level * 2, ' ');
         menu_names.push_back(indent + toc_item.display_name);
     }
 
+    auto current_toc_index = state.reader.get_toc_position(get_current_address(state)).toc_index;
     auto toc_select_menu = std::make_shared<SelectionMenu>(
         menu_names,
         state.sys_styling,
         state.text_view_styling.get_font()
     );
-    toc_select_menu->set_on_selection([&reader_view](uint32_t toc_index) {
-        return reader_view.seek_to_toc_index(toc_index);
+    toc_select_menu->set_on_selection([&reader_view, last_toc_index=current_toc_index](uint32_t toc_index) {
+        if (toc_index != last_toc_index)
+        {
+            reader_view.seek_to_toc_index(toc_index);
+        }
     });
     toc_select_menu->set_close_on_select();
 
     // select current toc item
-    uint32_t current_toc_index = state.reader.get_toc_index(get_current_address(state));
-    toc_select_menu->set_cursor_pos(current_toc_index);
+    if (current_toc_index < toc.size())
+    {
+        toc_select_menu->set_cursor_pos(current_toc_index);
+    }
 
     toc_select_menu->set_default_on_keypress([](SDLKey key, SelectionMenu &toc) {
         if (key == SW_BTN_SELECT)
@@ -196,7 +237,7 @@ ReaderView::ReaderView(
             if (state->last_font_size != state->sys_styling.get_font_size())
             {
                 state->last_font_size = state->sys_styling.get_font_size();
-                seek_to_address(get_current_address(*state));
+                recreate_text_view();
             }
         });
     }
@@ -274,70 +315,57 @@ void ReaderView::set_on_change_address(std::function<void(const DocAddr &)> call
     state->on_change_address = callback;
 }
 
-void ReaderView::seek_to_toc_index(uint32_t new_toc_index)
+void ReaderView::recreate_text_view()
 {
     DocAddr address = get_current_address(*state);
-    uint32_t cur_toc_index = state->reader.get_toc_index(address);
+    seek_to_address(address);
+}
 
-    if (!state->has_data || new_toc_index != cur_toc_index)
-    {
-        const auto &toc = state->reader.get_table_of_contents();
-        if (new_toc_index < toc.size())
-        {
-            const auto &toc_item = toc[new_toc_index];
-            seek_to_address(toc_item.address);
-        }
-    }
+void ReaderView::seek_to_toc_index(uint32_t toc_index)
+{
+    auto address = state->reader.get_toc_item_address(toc_index);
+    seek_to_address(address);
 }
 
 void ReaderView::seek_to_address(const DocAddr &address)
 {
-    // Load document
-    state->has_data = true;
-    state->text_view = make_text_view(*this, *state, address);
     state->last_loaded_address = address;
 
-    // Find line number
-    uint32_t best_line_number = 0;
-    uint32_t line_number = 0;
-    for (const auto &line_addr: state->line_addresses)
+    // TODO: could avoid recreating if seeking to somewhere else in cur doc
+    state->text_view = make_text_view(*this, *state, address);
+    if (!state->text_view)
     {
-        if (line_addr <= address)
-        {
-            best_line_number = line_number;
-        }
-        else
-        {
-            break;
-        }
-        ++line_number;
-    }
-
-    state->text_view->set_line_number(best_line_number);
-}
-
-void ReaderView::seek_to_prev_doc()
-{
-    DocAddr address = get_current_address(*state);
-    auto next_address = state->reader.get_previous_doc_address(address);
-    if (next_address)
-    {
-        seek_to_address(*next_address);
-
-        if (!state->line_addresses.empty())
-        {
-            state->text_view->set_line_number(state->line_addresses.size() - 1);
-        }
+        state->text_view = make_error_text_view(*state);
+        state->is_zombie = true;
+        return;
     }
 }
 
-void ReaderView::seek_to_next_doc()
+void ReaderView::seek_to_previous_chapter()
 {
-    DocAddr address = get_current_address(*state);
-    auto next_address = state->reader.get_next_doc_address(address);
-    if (next_address)
+    auto prev_addr_opt = state->reader.get_prev_chapter_address(get_current_address(*state));
+    if (prev_addr_opt)
     {
-        seek_to_address(*next_address);
+        const auto &tokens = state->reader.load_chapter(*prev_addr_opt);
+
+        // Go to last line
+        DocAddr new_addr = *prev_addr_opt;
+        if (tokens.size())
+        {
+            const auto &last_token = tokens.back();
+            new_addr = last_token.address + get_address_width(last_token) - 1;
+        }
+
+        seek_to_address(new_addr);
+    }
+}
+
+void ReaderView::seek_to_next_chapter()
+{
+    auto next_addr = state->reader.get_next_chapter_address(get_current_address(*state));
+    if (next_addr)
+    {
+        seek_to_address(*next_addr);
     }
 }
 

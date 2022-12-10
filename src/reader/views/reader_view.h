@@ -17,6 +17,8 @@ class ReaderView: public View
 {
     std::unique_ptr<ReaderViewState> state;
 
+    void recreate_text_view();
+
 public:
     ReaderView(
         std::filesystem::path path,
@@ -39,8 +41,8 @@ public:
 
     void seek_to_toc_index(uint32_t toc_index);
     void seek_to_address(const DocAddr &address);
-    void seek_to_prev_doc();
-    void seek_to_next_doc();
+    void seek_to_previous_chapter();
+    void seek_to_next_chapter();
 };
 
 #endif

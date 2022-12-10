@@ -16,7 +16,6 @@ inline bool char_has_width(char c)
 
 } // namespace
 
-
 uint32_t get_address_width(const char *str)
 {
     uint32_t count = 0;
@@ -30,4 +29,13 @@ uint32_t get_address_width(const char *str)
         str = utf8_step(str);
     }
     return count;
+}
+
+uint32_t get_address_width(const DocToken &token)
+{
+    if (token.type == TokenType::Text)
+    {
+        return get_address_width(token.text.c_str());
+    }
+    return 0;
 }
