@@ -8,37 +8,41 @@ static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
     {
         "night_contrast",
         {
-            {0, 0, 0, 0},
-            {240, 240, 240, 0},
-            {64, 64, 64, 0},
-            {150, 38, 200, 0}
+            {0, 0, 0, 0},       // background
+            {240, 240, 240, 0}, // main text
+            {64, 64, 64, 0},    // secondary text
+            {150, 38, 200, 0},  // highlight background
+            {240, 240, 240, 0}, // highlight text
         }
     },
     {
         "vampire",
         {
-            {0, 0, 0, 0},
-            {192, 0, 0, 0},
-            {64, 64, 64, 0},
-            {80, 0, 0, 0}
+            {0, 0, 0, 0},   // background
+            {192, 0, 0, 0}, // main text
+            {96, 0, 0, 0},  // secondary text
+            {192, 0, 0, 0}, // highlight background
+            {0, 0, 0, 0},   // highlight text
         }
     },
     {
         "light_contrast",
         {
-            {250, 250, 250, 0},
-            {0, 0, 0, 0},
-            {160, 160, 160, 0},
-            {163, 81, 200, 0}
+            {250, 250, 250, 0}, // background
+            {0, 0, 0, 0},       // main text
+            {160, 160, 160, 0}, // secondary text
+            {163, 81, 200, 0},  // highlight background
+            {250, 250, 250, 0}, // highlight text
         }
     },
     {
         "light_sepia",
         {
-            {250, 240, 220, 0},
-            {32, 32, 32, 0},
-            {160, 160, 160, 0},
-            {163, 81, 200, 0}
+            {250, 240, 220, 0}, // background
+            {32, 32, 32, 0},    // main text
+            {160, 160, 160, 0}, // secondary text
+            {163, 81, 200, 0},  // highlight background
+            {250, 240, 220, 0}, // highlight text
         }
     },
 };

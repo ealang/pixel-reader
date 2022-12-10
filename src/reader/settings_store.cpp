@@ -3,15 +3,19 @@
 #include "./color_theme_def.h"
 
 #include <iostream>
+#include <vector>
 
 constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
 constexpr const char *SETTINGS_KEY_SHOW_TITLE_BAR = "show_title_bar";
 constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
 
-constexpr uint32_t FONT_SIZE_SM = 16;
-constexpr uint32_t FONT_SIZE_MD = 20;
-constexpr uint32_t FONT_SIZE_LG = 24;
-constexpr uint32_t DEFAULT_FONT_SIZE = FONT_SIZE_MD;
+static const std::vector<uint32_t> FONT_SIZES {
+    18,
+    22,
+    24,
+    28,
+};
+constexpr uint32_t DEFAULT_FONT_SIZE = 22;
 
 bool settings_get_show_title_bar(const StateStore &state_store)
 {
@@ -58,18 +62,12 @@ void settings_set_font_size(StateStore &state_store, uint32_t font_size)
 
 uint32_t get_next_font_size(uint32_t font_size)
 {
-    if (font_size == FONT_SIZE_SM)
+    for (uint32_t i = 0; i < FONT_SIZES.size(); i++)
     {
-        return FONT_SIZE_MD;
+        if (FONT_SIZES[i] == font_size)
+        {
+            return FONT_SIZES[(i + 1) % FONT_SIZES.size()];
+        }
     }
-    if (font_size == FONT_SIZE_MD)
-    {
-        return FONT_SIZE_LG;
-    }
-    if (font_size == FONT_SIZE_LG)
-    {
-        return FONT_SIZE_SM;
-    }
-
     return DEFAULT_FONT_SIZE;
 }

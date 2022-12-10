@@ -26,7 +26,7 @@ class SelectionMenu: public View
     const uint32_t styling_sub_id;
 
     int line_height;
-    const int line_padding = 2; // TODO
+    const int line_padding = 2;
     uint32_t num_display_lines() const;
 
     Throttled scroll_throttle;
