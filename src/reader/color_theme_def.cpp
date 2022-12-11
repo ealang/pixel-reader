@@ -16,16 +16,6 @@ static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
         }
     },
     {
-        "vampire",
-        {
-            {0, 0, 0, 0},   // background
-            {192, 0, 0, 0}, // main text
-            {96, 0, 0, 0},  // secondary text
-            {192, 0, 0, 0}, // highlight background
-            {0, 0, 0, 0},   // highlight text
-        }
-    },
-    {
         "light_contrast",
         {
             {250, 250, 250, 0}, // background
@@ -43,6 +33,16 @@ static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
             {160, 160, 160, 0}, // secondary text
             {163, 81, 200, 0},  // highlight background
             {250, 240, 220, 0}, // highlight text
+        }
+    },
+    {
+        "vampire",
+        {
+            {0, 0, 0, 0},   // background
+            {192, 0, 0, 0}, // main text
+            {96, 0, 0, 0},  // secondary text
+            {192, 0, 0, 0}, // highlight background
+            {0, 0, 0, 0},   // highlight text
         }
     },
 };

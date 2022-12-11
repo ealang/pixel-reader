@@ -22,17 +22,17 @@
 namespace
 {
 
-constexpr const char *CONFIG_FILE_NAME = "config.cfg";
+constexpr const char *CONFIG_FILE_NAME = "reader.cfg";
 
 constexpr const char *CONFIG_KEY_READER_FONT = "reader_font";
-constexpr const char *DEFAULT_READER_FONT = "fonts/DejaVuSans.ttf";
+constexpr const char *DEFAULT_READER_FONT = "resources/fonts/DejaVuSans.ttf";
 
 constexpr const char *CONFIG_KEY_CONTROL_FONT = "control_font";
-constexpr const char *DEFAULT_CONTROL_FONT = "fonts/DejaVuSansMono.ttf";
+constexpr const char *DEFAULT_CONTROL_FONT = "resources/fonts/DejaVuSansMono.ttf";
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, std::string control_font)
 {
-    auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
+    auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "books/");
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
         browse_path,
         sys_styling,

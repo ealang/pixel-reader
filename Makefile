@@ -64,13 +64,16 @@ $(APP_DIR)/$(APP_TEST_TARGET): $(TEST_OBJECTS)
 
 -include $(DEPENDENCIES)
 
-.PHONY: all build clean debug release run_tests miyoo-mini-shell
+.PHONY: all build clean debug release run_tests miyoo-mini-shell miyoo-mini-package
 
 test: $(APP_DIR)/$(APP_TEST_TARGET)
 	$(APP_DIR)/$(APP_TEST_TARGET)
 
 miyoo-mini-shell:
 	$(MAKE) -C cross-compile/miyoo-mini/union-miyoomini-toolchain shell WORKSPACE_DIR=$(shell pwd)
+
+miyoo-mini-package:
+	sh miyoo_mini_package.sh
 
 build:
 	@mkdir -p $(APP_DIR)
