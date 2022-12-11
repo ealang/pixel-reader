@@ -11,6 +11,7 @@
 #include "sys/timing.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
+#include "util/key_value_file.h"
 #include "util/sdl_font_cache.h"
 
 #include <libxml/parser.h>
@@ -20,6 +21,14 @@
 
 namespace
 {
+
+constexpr const char *CONFIG_FILE_NAME = "config.cfg";
+
+constexpr const char *CONFIG_KEY_READER_FONT = "reader_font";
+constexpr const char *DEFAULT_READER_FONT = "fonts/DejaVuSans.ttf";
+
+constexpr const char *CONFIG_KEY_CONTROL_FONT = "control_font";
+constexpr const char *DEFAULT_CONTROL_FONT = "fonts/DejaVuSansMono.ttf";
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, std::string control_font)
 {
@@ -78,13 +87,15 @@ int main(int, char *[])
     TTF_Init();
 
     // Stores
-    auto base_dir = std::filesystem::current_path() / ".state";
-    StateStore state_store(base_dir);
+    StateStore state_store(".state");
+
+    auto cfg_values = load_key_value(CONFIG_FILE_NAME);
+    cfg_values.try_emplace(CONFIG_KEY_CONTROL_FONT, DEFAULT_CONTROL_FONT);
+    cfg_values.try_emplace(CONFIG_KEY_READER_FONT, DEFAULT_READER_FONT);
 
     // Preload & check fonts
-    std::string control_font = "fonts/DejaVuSansMono.ttf";
-    std::string reader_font = "fonts/DejaVuSans.ttf";
-
+    std::string control_font = cfg_values[CONFIG_KEY_CONTROL_FONT];
+    std::string reader_font = cfg_values[CONFIG_KEY_READER_FONT];
     uint32_t init_font_size = settings_get_font_size(state_store);
     if (
         !cached_load_font(control_font, init_font_size, FontLoadErrorOpt::NoThrow) ||

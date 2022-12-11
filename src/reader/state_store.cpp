@@ -1,4 +1,5 @@
 #include "./state_store.h"
+#include "util/key_value_file.h"
 
 #include <fstream>
 #include <unordered_map>
@@ -8,38 +9,6 @@ namespace
 
 constexpr const char *ACTIVITY_KEY_BROWSER_PATH = "browser_path";
 constexpr const char *ACTIVITY_KEY_BOOK_PATH = "book_path";
-
-void write_key_value(const std::string &path, const std::unordered_map<std::string, std::string> &settings)
-{
-    std::ofstream fp(path);
-    for (const auto& [key, value]: settings)
-    {
-        fp << key << "=" << value << std::endl;
-    }
-    fp.close();
-}
-
-std::unordered_map<std::string, std::string> load_key_value(const std::string &path)
-{
-    std::unordered_map<std::string, std::string> settings;
-    std::ifstream fp(path);
-
-    std::string line;
-    while (std::getline(fp, line))
-    {
-        auto pos = line.find('=');
-        if (pos == std::string::npos)
-        {
-            continue;
-        }
-        auto key = line.substr(0, pos);
-        auto value = line.substr(pos + 1);
-        settings[key] = value;
-    }
-    fp.close();
-
-    return settings;
-}
 
 void write_activity_store(const std::filesystem::path &path, const StateStore &store)
 {
