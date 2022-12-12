@@ -1,3 +1,4 @@
+#include "doc_api/token_addressing.h"
 #include "epub/epub_reader.h"
 #include "reader/display_lines.h"
 
@@ -22,12 +23,34 @@ void display_epub(std::string path)
         return;
     }
 
+    // Display toc
     const auto &toc = epub.get_table_of_contents();
-    for (auto &toc_item : toc)
+    for (uint32_t i = 0; i < toc.size(); ++i)
     {
+        const auto &toc_item = toc[i];
         std::cout << std::string(toc_item.indent_level * 2, ' ') << toc_item.display_name <<  std::endl;
+
+        auto toc_addr = epub.get_toc_item_address(i);
+        if (get_text_number(toc_addr) > 0)
+        {
+            const auto &tokens = epub.load_chapter(toc_addr);
+            bool found_matching_addr = false;
+            for (const auto &token : tokens)
+            {
+                if (toc_addr == token.address)
+                {
+                    found_matching_addr = true;
+                    break;
+                }
+            }
+            if (!found_matching_addr)
+            {
+                std::cerr << "Exact match for toc " << toc_item.display_name << " with address " << to_string(toc_addr) << " not found" << std::endl;
+            }
+        }
     }
 
+    // Display book
     DocAddr addr = epub.get_first_chapter_address();
     TocPosition last_progress {0, 0};
     while (true)

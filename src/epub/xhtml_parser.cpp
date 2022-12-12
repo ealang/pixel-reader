@@ -25,24 +25,21 @@ struct Context
     int node_depth = 0;     // depth inside any nodes
     int list_depth = 0;     // depth inside ul/ol nodes
     int pre_depth = 0;      // depth inside pre nodes
+    DocAddr current_address;
 
     std::function<void(const Context&, TokenType, std::string)> _emit_token;
-    std::function<void(std::string)> _emit_id;
+    std::function<void(std::string)> emit_id;
 
     void emit_token(TokenType type, std::string text)
     {
         _emit_token(*this, type, std::move(text));
     }
 
-    void emit_id(std::string id)
-    {
-        _emit_id(std::move(id));
-    }
-
     Context(
+        DocAddr start_address,
         std::function<void(const Context&, TokenType, std::string)> _emit_token,
-        std::function<void(std::string)> _emit_id
-    ) : _emit_token(_emit_token), _emit_id(_emit_id)
+        std::function<void(std::string)> emit_id
+    ) : current_address(start_address), _emit_token(_emit_token), emit_id(emit_id)
     { }
 };
 
@@ -244,6 +241,8 @@ void on_exit_element_node(xmlNodePtr node, Context &context)
 
 void _process_node(xmlNodePtr node, Context &context)
 {
+    // Note: addressing scheme needs to be consistent across code revisions to ensure
+    // user bookmarks don't change position.
     while (node)
     {
         DEBUG_LOG("<node name=\"" << node->name << "\">");
@@ -253,10 +252,12 @@ void _process_node(xmlNodePtr node, Context &context)
         if (node->type == XML_TEXT_NODE)
         {
             on_text_node(node, context);
+            context.current_address += get_address_width((const char*)node->content);
         }
         else if (node->type == XML_ELEMENT_NODE)
         {
             on_enter_element_node(node, context);
+            context.current_address++;
         }
 
         // Descend
@@ -266,6 +267,7 @@ void _process_node(xmlNodePtr node, Context &context)
         if (node->type == XML_ELEMENT_NODE)
         {
             on_exit_element_node(node, context);
+            context.current_address++;
         }
 
         context.node_depth--;
@@ -280,8 +282,27 @@ class TokenProcessor
     uint32_t chapter_number;
     std::vector<DocToken> &tokens;
     std::unordered_map<std::string, DocAddr> &id_to_addr;
-    uint32_t address_offset = 0;
     bool fresh_line = true;
+
+    std::vector<std::string> pending_ids;
+    DocAddr last_address = 0;
+
+    void attach_pending_ids(DocAddr address)
+    {
+        for (const auto &id : pending_ids)
+        {
+            id_to_addr[id] = address;
+        }
+        pending_ids.clear();
+    }
+
+    void write_token(const Context &context, TokenType type, DocAddr address, const std::string &text)
+    {
+        tokens.emplace_back(type, address, text);
+        DEBUG_LOG(to_string(tokens.back()));
+
+        attach_pending_ids(address);
+    }
 
 public:
     TokenProcessor(
@@ -295,12 +316,14 @@ public:
 
     void on_id(std::string id)
     {
-        id_to_addr[id] = make_address(chapter_number, address_offset);
+        // Don't store the id to address mapping yet, wait until we are storing a token
+        // to ensure it maps to a token that exists.
+        pending_ids.push_back(std::move(id));
     }
 
     void on_token(const Context &context, TokenType type, std::string text)
     {
-        DocAddr address = make_address(chapter_number, address_offset);
+        DocAddr address = context.current_address;
 
         if (text.size())
         {
@@ -327,9 +350,7 @@ public:
         {
             if (text.size())
             {
-                tokens.emplace_back(TokenType::Text, address, text);
-                DEBUG_LOG(to_string(tokens.back()));
-
+                write_token(context, type, address, text);
                 fresh_line = false;
             }
         }
@@ -341,32 +362,35 @@ public:
             {
                 if (!tokens.empty() && tokens.back().type == TokenType::Text)
                 {
-                    tokens.emplace_back(type, address, EMPTY_STR);
-                    DEBUG_LOG(to_string(tokens.back()));
+                    write_token(context, type, address, EMPTY_STR);
                 }
             }
             else if (type == TokenType::Section)
             {
-                while (!tokens.empty() && tokens.back().type == TokenType::TextBreak)
+                DocAddr adjusted_address = address;
+                if (!tokens.empty() && tokens.back().type == TokenType::TextBreak)
                 {
+                    // There might have been ids attached to the popped token. Use the previous
+                    // address when we emit the new token.
+                    adjusted_address = tokens.back().address;
                     tokens.pop_back();
                     DEBUG_LOG("pop");
                 }
                 if (!tokens.empty() && tokens.back().type != TokenType::Section)
                 {
-                    tokens.emplace_back(type, address, EMPTY_STR);
-                    DEBUG_LOG(to_string(tokens.back()));
+                    write_token(context, type, adjusted_address, EMPTY_STR);
                 }
             }
             else
             {
-                tokens.emplace_back(type, address, text);
-                DEBUG_LOG(to_string(tokens.back()));
+                write_token(context, type, address, text);
             }
         }
+    }
 
-        // Update address. Important that this be a consistent calculation across code revisions.
-        address_offset += get_address_width(text.c_str());
+    void finalize()
+    {
+        attach_pending_ids(last_address);
     }
 };
 
@@ -390,6 +414,7 @@ bool parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_
     if (node)
     {
         Context context(
+            make_address(chapter_number),
             [&processor](const Context &context, TokenType type, std::string text){
                 processor.on_token(context, type, std::move(text));
             },
@@ -399,6 +424,8 @@ bool parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_
         );
         _process_node(node, context);
     }
+
+    processor.finalize();
     xmlFreeDoc(doc);
 
     return true;

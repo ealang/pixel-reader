@@ -18,6 +18,11 @@ inline bool char_has_width(char c)
 
 uint32_t get_address_width(const char *str)
 {
+    if (!str)
+    {
+        return 0;
+    }
+
     uint32_t count = 0;
     char c;
     while ((c = *str))

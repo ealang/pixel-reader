@@ -120,6 +120,10 @@ std::shared_ptr<TextView> make_text_view(ReaderView &reader_view, ReaderViewStat
             if (line_addr <= address)
             {
                 best_line_number = line_number;
+                if (line_addr == address)
+                {
+                    break;
+                }
             }
             else
             {
@@ -346,10 +350,10 @@ void ReaderView::seek_to_previous_chapter()
     auto prev_addr_opt = state->reader.get_prev_chapter_address(get_current_address(*state));
     if (prev_addr_opt)
     {
-        const auto &tokens = state->reader.load_chapter(*prev_addr_opt);
+        DocAddr new_addr = *prev_addr_opt;
+        const auto &tokens = state->reader.load_chapter(new_addr);
 
         // Go to last line
-        DocAddr new_addr = *prev_addr_opt;
         if (tokens.size())
         {
             const auto &last_token = tokens.back();
@@ -362,10 +366,19 @@ void ReaderView::seek_to_previous_chapter()
 
 void ReaderView::seek_to_next_chapter()
 {
-    auto next_addr = state->reader.get_next_chapter_address(get_current_address(*state));
-    if (next_addr)
+    auto next_addr_opt = state->reader.get_next_chapter_address(get_current_address(*state));
+    if (next_addr_opt)
     {
-        seek_to_address(*next_addr);
+        DocAddr new_addr = *next_addr_opt;
+        const auto &tokens = state->reader.load_chapter(new_addr);
+
+        // Go to first token address
+        if (tokens.size())
+        {
+            new_addr = tokens.front().address;
+        }
+
+        seek_to_address(new_addr);
     }
 }
 
