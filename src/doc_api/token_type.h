@@ -6,7 +6,7 @@
 enum class TokenType
 {
     Text,
-    Block,
+    TextBreak,
     Section,
     Image,
 };

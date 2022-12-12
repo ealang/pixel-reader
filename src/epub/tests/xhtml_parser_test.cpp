@@ -92,10 +92,10 @@ TEST(XHTML_PARSER, line_break)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Text,   0, "Line 1"},
-        {TokenType::Block,  5, ""      },
-        {TokenType::Text,   5, "Line 2"},
-        {TokenType::Block, 10, ""      }
+        {TokenType::Text,       0, "Line 1"},
+        {TokenType::TextBreak,  5, ""      },
+        {TokenType::Text,       5, "Line 2"},
+        {TokenType::TextBreak, 10, ""      }
     };
   
     ASSERT_TOKENS_EQ(

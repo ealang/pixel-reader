@@ -218,7 +218,7 @@ void on_enter_element_node(xmlNodePtr node, Context &context)
 
     if (_element_is_blocking(node->name))
     {
-        context.emit_token(TokenType::Block, EMPTY_STR);
+        context.emit_token(TokenType::TextBreak, EMPTY_STR);
     }
 
     auto handler = _on_enter_handlers.find((const char*)node->name);
@@ -232,7 +232,7 @@ void on_exit_element_node(xmlNodePtr node, Context &context)
 {
     if (_element_is_blocking(node->name))
     {
-        context.emit_token(TokenType::Block, EMPTY_STR);
+        context.emit_token(TokenType::TextBreak, EMPTY_STR);
     }
 
     auto handler = _on_exit_handlers.find((const char*)node->name);
@@ -337,7 +337,7 @@ public:
         {
             fresh_line = true;
 
-            if (type == TokenType::Block)
+            if (type == TokenType::TextBreak)
             {
                 if (!tokens.empty() && tokens.back().type == TokenType::Text)
                 {
@@ -347,7 +347,7 @@ public:
             }
             else if (type == TokenType::Section)
             {
-                while (!tokens.empty() && tokens.back().type == TokenType::Block)
+                while (!tokens.empty() && tokens.back().type == TokenType::TextBreak)
                 {
                     tokens.pop_back();
                     DEBUG_LOG("pop");
