@@ -22,8 +22,7 @@ mkdir -p $STAGE_APP/resources/fonts
 
 cp -v resources/fonts/*.ttf $STAGE_APP/resources/fonts
 cp -v resources/fonts/*.txt $STAGE_APP/resources/fonts
-cp -v resources/logo/logo.png $STAGE_APP/icon.png
-cp -v resources/books/*.epub $STAGE_APP/books/
+cp -v resources/icon/icon.png $STAGE_APP/icon.png
 
 cp -v resources/config.json $STAGE_APP/
 cp -v resources/launch.sh   $STAGE_APP/

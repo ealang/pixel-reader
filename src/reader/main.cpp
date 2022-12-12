@@ -32,7 +32,7 @@ constexpr const char *DEFAULT_CONTROL_FONT = "resources/fonts/DejaVuSansMono.ttf
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, std::string control_font)
 {
-    auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "books/");
+    auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
         browse_path,
         sys_styling,
