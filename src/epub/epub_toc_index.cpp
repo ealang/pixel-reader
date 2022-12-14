@@ -40,7 +40,7 @@ void _flatten_navmap_to_toc(
         }
         else
         {
-            std::cerr << "TOC: Unable to find document for " << navpoint.src << std::endl;
+            std::cerr << "TOC: Unable to find document for \"" << navpoint.label << "\"" << std::endl;
         }
 
         _flatten_navmap_to_toc(
