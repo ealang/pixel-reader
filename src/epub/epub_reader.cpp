@@ -5,6 +5,7 @@
 #include "./epub_toc_index.h"
 #include "util/zip_utils.h"
 
+#include <algorithm>
 #include <iostream>
 #include <zip.h>
 
@@ -63,7 +64,7 @@ bool EPubReader::open()
             return false;
         }
 
-        rootfile_path = epub_get_rootfile_path(container_xml.data());
+        rootfile_path = epub_parse_rootfile_path(container_xml.data());
         if (rootfile_path.empty())
         {
             std::cerr << "Unable to get docroot path" << std::endl;
@@ -81,28 +82,48 @@ bool EPubReader::open()
             return false;
         }
 
-        if (!epub_get_package_contents(rootfile_path, package_xml.data(), package))
+        if (!epub_parse_package_contents(rootfile_path, package_xml.data(), package))
         {
             std::cerr << "Failed to parse " << rootfile_path << std::endl;
             return false;
         }
     }
 
-    // Parse ncx file (if avail)
     std::vector<NavPoint> navmap;
+
+    // Parse ncx file (if avail)
     if (!package.toc_id.empty())
     {
         auto item = package.id_to_manifest_item.find(package.toc_id);
         if (item != package.id_to_manifest_item.end() && item->second.media_type == APPLICATION_X_DTBNCX_XML)
         {
-            std::string ncx_path = item->second.href_absolute;
+            auto ncx_path = item->second.href_absolute;
             auto ncx_xml = read_zip_file_str(state->zip, ncx_path);
 
-            epub_get_ncx(ncx_path, ncx_xml.data(), navmap);
+            epub_parse_ncx(ncx_path, ncx_xml.data(), navmap);
         }
         else
         {
             std::cerr << "Failed to find toc document id " << package.toc_id << " or unknown media type" << std::endl;
+        }
+    }
+
+    // Parse nav file (if avail)
+    if (navmap.empty())
+    {
+        auto nav_item = std::find_if(
+            package.id_to_manifest_item.begin(),
+            package.id_to_manifest_item.end(),
+            [](const auto &item) {
+                return item.second.media_type == APPLICATION_XHTML_XML && item.second.properties == "nav";
+            }
+        );
+        if (nav_item != package.id_to_manifest_item.end())
+        {
+            auto nav_path = nav_item->second.href_absolute;
+            auto nav_xml = read_zip_file_str(state->zip, nav_path);
+
+            epub_parse_nav(nav_path, nav_xml.data(), navmap);
         }
     }
 

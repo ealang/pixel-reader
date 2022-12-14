@@ -1,14 +1,10 @@
 ## Pixel Reader
 
-An epub reader for Linux.
+An epub reader for Linux. It is currently optimized for the [Miyoo Mini](https://retrogamecorps.com/2022/05/15/miyoo-mini-v2-guide/).
+
+The app is in an early release state. Images are not supported. Text only, and limited formatting.
 
 ![Screenshot](resources/demo.gif)
-
-The app is in a beta state. There are a few limitations:
-- No images, text only
-- Epub format only. Limited support for epub 3.
-
-It is currently optimized for the [Miyoo Mini](https://retrogamecorps.com/2022/05/15/miyoo-mini-v2-guide/) device.
 
 ## Miyoo Mini Installation
 
@@ -16,7 +12,7 @@ Instructions for Onion or default OS:
 
 [Download the latest release](https://github.com/ealang/pixel-reader/releases), and extract the zip into the root of your SD card. Boot your device, and the app should now show up in the apps list.
 
-Epub files can be placed anywhere on the SD card, but the default directory is `App/PixelReader/books`. Browse to the location after launching the app.
+Epub files can be placed anywhere on the SD card. Browse to the location after launching the app.
 
 ## Development Reference
 
