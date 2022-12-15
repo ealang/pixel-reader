@@ -46,7 +46,7 @@ make miyoo-mini-shell
 
 Create app package:
 ```
-make miyoo-mini-package
+./miyoo_mini_package.sh <version num>
 ```
 
 ### Run Tests
