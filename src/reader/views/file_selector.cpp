@@ -1,7 +1,6 @@
 #include "./file_selector.h"
 
 #include "./selection_menu.h"
-#include "./text_view_styling.h"
 #include "reader/system_styling.h"
 #include "sys/filesystem.h"
 

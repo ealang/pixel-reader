@@ -2,6 +2,7 @@
 #define EPUB_READER_H_
 
 #include "doc_api/doc_token.h"
+#include "./epub_token_iter.h"
 
 #include <optional>
 #include <string>
@@ -40,10 +41,7 @@ public:
     TocPosition get_toc_position(const DocAddr &address) const;
     DocAddr get_toc_item_address(uint32_t toc_item_index) const;
 
-    const std::vector<DocToken> &load_chapter(const DocAddr &address) const;
-    DocAddr get_first_chapter_address() const;
-    std::optional<DocAddr> get_prev_chapter_address(const DocAddr &address) const;
-    std::optional<DocAddr> get_next_chapter_address(const DocAddr &address) const;
+    EPubTokenIter get_iter(DocAddr address = make_address()) const;
 };
 
 #endif

@@ -26,7 +26,7 @@ OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)
 INCLUDE  := -Isrc -I${PREFIX}/include/libxml2
 
-COMMON_SRC := $(filter-out src/reader/main.cpp, $(wildcard src/epub/*.cpp src/reader/*.cpp src/reader/views/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp))
+COMMON_SRC := $(filter-out src/reader/main.cpp, $(wildcard src/epub/*.cpp src/reader/*.cpp src/reader/views/*.cpp src/reader/views/token_view/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp))
 READER_SRC := $(COMMON_SRC) src/reader/main.cpp
 SANDBOX_SRC := $(COMMON_SRC) $(wildcard src/sandbox/*.cpp)
 TEST_SRC := $(COMMON_SRC) $(wildcard src/sys/tests/*.cpp src/reader/tests/*.cpp src/epub/tests/*.cpp src/util/tests/*.cpp src/doc_api/tests/*.cpp)

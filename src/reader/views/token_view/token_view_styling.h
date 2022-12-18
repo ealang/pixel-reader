@@ -1,20 +1,20 @@
-#ifndef TEXT_VIEW_STYLING_H_
-#define TEXT_VIEW_STYLING_H_
+#ifndef TOKEN_VIEW_STYLING_H_
+#define TOKEN_VIEW_STYLING_H_
 
 #include <functional>
 #include <memory>
 #include <string>
 
-struct TextViewStylingState;
+struct TokenViewStylingState;
 
-class TextViewStyling
+class TokenViewStyling
 {
-    std::unique_ptr<TextViewStylingState> state;
+    std::unique_ptr<TokenViewStylingState> state;
     void notify_subscribers() const;
 
 public:
-    TextViewStyling(std::string font, bool show_title_bar);
-    virtual ~TextViewStyling();
+    TokenViewStyling(std::string font, bool show_title_bar);
+    virtual ~TokenViewStyling();
 
     // Font
     const std::string &get_font() const;

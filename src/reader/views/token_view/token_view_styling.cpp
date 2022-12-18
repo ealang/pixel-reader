@@ -1,8 +1,8 @@
-#include "./text_view_styling.h"
+#include "./token_view_styling.h"
 
 #include <unordered_map>
 
-struct TextViewStylingState
+struct TokenViewStylingState
 {
     std::string font;
     bool show_title_bar;
@@ -10,7 +10,7 @@ struct TextViewStylingState
     uint32_t next_subscriber_id = 1;
     std::unordered_map<uint32_t, std::function<void()>> subscribers;
 
-    TextViewStylingState(
+    TokenViewStylingState(
         std::string font,
         bool show_title_bar
     ) : font(font),
@@ -18,16 +18,16 @@ struct TextViewStylingState
     {}
 };
 
-TextViewStyling::TextViewStyling(std::string font, bool show_title_bar)
-    : state(std::make_unique<TextViewStylingState>(font, show_title_bar))
+TokenViewStyling::TokenViewStyling(std::string font, bool show_title_bar)
+    : state(std::make_unique<TokenViewStylingState>(font, show_title_bar))
 {
 }
 
-TextViewStyling::~TextViewStyling()
+TokenViewStyling::~TokenViewStyling()
 {
 }
 
-void TextViewStyling::notify_subscribers() const
+void TokenViewStyling::notify_subscribers() const
 {
     for (auto &sub: state->subscribers)
     {
@@ -35,17 +35,17 @@ void TextViewStyling::notify_subscribers() const
     }
 }
 
-const std::string &TextViewStyling::get_font() const
+const std::string &TokenViewStyling::get_font() const
 {
     return state->font;
 }
 
-bool TextViewStyling::get_show_title_bar() const
+bool TokenViewStyling::get_show_title_bar() const
 {
     return state->show_title_bar;
 }
 
-void TextViewStyling::set_show_title_bar(bool show_title_bar)
+void TokenViewStyling::set_show_title_bar(bool show_title_bar)
 {
     if (state->show_title_bar != show_title_bar)
     {
@@ -54,14 +54,14 @@ void TextViewStyling::set_show_title_bar(bool show_title_bar)
     }
 }
 
-uint32_t TextViewStyling::subscribe_to_changes(std::function<void()> callback)
+uint32_t TokenViewStyling::subscribe_to_changes(std::function<void()> callback)
 {
     uint32_t sub_id = state->next_subscriber_id++;
     state->subscribers[sub_id] = callback;
     return sub_id;
 }
 
-void TextViewStyling::unsubscribe_from_changes(uint32_t sub_id)
+void TokenViewStyling::unsubscribe_from_changes(uint32_t sub_id)
 {
     state->subscribers.erase(sub_id);
 }

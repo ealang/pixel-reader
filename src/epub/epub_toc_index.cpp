@@ -114,7 +114,7 @@ DocAddr EpubTocIndex::resolve_start_address(uint32_t item_index) const
 {
     if (item_index >= toc.size())
     {
-        std::cout << "Requested start address for invalid toc item index: " << item_index << std::endl;
+        std::cerr << "Requested start address for invalid toc item index: " << item_index << std::endl;
         return make_address();
     }
 
@@ -156,7 +156,7 @@ DocAddr EpubTocIndex::resolve_upper_address(uint32_t item_index) const
 
     if (item_index >= toc.size())
     {
-        std::cout << "Requested end address for invalid toc item index: " << item_index << std::endl;
+        std::cerr << "Requested end address for invalid toc item index: " << item_index << std::endl;
         return null_address;
     }
 

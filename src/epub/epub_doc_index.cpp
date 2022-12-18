@@ -79,6 +79,15 @@ bool EpubDocIndex::empty(uint32_t spine_index) const
     return ensure_cached(spine_index).size() == 0;
 }
 
+uint32_t EpubDocIndex::token_count(uint32_t spine_index) const
+{
+    if (spine_index < spine_size())
+    {
+        return tokens(spine_index).size();
+    }
+    return 0;
+}
+
 const std::vector<DocToken> &EpubDocIndex::tokens(uint32_t spine_index) const
 {
     return ensure_cached(spine_index);

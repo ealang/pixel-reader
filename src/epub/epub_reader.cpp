@@ -178,49 +178,7 @@ DocAddr EPubReader::get_toc_item_address(uint32_t toc_item_index) const
     return state->toc_index->get_toc_item_address(toc_item_index);
 }
 
-const std::vector<DocToken> &EPubReader::load_chapter(const DocAddr &address) const
+EPubTokenIter EPubReader::get_iter(DocAddr address) const
 {
-    uint32_t spine_index = get_chapter_number(address);
-    return state->doc_index->tokens(spine_index);
-}
-
-DocAddr EPubReader::get_first_chapter_address() const
-{
-    for (uint32_t spine_index = 0; spine_index < state->doc_index->spine_size(); ++spine_index)
-    {
-        if (!state->doc_index->empty(spine_index))
-        {
-            return make_address(spine_index);
-        }
-    }
-    return make_address();
-}
-
-std::optional<DocAddr> EPubReader::get_prev_chapter_address(const DocAddr &address) const
-{
-    uint32_t spine_index = std::min(
-        get_chapter_number(address),
-        state->doc_index->spine_size() - 1
-    );
-    while (spine_index-- > 0)
-    {
-        if (!state->doc_index->empty(spine_index))
-        {
-            return make_address(spine_index);
-        }
-    }
-    return std::nullopt;
-}
-
-std::optional<DocAddr> EPubReader::get_next_chapter_address(const DocAddr &address) const
-{
-    uint32_t spine_index = get_chapter_number(address);
-    while (++spine_index < state->doc_index->spine_size())
-    {
-        if (!state->doc_index->empty(spine_index))
-        {
-            return make_address(spine_index);
-        }
-    }
-    return std::nullopt;
+    return { state->doc_index.get(), address };
 }

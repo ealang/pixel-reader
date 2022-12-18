@@ -5,7 +5,8 @@
 #include "./view_stack.h"
 #include "./views/file_selector.h"
 #include "./views/reader_view.h"
-#include "./views/text_view_styling.h"
+#include "./views/token_view/token_view_styling.h"
+#include "epub/epub_reader.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "sys/timing.h"
@@ -30,7 +31,7 @@ constexpr const char *DEFAULT_READER_FONT = "resources/fonts/DejaVuSans.ttf";
 constexpr const char *CONFIG_KEY_CONTROL_FONT = "control_font";
 constexpr const char *DEFAULT_CONTROL_FONT = "resources/fonts/DejaVuSansMono.ttf";
 
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TextViewStyling &text_view_styling, std::string control_font)
+void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, std::string control_font)
 {
     auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
@@ -39,7 +40,7 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         control_font
     );
 
-    auto load_book = [&view_stack, &state_store, &sys_styling, &text_view_styling](std::filesystem::path path) {
+    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling](std::filesystem::path path) {
         if (path.extension() != ".epub" || !std::filesystem::exists(path))
         {
             return;
@@ -50,11 +51,11 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
             path,
             state_store.get_book_address(path).value_or(0),
             sys_styling,
-            text_view_styling,
+            token_view_styling,
             view_stack
         );
 
-        reader_view->set_on_change_address([&state_store, path_str=path.string()](const DocAddr &addr) {
+        reader_view->set_on_change_address([&state_store, path_str=path.string()](DocAddr addr) {
             state_store.set_book_address(path_str, addr);
         });
         reader_view->set_on_quit_requested([&state_store]() {
@@ -118,19 +119,19 @@ int main(int, char *[])
     });
 
     // Text Styling
-    TextViewStyling text_view_styling(
+    TokenViewStyling token_view_styling(
         reader_font,
         settings_get_show_title_bar(state_store)
     );
-    text_view_styling.subscribe_to_changes([&text_view_styling, &state_store]() {
+    token_view_styling.subscribe_to_changes([&token_view_styling, &state_store]() {
         // Persist changes to text view styling
-        settings_set_show_title_bar(state_store, text_view_styling.get_show_title_bar());
+        settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
     });
 
     // Views
     ViewStack view_stack;
 
-    initialize_views(view_stack, state_store, sys_styling, text_view_styling, control_font);
+    initialize_views(view_stack, state_store, sys_styling, token_view_styling, control_font);
 
     // Track held keys
     HeldKeyTracker held_key_tracker(
