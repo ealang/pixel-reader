@@ -257,7 +257,10 @@ void _process_node(xmlNodePtr node, Context &context)
         else if (node->type == XML_ELEMENT_NODE)
         {
             on_enter_element_node(node, context);
-            context.current_address++;
+            if (xmlStrEqual(node->name, BAD_CAST "img") || xmlStrEqual(node->name, BAD_CAST "image"))
+            {
+                context.current_address++;
+            }
         }
 
         // Descend
@@ -267,7 +270,6 @@ void _process_node(xmlNodePtr node, Context &context)
         if (node->type == XML_ELEMENT_NODE)
         {
             on_exit_element_node(node, context);
-            context.current_address++;
         }
 
         context.node_depth--;

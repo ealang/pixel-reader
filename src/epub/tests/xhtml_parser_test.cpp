@@ -68,12 +68,12 @@ TEST(XHTML_PARSER, whitespace_compaction)
   
     std::vector<DocToken> expected_tokens {
         {TokenType::Text,  0, "This " },
-        {TokenType::Text,  5, "has "  },
-        {TokenType::Text,  9, "some " },
-        {TokenType::Text, 14, "extra" },
-        {TokenType::Text, 20, " white"},
-        {TokenType::Text, 26, " "     },
-        {TokenType::Text, 28, "space "}
+        {TokenType::Text,  4, "has "  },
+        {TokenType::Text,  7, "some " },
+        {TokenType::Text, 11, "extra" },
+        {TokenType::Text, 16, " white"},
+        {TokenType::Text, 21, " "     },
+        {TokenType::Text, 21, "space "}
     };
   
     ASSERT_TOKENS_EQ(
@@ -92,10 +92,10 @@ TEST(XHTML_PARSER, line_break)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Text,       1, "Line 1"},
-        {TokenType::TextBreak,  6, ""      },
-        {TokenType::Text,       8, "Line 2"},
-        {TokenType::TextBreak, 13, ""      }
+        {TokenType::Text,       0, "Line 1"},
+        {TokenType::TextBreak,  5, ""      },
+        {TokenType::Text,       5, "Line 2"},
+        {TokenType::TextBreak, 10, ""      }
     };
   
     ASSERT_TOKENS_EQ(
@@ -122,10 +122,32 @@ TEST(XHTML_PARSER, section_compaction)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Text,     3, "Some text. "},
-        {TokenType::Section, 12, ""           },
-        {TokenType::Text,    15, "Some more. "},
-        {TokenType::Section, 24, ""           }
+        {TokenType::Text,     0, "Some text. "},
+        {TokenType::Section,  9, ""           },
+        {TokenType::Text,     9, "Some more. "},
+        {TokenType::Section, 18, ""           }
+    };
+  
+    ASSERT_TOKENS_EQ(
+        _parse_xhtml_tokens(xml),
+        expected_tokens
+    );
+}
+
+TEST(XHTML_PARSER, image_addresses)
+{
+    const char *xml = (
+        "<html><body>"
+        "<img src=\"foo.png\"></img>"
+        "<div>Line 2</div>"
+        "</body></html>"
+    );
+  
+    std::vector<DocToken> expected_tokens {
+        {TokenType::Image,      0, "[Image foo.png]"},
+        {TokenType::Section,    0, ""      },
+        {TokenType::Text,       1, "Line 2"},
+        {TokenType::TextBreak,  6, ""},
     };
   
     ASSERT_TOKENS_EQ(
@@ -144,8 +166,8 @@ TEST(XHTML_PARSER, capture_ids)
     );
 
     std::unordered_map<std::string, DocAddr> expected_ids {
-        {"id1", 1},
-        {"id2", 8},
+        {"id1", 0},
+        {"id2", 5},
     };
   
     std::vector<DocToken> tokens;
