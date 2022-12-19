@@ -35,7 +35,6 @@ public:
 
     void on_keypress(SDLKey key) override;
     void on_keyheld(SDLKey key, uint32_t hold_time_ms) override;
-    void on_pop() override;
 
     void set_on_quit_requested(std::function<void()> callback);
     void set_on_change_address(std::function<void(DocAddr)> callback);

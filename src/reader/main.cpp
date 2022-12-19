@@ -181,6 +181,10 @@ int main(int, char *[])
                         {
                             quit = true;
                         }
+                        else if (key == SW_BTN_POWER)
+                        {
+                            state_store.flush();
+                        }
                         else if (key == SW_BTN_X)
                         {
                             sys_styling.set_color_theme(

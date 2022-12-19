@@ -131,6 +131,11 @@ ReaderView::ReaderView(
         // Update title info on scroll
         state->token_view->set_on_scroll([this](DocAddr address) {
             update_token_view_title(address);
+
+            if (state->on_change_address)
+            {
+                state->on_change_address(address);
+            }
         });
     }
 }
@@ -228,16 +233,6 @@ void ReaderView::on_keyheld(SDLKey key, uint32_t hold_time_ms)
     state->token_view->on_keyheld(key, hold_time_ms);
 }
 
-void ReaderView::on_pop()
-{
-    if (!state->is_error_state && state->on_change_address)
-    {
-        state->on_change_address(
-            get_current_address(*state)
-        );
-    }
-}
-
 void ReaderView::set_on_quit_requested(std::function<void()> callback)
 {
     state->on_quit = callback;
@@ -260,5 +255,10 @@ void ReaderView::seek_to_address(DocAddr address)
     {
         state->token_view->seek_to_address(address);
         update_token_view_title(address);
+
+        if (state->on_change_address)
+        {
+            state->on_change_address(address);
+        }
     }
 }
