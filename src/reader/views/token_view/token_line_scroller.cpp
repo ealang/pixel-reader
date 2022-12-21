@@ -1,4 +1,42 @@
 #include "./token_line_scroller.h"
+#include "reader/display_lines.h" // TODO
+
+namespace
+{
+
+std::optional<DocAddr> last_line_address(const IndexedDequeue<std::unique_ptr<DisplayLine>> &lines)
+{
+    if (!lines.size())
+    {
+        return std::nullopt;
+    }
+    return lines.back()->address;
+}
+
+uint32_t get_line_for_address(const IndexedDequeue<std::unique_ptr<DisplayLine>> &lines, DocAddr address)
+{
+    int best_line = lines.start_index();
+    for (int i = lines.start_index(); i < lines.end_index(); ++i)
+    {
+        const auto &line = lines[i];
+        if (line && line->address <= address)
+        {
+            best_line = i;
+            if (line->address == address)
+            {
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return best_line;
+}
+
+} // namespace
 
 uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
 {
@@ -21,7 +59,7 @@ uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
 
         if (tokens.empty())
         {
-            global_last_line = lines_buf.line_end();
+            global_last_line = lines_buf.end_index();
             break;
         }
 
@@ -30,8 +68,10 @@ uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
             line_fits,
             [&buf=lines_buf, &num_lines](const std::string &text, const DocAddr &start_addr) {
                 buf.append(
-                    text,
-                    start_addr
+                    std::make_unique<TextLine>(
+                        start_addr,
+                        text
+                    )
                 );
                 if (num_lines > 0)
                 {
@@ -65,7 +105,7 @@ uint32_t TokenLineScroller::get_more_lines_backward(uint32_t num_lines)
 
         if (tokens.empty())
         {
-            global_first_line = lines_buf.line_start();
+            global_first_line = lines_buf.start_index();
             break;
         }
 
@@ -83,8 +123,10 @@ uint32_t TokenLineScroller::get_more_lines_backward(uint32_t num_lines)
         for (auto it = lines_tmp.rbegin(); it != lines_tmp.rend(); ++it)
         {
             lines_buf.prepend(
-                it->text,
-                it->address
+                std::make_unique<TextLine>(
+                    it->address,
+                    it->text
+                )
             );
             if (num_lines > 0)
             {
@@ -134,14 +176,14 @@ void TokenLineScroller::initialize_buffer_at(DocAddr address)
             break;
         }
 
-        auto last_addr = lines_buf.last_line_address();
+        auto last_addr = last_line_address(lines_buf);
         if (last_addr && *last_addr >= address)
         {
             break;
         }
     }
 
-    current_line = lines_buf.get_line_for_address(address);
+    current_line = get_line_for_address(lines_buf, address);
     ensure_lines_around(current_line);
 }
 
@@ -167,7 +209,7 @@ void TokenLineScroller::ensure_lines_around(int line_num)
         forward_extent = *global_last_line;
     }
 
-    int forward_needed = forward_extent - lines_buf.line_end();
+    int forward_needed = forward_extent - lines_buf.end_index();
     if (forward_needed > 0)
     {
         get_more_lines_forward(forward_needed);
@@ -180,16 +222,21 @@ void TokenLineScroller::ensure_lines_around(int line_num)
         backwards_extent = *global_first_line;
     }
 
-    int backwards_lines_needed = lines_buf.line_start() - backwards_extent;
+    int backwards_lines_needed = lines_buf.start_index() - backwards_extent;
     if (backwards_lines_needed > 0)
     {
         get_more_lines_backward(backwards_lines_needed);
     }
 }
 
-const Line *TokenLineScroller::get_line_relative(int offset)
+const DisplayLine *TokenLineScroller::get_line_relative(int offset)
 {
-    return lines_buf.get_line(current_line + offset);
+    int line = current_line + offset;
+    if (line < lines_buf.start_index() || line >= lines_buf.end_index())
+    {
+        return nullptr;
+    }
+    return lines_buf[line].get();
 }
 
 int TokenLineScroller::get_line_number() const
@@ -210,7 +257,7 @@ void TokenLineScroller::seek_to_address(DocAddr address)
 
 void TokenLineScroller::reset_buffer()
 {
-    const Line *line = get_line_relative(0);
+    const DisplayLine *line = get_line_relative(0);
     if (line)
     {
         DocAddr cur_address = line->address;

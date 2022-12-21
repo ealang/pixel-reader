@@ -1,10 +1,11 @@
 #ifndef TOKEN_LINE_SCROLLER_H_
 #define TOKEN_LINE_SCROLLER_H_
 
-#include "./line_buffer.h"
+#include "./display_line.h"
 
 #include "doc_api/doc_addr.h"
 #include "epub/epub_reader.h"
+#include "util/indexed_dequeue.h"
 
 #include <functional>
 
@@ -22,7 +23,7 @@ class TokenLineScroller
     uint32_t num_lines_lookahead;
     int current_line = 0;
 
-    LineBuffer lines_buf;
+    IndexedDequeue<std::unique_ptr<DisplayLine>> lines_buf;
 
     uint32_t get_more_lines_forward(uint32_t num);
     uint32_t get_more_lines_backward(uint32_t num);
@@ -38,7 +39,7 @@ public:
         std::function<bool(const char *, uint32_t)> line_fits
     );
 
-    const Line *get_line_relative(int offset);
+    const DisplayLine *get_line_relative(int offset);
     int get_line_number() const;
     void seek_lines_relative(int offset);
     void seek_to_address(DocAddr address);

@@ -176,14 +176,15 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     int num_text_display_lines = state->num_text_display_lines();
     for (int i = 0; i < num_text_display_lines; ++i)
     {
-        const Line *line = state->line_scroller.get_line_relative(i);
-        if (!line)
+        const DisplayLine *line = state->line_scroller.get_line_relative(i);
+        if (!line || line->type != DisplayLine::Type::Text)
         {
             continue;
         }
 
+        const TextLine *text_line = static_cast<const TextLine *>(line);
         SDL_Rect dest_rect = {0, y, 0, 0};
-        SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, line->text.c_str(), theme.main_text, theme.background);
+        SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, text_line->text.c_str(), theme.main_text, theme.background);
         SDL_BlitSurface(surface, nullptr, dest_surface, &dest_rect);
         SDL_FreeSurface(surface);
 
@@ -289,7 +290,7 @@ bool TokenView::is_done()
 
 DocAddr TokenView::get_address() const
 {
-    const Line *line = state->line_scroller.get_line_relative(0);
+    const DisplayLine *line = state->line_scroller.get_line_relative(0);
     if (line)
     {
         return line->address;
