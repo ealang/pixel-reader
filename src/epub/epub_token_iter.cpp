@@ -87,7 +87,7 @@ void EPubTokenIter::seek(DocAddr address)
             {
                 new_token_idx = token_idx;
             }
-            else
+            if (token.address >= address)
             {
                 break;
             }
