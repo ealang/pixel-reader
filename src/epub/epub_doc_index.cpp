@@ -39,7 +39,7 @@ const std::vector<DocToken> &EpubDocIndex::ensure_cached(uint32_t spine_index) c
 
         parse_xhtml_tokens(
             bytes.data(),
-            document.zip_path.filename(),
+            document.zip_path,
             spine_index,
             document.tokens_cache,
             document.id_to_addr_cache

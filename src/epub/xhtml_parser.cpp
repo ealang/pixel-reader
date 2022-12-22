@@ -27,6 +27,8 @@ struct Context
     int pre_depth = 0;      // depth inside pre nodes
     DocAddr current_address;
 
+    std::filesystem::path base_path;  // directory of file (for resolving relative paths)
+
     std::function<void(const Context&, TokenType, std::string)> _emit_token;
     std::function<void(std::string)> emit_id;
 
@@ -37,9 +39,10 @@ struct Context
 
     Context(
         DocAddr start_address,
+        std::filesystem::path base_path,
         std::function<void(const Context&, TokenType, std::string)> _emit_token,
         std::function<void(std::string)> emit_id
-    ) : current_address(start_address), _emit_token(_emit_token), emit_id(emit_id)
+    ) : current_address(start_address), base_path(base_path), _emit_token(_emit_token), emit_id(emit_id)
     { }
 };
 
@@ -125,9 +128,7 @@ void _on_enter_image(xmlNodePtr node, Context &context)
     if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
 
     std::string token_text = (
-        "[Image" +
-        (img_path ? " " + std::filesystem::path((const char*)img_path).filename().string() : "") +
-        "]"
+        (context.base_path / (const char*)img_path).lexically_normal()
     );
 
     context.emit_token(TokenType::Image, token_text);
@@ -398,12 +399,12 @@ public:
 
 } // namespace
 
-bool parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_number, std::vector<DocToken> &tokens_out, std::unordered_map<std::string, DocAddr> &id_to_addr_out)
+bool parse_xhtml_tokens(const char *xml_str, std::filesystem::path file_path, uint32_t chapter_number, std::vector<DocToken> &tokens_out, std::unordered_map<std::string, DocAddr> &id_to_addr_out)
 {
     xmlDocPtr doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, XML_PARSE_NOERROR | XML_PARSE_NOWARNING | XML_PARSE_RECOVER);
     if (doc == nullptr)
     {
-        std::cerr << "Unable to parse " << name << " as xml" << std::endl;
+        std::cerr << "Unable to parse " << file_path << " as xml" << std::endl;
         return false;
     }
 
@@ -417,6 +418,7 @@ bool parse_xhtml_tokens(const char *xml_str, std::string name, uint32_t chapter_
     {
         Context context(
             make_address(chapter_number),
+            file_path.parent_path(),
             [&processor](const Context &context, TokenType type, std::string text){
                 processor.on_token(context, type, std::move(text));
             },

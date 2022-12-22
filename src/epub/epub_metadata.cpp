@@ -94,7 +94,7 @@ std::unordered_map<std::string, ManifestItem> parse_package_manifest(const std::
                 std::string(id),
                 ManifestItem{
                     href,
-                    base_path / (href),
+                    (base_path / href).lexically_normal(),
                     std::string(media_type),
                     std::string(properties ? properties : "")
                 }
@@ -208,7 +208,7 @@ void parse_nav_point(const std::filesystem::path &base_path, xmlNodePtr node, st
     out.emplace_back(
         label,
         src,
-        base_path / src
+        (base_path / src).lexically_normal()
     );
 
     // Look for child elements
@@ -313,7 +313,7 @@ std::optional<NavPoint> try_parse_anchor(xmlNodePtr anchor, const std::filesyste
                 return NavPoint(
                     label,
                     (const char*)href,
-                    base_path / ((const char*)href)
+                    (base_path / ((const char*)href)).lexically_normal()
                 );
             }
         }

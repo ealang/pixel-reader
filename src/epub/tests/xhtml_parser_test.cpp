@@ -29,7 +29,7 @@ static std::vector<DocToken> _parse_xhtml_tokens(const char *xml)
 {
     std::vector<DocToken> tokens;
     std::unordered_map<std::string, DocAddr> ids;
-    parse_xhtml_tokens(xml, "", 0, tokens, ids);
+    parse_xhtml_tokens(xml, "/base/file.xhtml", 0, tokens, ids);
     return tokens;
 }
 
@@ -144,7 +144,7 @@ TEST(XHTML_PARSER, image_addresses)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Image,      0, "[Image foo.png]"},
+        {TokenType::Image,      0, "/base/foo.png"},
         {TokenType::Section,    0, ""      },
         {TokenType::Text,       1, "Line 2"},
         {TokenType::TextBreak,  6, ""},
