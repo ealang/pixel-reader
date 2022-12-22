@@ -177,16 +177,14 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     for (int i = 0; i < num_text_display_lines; ++i)
     {
         const DisplayLine *line = state->line_scroller.get_line_relative(i);
-        if (!line || line->type != DisplayLine::Type::Text)
+        if (line && line->type == DisplayLine::Type::Text)
         {
-            continue;
+            const TextLine *text_line = static_cast<const TextLine *>(line);
+            SDL_Rect dest_rect = {0, y, 0, 0};
+            SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, text_line->text.c_str(), theme.main_text, theme.background);
+            SDL_BlitSurface(surface, nullptr, dest_surface, &dest_rect);
+            SDL_FreeSurface(surface);
         }
-
-        const TextLine *text_line = static_cast<const TextLine *>(line);
-        SDL_Rect dest_rect = {0, y, 0, 0};
-        SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, text_line->text.c_str(), theme.main_text, theme.background);
-        SDL_BlitSurface(surface, nullptr, dest_surface, &dest_rect);
-        SDL_FreeSurface(surface);
 
         y += line_height + line_padding;
     }

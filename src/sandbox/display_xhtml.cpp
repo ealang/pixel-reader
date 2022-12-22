@@ -1,15 +1,10 @@
 #include "epub/xhtml_parser.h"
-#include "reader/display_lines.h"
+#include "./cli_wrap_lines.h"
 
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-
-static bool fits_on_line_by_char(const char *, uint32_t strlen)
-{
-    return strlen <= 80;
-}
 
 void display_xhtml(std::string path)
 {
@@ -21,10 +16,7 @@ void display_xhtml(std::string path)
     std::unordered_map<std::string, DocAddr> ids;
     parse_xhtml_tokens(buffer.str().c_str(), path, 0, tokens, ids);
 
-    std::vector<Line> display_lines = get_display_lines(
-        tokens,
-        fits_on_line_by_char
-    );
+    std::vector<Line> display_lines = cli_wrap_lines(tokens, 80);
 
     std::cout << path << std::endl;
     for (const auto &line: display_lines)

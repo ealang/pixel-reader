@@ -1,19 +1,14 @@
-#include "./display_lines.h"
+#include "./token_line_wrapping.h"
 
 #include "./text_wrap.h"
 #include "doc_api/token_addressing.h"
 
 #include <numeric>
 
-Line::Line(std::string text, DocAddr address)
-    : text(text), address(address)
-{
-}
-
-void get_display_lines(
+void line_wrap_tokens(
     const std::vector<DocToken> &tokens,
-    const std::function<bool(const char *, uint32_t)> &fits_on_line,
-    std::function<void(const std::string &, const DocAddr &)> on_line
+    std::function<bool(const char *, uint32_t)> text_fits_on_line,
+    std::function<void(const DocToken &)> for_each
 )
 {
     std::vector<const DocToken *> pending_text_tokens;
@@ -28,24 +23,24 @@ void get_display_lines(
         DocAddr start_addr = pending_text_tokens[0]->address;
         uint32_t address_offset = 0;
 
+        // TODO: this is assuming tokens have contiguous address space
         uint32_t combined_size = std::accumulate(
             pending_text_tokens.begin(),
             pending_text_tokens.end(),
             0,
-            [](uint32_t acc, auto token) { return acc + token->text.size(); }
+            [](uint32_t acc, const DocToken *token) { return acc + get_address_width(*token); }
         );
 
         std::string combined_text;
         combined_text.reserve(combined_size);
-
         for (auto token: pending_text_tokens)
         {
             combined_text += token->text;
         }
 
-        wrap_lines(combined_text.c_str(), fits_on_line, [&](const char *str, uint32_t len) {
+        wrap_lines(combined_text.c_str(), text_fits_on_line, [&](const char *str, uint32_t len) {
             std::string line_text = std::string(str, len);
-            on_line(line_text, increment_address(start_addr, address_offset));
+            for_each(DocToken(TokenType::Text, increment_address(start_addr, address_offset), line_text));
 
             address_offset += get_address_width(line_text.c_str());
         });
@@ -62,31 +57,9 @@ void get_display_lines(
         else
         {
             emit_pending_text();
-            if (token.type == TokenType::Section)
-            {
-                on_line("", token.address);
-            }
-            else if (token.type == TokenType::Image)
-            {
-                // Placeholder image
-                on_line(token.text, token.address);
-            }
+            for_each(token);
         }
     }
 
     emit_pending_text();
-}
-
-std::vector<Line> get_display_lines(
-    const std::vector<DocToken> &tokens,
-    const std::function<bool(const char *, uint32_t)> &fits_on_line
-)
-{
-    std::vector<Line> lines;
-
-    get_display_lines(tokens, fits_on_line, [&](const std::string &text, const DocAddr &address) {
-        lines.push_back(Line(text, address));
-    });
-
-    return lines;
 }

@@ -1,5 +1,5 @@
 #include "./token_line_scroller.h"
-#include "reader/display_lines.h" // TODO
+#include "reader/token_line_wrapping.h"
 
 namespace
 {
@@ -36,6 +36,23 @@ uint32_t get_line_for_address(const IndexedDequeue<std::unique_ptr<DisplayLine>>
     return best_line;
 }
 
+std::unique_ptr<DisplayLine> token_to_display_line(const DocToken &token)
+{
+    switch (token.type)
+    {
+        case TokenType::Text:
+            return std::make_unique<TextLine>(token.address, token.text);
+        case TokenType::Section:
+            return std::make_unique<TextLine>(token.address, "");
+        case TokenType::Image:
+            return std::make_unique<ImageLine>(token.address, 1, token.text);
+        default:
+            break;
+    }
+
+    return nullptr;
+}
+
 } // namespace
 
 uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
@@ -63,16 +80,16 @@ uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
             break;
         }
 
-        get_display_lines(
+        line_wrap_tokens(
             tokens,
             line_fits,
-            [&buf=lines_buf, &num_lines](const std::string &text, const DocAddr &start_addr) {
-                buf.append(
-                    std::make_unique<TextLine>(
-                        start_addr,
-                        text
-                    )
-                );
+            [&buf=lines_buf, &num_lines](const DocToken &token) {
+                auto line = token_to_display_line(token);
+                if (line)
+                {
+                    buf.append(std::move(line));
+                }
+
                 if (num_lines > 0)
                 {
                     --num_lines;
@@ -111,23 +128,22 @@ uint32_t TokenLineScroller::get_more_lines_backward(uint32_t num_lines)
 
         std::reverse(tokens.begin(), tokens.end());
 
-        std::vector<Line> lines_tmp;
-        get_display_lines(
+        std::vector<std::unique_ptr<DisplayLine>> lines_tmp;
+        line_wrap_tokens(
             tokens,
             line_fits,
-            [&lines_tmp](const std::string &text, const DocAddr &start_addr) {
-                lines_tmp.emplace_back(text, start_addr);
+            [&lines_tmp](const DocToken &token) {
+                auto line = token_to_display_line(token);
+                if (line)
+                {
+                    lines_tmp.emplace_back(std::move(line));
+                }
             }
         );
 
         for (auto it = lines_tmp.rbegin(); it != lines_tmp.rend(); ++it)
         {
-            lines_buf.prepend(
-                std::make_unique<TextLine>(
-                    it->address,
-                    it->text
-                )
-            );
+            lines_buf.prepend(std::move(*it));
             if (num_lines > 0)
             {
                 --num_lines;

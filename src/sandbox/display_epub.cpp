@@ -1,15 +1,10 @@
 #include "doc_api/token_addressing.h"
 #include "epub/epub_reader.h"
-#include "reader/display_lines.h"
+#include "./cli_wrap_lines.h"
 
 #include <iostream>
 #include <iomanip>
 #include <string>
-
-static bool fits_on_line_by_char(const char *, uint32_t strlen)
-{
-    return strlen <= 80;
-}
 
 void display_epub(std::string path)
 {
@@ -64,7 +59,7 @@ void display_epub(std::string path)
     // Display book
     TocPosition last_progress {0, 0};
     uint32_t line_count = 0;
-    for (const auto &line: get_display_lines(tokens, fits_on_line_by_char))
+    for (const auto &line: cli_wrap_lines(tokens, 80))
     {
         auto progress = epub.get_toc_position(line.address);
 
