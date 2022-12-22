@@ -2,15 +2,15 @@
 
 An epub reader for Linux. It is currently optimized for the [Miyoo Mini](https://retrogamecorps.com/2022/05/15/miyoo-mini-v2-guide/).
 
-The app is in an early release state. Images are not supported. Text only, and limited formatting.
-
 ![Screenshot](resources/demo.gif)
 
 ## Miyoo Mini Installation
 
-Instructions for Onion or default OS:
+Instructions for Onion or factory OS:
 
 [Download the latest release](https://github.com/ealang/pixel-reader/releases), and extract the zip into the root of your SD card. Boot your device, and the app should now show up in the apps list.
+
+Note: Untested on pre April 2022 firmware.
 
 Epub files can be placed anywhere on the SD card. Browse to the location after launching the app.
 
@@ -20,7 +20,7 @@ Epub files can be placed anywhere on the SD card. Browse to the location after l
 
 Install dependencies (Ubuntu):
 ```
-apt install make c++ libxml2-dev libzip-dev libsdl1.2-dev libsdl-ttf2.0-dev
+apt install make g++ libxml2-dev libzip-dev libsdl1.2-dev libsdl-ttf2.0-dev libsdl-image1.2-dev
 ```
 
 Build:
