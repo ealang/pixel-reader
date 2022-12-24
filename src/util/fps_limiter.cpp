@@ -17,5 +17,5 @@ void FPSLimiter::operator()()
     {
         SDL_Delay(target_time - cur_time);
     }
-    last_time = target_time;
+    last_time = SDL_GetTicks();
 }
