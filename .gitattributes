@@ -1,1 +1,2 @@
 cross-compile/** linguist-vendored
+src/extern/** linguist-vendored

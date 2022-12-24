@@ -5,7 +5,8 @@ endif
 
 PREFIX ?= /usr
 
-CXXFLAGS := -pedantic-errors -Wall -Wextra -std=c++17 -O2
+WARNFLAGS := -pedantic-errors -Wall -Wextra
+CXXFLAGS := -std=c++17 -O2
 LDFLAGS  := -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2 -lstdc++fs
 
 ifeq ($(PLATFORM),miyoomini)
@@ -26,29 +27,35 @@ OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)
 INCLUDE  := -Isrc -I${PREFIX}/include/libxml2
 
-COMMON_SRC := $(filter-out src/reader/main.cpp, $(wildcard src/epub/*.cpp src/reader/*.cpp src/reader/views/*.cpp src/reader/views/token_view/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp))
-READER_SRC := $(COMMON_SRC) src/reader/main.cpp
-SANDBOX_SRC := $(COMMON_SRC) $(wildcard src/sandbox/*.cpp)
-TEST_SRC := $(COMMON_SRC) $(wildcard src/sys/tests/*.cpp src/reader/tests/*.cpp src/epub/tests/*.cpp src/util/tests/*.cpp src/doc_api/tests/*.cpp)
+ROTOZOOM_SRC := src/extern/SDL_rotozoom.c
+COMMON_SRC   := $(filter-out src/reader/main.cpp, $(wildcard src/epub/*.cpp src/reader/*.cpp src/reader/views/*.cpp src/reader/views/token_view/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp))
+READER_SRC   := $(COMMON_SRC) src/reader/main.cpp
+SANDBOX_SRC  := $(COMMON_SRC) $(wildcard src/sandbox/*.cpp)
+TEST_SRC     := $(COMMON_SRC) $(wildcard src/sys/tests/*.cpp src/reader/tests/*.cpp src/epub/tests/*.cpp src/util/tests/*.cpp src/doc_api/tests/*.cpp)
 
 APP_READER_TARGET := reader
 APP_SANDBOX_TARGET := sandbox
 APP_TEST_TARGET := test
 
-READER_OBJECTS  := $(READER_SRC:%.cpp=$(OBJ_DIR)/%.o)
-SANDBOX_OBJECTS := $(SANDBOX_SRC:%.cpp=$(OBJ_DIR)/%.o)
-TEST_OBJECTS    := $(TEST_SRC:%.cpp=$(OBJ_DIR)/%.o)
+ROTOZOOM_OBJECT := $(OBJ_DIR)/SDL_rotozoom.o
+READER_OBJECTS  := $(READER_SRC:%.cpp=$(OBJ_DIR)/%.o) $(ROTOZOOM_OBJECT)
+SANDBOX_OBJECTS := $(SANDBOX_SRC:%.cpp=$(OBJ_DIR)/%.o) $(ROTOZOOM_OBJECT)
+TEST_OBJECTS    := $(TEST_SRC:%.cpp=$(OBJ_DIR)/%.o) $(ROTOZOOM_OBJECT)
 
 DEPENDENCIES := \
-	    $(READER_OBJECTS:.o=.d) \
+	    $(READER_OBJECTS:.o=.d)  \
 	    $(SANDBOX_OBJECTS:.o=.d) \
 	    $(TEST_OBJECTS:.o=.d)
 
 all: build $(APP_DIR)/$(APP_READER_TARGET) $(APP_DIR)/$(APP_SANDBOX_TARGET)
 
-$(OBJ_DIR)/%.o: %.cpp
+$(ROTOZOOM_OBJECT): $(ROTOZOOM_SRC)
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -MMD -o $@
+
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(WARNFLAGS) -c $< -MMD -o $@
 
 $(APP_DIR)/$(APP_READER_TARGET): $(READER_OBJECTS)
 	@mkdir -p $(@D)
