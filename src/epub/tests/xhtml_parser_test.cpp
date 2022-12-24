@@ -145,7 +145,6 @@ TEST(XHTML_PARSER, image_addresses)
   
     std::vector<DocToken> expected_tokens {
         {TokenType::Image,      0, "/base/foo.png"},
-        {TokenType::Section,    0, ""      },
         {TokenType::Text,       1, "Line 2"},
         {TokenType::TextBreak,  6, ""},
     };

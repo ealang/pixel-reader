@@ -121,8 +121,6 @@ void _on_exit_pre(xmlNodePtr, Context &context)
 
 void _on_enter_image(xmlNodePtr node, Context &context)
 {
-    context.emit_token(TokenType::Section, EMPTY_STR);
-
     // Placeholder image
     const xmlChar *img_path = xmlGetProp(node, BAD_CAST "href");
     if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
@@ -132,8 +130,6 @@ void _on_enter_image(xmlNodePtr node, Context &context)
     );
 
     context.emit_token(TokenType::Image, token_text);
-
-    context.emit_token(TokenType::Section, EMPTY_STR);
 }
 
 /////////////////////////////
