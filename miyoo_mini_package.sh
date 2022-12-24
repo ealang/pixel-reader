@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 if [ "${UNION_PLATFORM}" != "miyoomini" ]; then 
     echo "Must be run from cross-compile shell"
     exit 1
@@ -36,7 +37,14 @@ cp -v resources/launch.sh   $STAGE_APP/
 cp -v reader.cfg            $STAGE_APP/
 cp -v README.md             $STAGE_APP
 
-cp -v cross-compile/miyoo-mini/lib/* $STAGE_APP/lib
+LIB_SRC=cross-compile/miyoo-mini/lib
+cp -v $LIB_SRC/libSDL_image-1.2.so.0 $STAGE_APP/lib
+cp -v $LIB_SRC/libjpeg.so.8 $STAGE_APP/lib
+cp -v $LIB_SRC/liblzma.so.5 $STAGE_APP/lib
+cp -v $LIB_SRC/libxml2.so.2 $STAGE_APP/lib
+cp -v $LIB_SRC/libz.so.1    $STAGE_APP/lib
+cp -v $LIB_SRC/libzip.so.5  $STAGE_APP/lib
+
 cp -v build/reader                   $STAGE_APP/
 
 FILENAME="pixel_reader_v${VERSION}.zip"
