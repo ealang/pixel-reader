@@ -11,8 +11,10 @@ constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
 
 static const std::vector<uint32_t> FONT_SIZES {
     18,
+    20,
     22,
     24,
+    26,
     28,
 };
 constexpr uint32_t DEFAULT_FONT_SIZE = 22;
@@ -60,14 +62,36 @@ void settings_set_font_size(StateStore &state_store, uint32_t font_size)
     state_store.set_setting(SETTINGS_KEY_FONT_SIZE, std::to_string(font_size));
 }
 
-uint32_t get_next_font_size(uint32_t font_size)
+static int get_font_index(uint32_t font_size)
 {
     for (uint32_t i = 0; i < FONT_SIZES.size(); i++)
     {
         if (FONT_SIZES[i] == font_size)
         {
-            return FONT_SIZES[(i + 1) % FONT_SIZES.size()];
+            return i;
         }
     }
-    return DEFAULT_FONT_SIZE;
+    return -1;
+}
+
+uint32_t get_prev_font_size(uint32_t font_size)
+{
+    int i = get_font_index(font_size);
+    if (i == -1)
+    {
+        return DEFAULT_FONT_SIZE;
+    }
+
+    return FONT_SIZES[(i + FONT_SIZES.size() - 1) % FONT_SIZES.size()];
+}
+
+uint32_t get_next_font_size(uint32_t font_size)
+{
+    int i = get_font_index(font_size);
+    if (i == -1)
+    {
+        return DEFAULT_FONT_SIZE;
+    }
+
+    return FONT_SIZES[(i + 1) % FONT_SIZES.size()];
 }

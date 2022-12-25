@@ -192,7 +192,14 @@ int main(int, char *[])
                             );
                             needs_render = true;
                         }
-                        else if (key == SW_BTN_Y)
+                        else if (key == SW_BTN_L2)
+                        {
+                            sys_styling.set_font_size(
+                                get_prev_font_size(sys_styling.get_font_size())
+                            );
+                            needs_render = true;
+                        }
+                        else if (key == SW_BTN_R2)
                         {
                             sys_styling.set_font_size(
                                 get_next_font_size(sys_styling.get_font_size())

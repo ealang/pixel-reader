@@ -10,7 +10,7 @@ static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
         {
             {0, 0, 0, 0},       // background
             {240, 240, 240, 0}, // main text
-            {64, 64, 64, 0},    // secondary text
+            {96, 96, 96, 0},    // secondary text
             {150, 38, 200, 0},  // highlight background
             {240, 240, 240, 0}, // highlight text
         }

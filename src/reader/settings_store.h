@@ -16,6 +16,7 @@ void settings_set_color_theme(StateStore &state_store, const std::string &color_
 // Font size
 uint32_t settings_get_font_size(const StateStore &state_store);
 void settings_set_font_size(StateStore &state_store, uint32_t font_size);
+uint32_t get_prev_font_size(uint32_t font_size);
 uint32_t get_next_font_size(uint32_t font_size);
 
 #endif
