@@ -37,7 +37,6 @@ public:
     DocAddr get_address() const;
     void seek_to_address(DocAddr address);
 
-    void set_show_title_bar(bool enabled);
     void set_title(const std::string &title);
     void set_title_progress(int percent);
 

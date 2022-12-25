@@ -209,11 +209,9 @@ void ReaderView::on_keypress(SDLKey key)
 
     switch (key) {
         case SW_BTN_A:
-            {
-                bool show = !state->token_view_styling.get_show_title_bar();
-                state->token_view_styling.set_show_title_bar(show);
-                state->token_view->set_show_title_bar(show);
-            }
+            state->token_view_styling.set_show_title_bar(
+                !state->token_view_styling.get_show_title_bar()
+            );
             break;
         case SW_BTN_SELECT:
             open_toc_menu(*this, *state);

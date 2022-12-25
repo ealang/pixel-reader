@@ -49,7 +49,6 @@ struct TokenViewState
 
     bool needs_render = true;
 
-    bool show_title_bar = true;
     std::string title;
     int title_progress_percent = 0;
 
@@ -60,6 +59,7 @@ struct TokenViewState
 
     int num_text_display_lines() const
     {
+        bool show_title_bar = token_view_styling.get_show_title_bar();
         int num_display_lines = (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
         if (num_display_lines > MAX_DISPLAY_LINES)
         {
@@ -189,7 +189,7 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
         y += line_height + line_padding;
     }
 
-    if (state->show_title_bar)
+    if (state->token_view_styling.get_show_title_bar())
     {
         y = 2 * line_padding + (line_height + line_padding) * num_text_display_lines;
 
@@ -300,15 +300,6 @@ void TokenView::seek_to_address(DocAddr address)
 {
     state->line_scroller.seek_to_address(address);
     state->needs_render = true;
-}
-
-void TokenView::set_show_title_bar(bool enabled)
-{
-    if (enabled != state->show_title_bar)
-    {
-        state->show_title_bar = enabled;
-        state->needs_render = true;
-    }
 }
 
 void TokenView::set_title(const std::string &title)
