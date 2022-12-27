@@ -18,6 +18,7 @@
 #include <libxml/parser.h>
 #include <SDL/SDL.h>
 
+#include <csignal>
 #include <iostream>
 
 namespace
@@ -78,10 +79,20 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
     }
 }
 
+bool quit = false;
+
+void signal_handler(int)
+{
+    quit = true;
+}
+
 } // namespace
 
 int main(int, char *[])
 {
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+
     // SDL Init
     SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
@@ -161,7 +172,6 @@ int main(int, char *[])
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
 
-    bool quit = false;
     while (!quit)
     {
         bool needs_render = false;
