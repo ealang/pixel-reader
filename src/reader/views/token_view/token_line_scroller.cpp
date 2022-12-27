@@ -1,5 +1,13 @@
 #include "./token_line_scroller.h"
+
 #include "reader/token_line_wrapping.h"
+#include "sys/screen.h"
+#include "util/sdl_utils.h"
+
+#include "extern/SDL_rotozoom.h"
+
+#include <filesystem>
+#include <iostream>
 
 namespace
 {
@@ -36,24 +44,69 @@ uint32_t get_line_for_address(const IndexedDequeue<std::unique_ptr<DisplayLine>>
     return best_line;
 }
 
-std::unique_ptr<DisplayLine> token_to_display_line(const DocToken &token)
+float scale_to_fit_width(int w)
 {
+    if (w > SCREEN_WIDTH)
+    {
+        return SCREEN_WIDTH / static_cast<float>(w);
+    }
+    return 1;
+}
+
+} // namespace
+
+std::vector<std::unique_ptr<DisplayLine>> TokenLineScroller::image_to_display_lines(const DocToken &token)
+{
+    const std::string &path = token.data;
+    SDL_Surface *image = load_scaled_image(path);
+
+    std::vector<std::unique_ptr<DisplayLine>> lines;
+    if (image && image->h)
+    {
+        int num_lines = (image->h + line_height_pixels - 1) / line_height_pixels;
+        lines.emplace_back(std::make_unique<ImageLine>(token.address, path, num_lines, image->w, image->h));
+        for (int i = 1; i < num_lines; ++i)
+        {
+            lines.emplace_back(std::make_unique<ImageRefLine>(token.address, i));
+        }
+    }
+    else
+    {
+        // Fallback for error loading image
+        lines.emplace_back(std::make_unique<TextLine>(token.address, ""));
+        lines.emplace_back(std::make_unique<TextLine>(token.address, "[Image " + path + "]"));
+        lines.emplace_back(std::make_unique<TextLine>(token.address, ""));
+    }
+    return lines;
+}
+
+std::vector<std::unique_ptr<DisplayLine>> TokenLineScroller::token_to_display_lines(const DocToken &token)
+{
+    if (token.type == TokenType::Image)
+    {
+        return image_to_display_lines(token);
+    }
+
+    std::unique_ptr<DisplayLine> line = nullptr;
     switch (token.type)
     {
         case TokenType::Text:
-            return std::make_unique<TextLine>(token.address, token.text);
+            line = std::make_unique<TextLine>(token.address, token.data);
+            break;
         case TokenType::Section:
-            return std::make_unique<TextLine>(token.address, "");
-        case TokenType::Image:
-            return std::make_unique<ImageLine>(token.address, 1, token.text);
+            line = std::make_unique<TextLine>(token.address, "");
+            break;
         default:
             break;
     }
 
-    return nullptr;
+    std::vector<std::unique_ptr<DisplayLine>> lines;
+    if (line)
+    {
+        lines.push_back(std::move(line));
+    }
+    return lines;
 }
-
-} // namespace
 
 uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
 {
@@ -83,16 +136,15 @@ uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
         line_wrap_tokens(
             tokens,
             line_fits,
-            [&buf=lines_buf, &num_lines](const DocToken &token) {
-                auto line = token_to_display_line(token);
-                if (line)
+            [this, &num_lines](const DocToken &token) {
+                auto lines = token_to_display_lines(token);
+                for (auto &line: lines)
                 {
-                    buf.append(std::move(line));
-                }
-
-                if (num_lines > 0)
-                {
-                    --num_lines;
+                    lines_buf.append(std::move(line));
+                    if (num_lines > 0)
+                    {
+                        --num_lines;
+                    }
                 }
             }
         );
@@ -132,9 +184,9 @@ uint32_t TokenLineScroller::get_more_lines_backward(uint32_t num_lines)
         line_wrap_tokens(
             tokens,
             line_fits,
-            [&lines_tmp](const DocToken &token) {
-                auto line = token_to_display_line(token);
-                if (line)
+            [&lines_tmp, this](const DocToken &token) {
+                auto lines = token_to_display_lines(token);
+                for (auto &line: lines)
                 {
                     lines_tmp.emplace_back(std::move(line));
                 }
@@ -170,8 +222,7 @@ void TokenLineScroller::initialize_buffer_at(DocAddr address)
     // Find starting point that isn't a text token.
     // Line wrapper is not able to handle partial lines of text.
     {
-        EPubTokenIter it(forward_it);
-        it.seek(address);
+        EPubTokenIter it = reader.get_iter(address);
 
         const DocToken *token = nullptr;
         // Look backward for first non-text token.
@@ -204,13 +255,16 @@ void TokenLineScroller::initialize_buffer_at(DocAddr address)
 }
 
 TokenLineScroller::TokenLineScroller(
-    EPubReader &reader,
+    const EPubReader &reader,
     DocAddr address,
     uint32_t num_lines_lookahead,
-    std::function<bool(const char *, uint32_t)> line_fits
-) : forward_it(reader.get_iter(address)),
+    std::function<bool(const char *, uint32_t)> line_fits,
+    uint32_t line_height_pixels
+) : reader(reader),
+    forward_it(reader.get_iter(address)),
     backward_it(reader.get_iter(address)),
     line_fits(line_fits),
+    line_height_pixels(line_height_pixels),
     num_lines_lookahead(num_lines_lookahead)
 {
     initialize_buffer_at(address);
@@ -282,6 +336,11 @@ void TokenLineScroller::reset_buffer()
     }
 }
 
+void TokenLineScroller::set_line_height_pixels(uint32_t new_height)
+{
+    line_height_pixels = new_height;
+}
+
 std::optional<int> TokenLineScroller::first_line_number() const
 {
     return global_first_line;
@@ -290,4 +349,54 @@ std::optional<int> TokenLineScroller::first_line_number() const
 std::optional<int> TokenLineScroller::last_line_number() const
 {
     return global_last_line;
+}
+
+SDL_Surface *TokenLineScroller::load_scaled_image(const std::string &path)
+{
+    {
+        SDL_Surface *image = image_cache.get_image(path);
+        if (image)
+        {
+            return image;
+        }
+    }
+
+    auto img_data = reader.load_resource(path);
+    if (img_data.empty())
+    {
+        std::cerr << "Failed to read image data: " << path << std::endl;
+        return nullptr;
+    }
+
+    std::string file_ext;
+    try
+    {
+        file_ext = std::filesystem::path(path).extension().string().substr(1);
+    }
+    catch (const std::out_of_range &)
+    {
+        return nullptr;
+    }
+
+    auto img_surface = load_surface_from_ptr(
+        img_data.data(),
+        img_data.size(),
+        file_ext.c_str(),
+        get_render_surface_format()
+    );
+    if (!img_surface)
+    {
+        std::cerr << "Failed to load image: " << path << std::endl;
+        return nullptr;
+    }
+
+    float scale = scale_to_fit_width(img_surface->w);
+    image_cache.put_image(
+        path,
+        scale != 1 ? 
+            surface_unique_ptr { zoomSurface(img_surface.get(), scale, scale, 1) } :
+            std::move(img_surface)
+    );
+
+    return image_cache.get_image(path);
 }

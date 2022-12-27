@@ -98,6 +98,11 @@ int main(int, char *[])
     SDL_ShowCursor(SDL_DISABLE);
     TTF_Init();
 
+    // Surfaces
+    SDL_Surface *video = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
+    SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
+    set_render_surface_format(screen->format);
+
     // Stores
     StateStore state_store(".state");
 
@@ -139,9 +144,8 @@ int main(int, char *[])
         settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
     });
 
-    // Views
+    // Setup views
     ViewStack view_stack;
-
     initialize_views(view_stack, state_store, sys_styling, token_view_styling, control_font);
 
     // Track held keys
@@ -164,11 +168,8 @@ int main(int, char *[])
     FPSLimiter limit_fps(TARGET_FPS);
     const uint32_t avg_loop_time = 1000 / TARGET_FPS;
 
-    // Surfaces
-    SDL_Surface *video = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
-    SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
+    // Initial render
     view_stack.render(screen, true);
-
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
 

@@ -182,3 +182,8 @@ EPubTokenIter EPubReader::get_iter(DocAddr address) const
 {
     return { state->doc_index.get(), address };
 }
+
+std::vector<char> EPubReader::load_resource(std::filesystem::path path) const
+{
+    return read_zip_file_str(state->zip, path);
+}

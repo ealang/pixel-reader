@@ -13,7 +13,7 @@ static void ASSERT_TOKENS_EQ(const std::vector<DocToken> &actual_tokens, const s
     
         EXPECT_EQ(actual.type, expected.type);
         EXPECT_EQ(actual.address, expected.address);
-        EXPECT_EQ(actual.text, expected.text);
+        EXPECT_EQ(actual.data, expected.data);
     
         ASSERT_EQ(actual, expected);
     

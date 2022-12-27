@@ -32,9 +32,9 @@ struct Context
     std::function<void(const Context&, TokenType, std::string)> _emit_token;
     std::function<void(std::string)> emit_id;
 
-    void emit_token(TokenType type, std::string text)
+    void emit_token(TokenType type, std::string data)
     {
-        _emit_token(*this, type, std::move(text));
+        _emit_token(*this, type, std::move(data));
     }
 
     Context(
@@ -121,15 +121,21 @@ void _on_exit_pre(xmlNodePtr, Context &context)
 
 void _on_enter_image(xmlNodePtr node, Context &context)
 {
-    // Placeholder image
     const xmlChar *img_path = xmlGetProp(node, BAD_CAST "href");
     if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
+    if (img_path)
+    {
+        std::string data = (
+            (context.base_path / (const char*)img_path).lexically_normal()
+        );
 
-    std::string token_text = (
-        (context.base_path / (const char*)img_path).lexically_normal()
-    );
-
-    context.emit_token(TokenType::Image, token_text);
+        context.emit_token(TokenType::Image, data);
+    }
+    else
+    {
+        std::cerr << "Unable to get link from image" << std::endl;
+        context.emit_token(TokenType::Image, EMPTY_STR);
+    }
 }
 
 /////////////////////////////
@@ -320,20 +326,20 @@ public:
         pending_ids.push_back(std::move(id));
     }
 
-    void on_token(const Context &context, TokenType type, std::string text)
+    void on_token(const Context &context, TokenType type, std::string data)
     {
         DocAddr address = context.current_address;
 
-        if (text.size())
+        if (type == TokenType::Text)
         {
             const std::string *prev_text = (
-                !tokens.empty() ? &tokens.back().text : nullptr
+                !tokens.empty() && tokens.back().type == TokenType::Text ? &tokens.back().data : nullptr
             );
 
             bool strip_left = (
                 fresh_line ||
                 (
-                     is_whitespace(text[0]) &&
+                     is_whitespace(data[0]) &&
                      prev_text->size() &&
                      is_whitespace(prev_text->at(prev_text->size() - 1))
                 )
@@ -341,15 +347,12 @@ public:
 
             if (strip_left)
             {
-                text = std::string(strip_whitespace_left(text.c_str()));
+                data = std::string(strip_whitespace_left(data.c_str()));
             }
-        }
 
-        if (type == TokenType::Text)
-        {
-            if (text.size())
+            if (data.size())
             {
-                write_token(context, type, address, text);
+                write_token(context, type, address, data);
                 fresh_line = false;
             }
         }
@@ -382,7 +385,7 @@ public:
             }
             else
             {
-                write_token(context, type, address, text);
+                write_token(context, type, address, data);
             }
         }
     }
@@ -415,8 +418,8 @@ bool parse_xhtml_tokens(const char *xml_str, std::filesystem::path file_path, ui
         Context context(
             make_address(chapter_number),
             file_path.parent_path(),
-            [&processor](const Context &context, TokenType type, std::string text){
-                processor.on_token(context, type, std::move(text));
+            [&processor](const Context &context, TokenType type, std::string data){
+                processor.on_token(context, type, std::move(data));
             },
             [&processor](std::string id){
                 processor.on_id(std::move(id));

@@ -9,9 +9,9 @@ struct DocToken
 {
     TokenType type;
     DocAddr address;
-    std::string text;
+    std::string data;
 
-    DocToken(TokenType type, DocAddr address, std::string text = "");
+    DocToken(TokenType type, DocAddr address, std::string data = "");
     bool operator==(const DocToken &other) const;
 };
 

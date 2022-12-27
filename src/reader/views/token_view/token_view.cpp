@@ -12,8 +12,10 @@
 #include "util/throttled.h"
 
 #include <stdexcept>
+#include <iostream>
 
-#define MAX_DISPLAY_LINES 30
+// Explore enough lines ahead to detect end of book before we get there
+#define NUM_PREFETCH_LINES 30
 
 namespace {
 
@@ -42,10 +44,10 @@ struct TokenViewState
 
     TTF_Font *current_font = nullptr;
 
-    TokenLineScroller line_scroller;
-
-    int line_height;
     const int line_padding = 2;
+    int line_height;
+
+    TokenLineScroller line_scroller;
 
     bool needs_render = true;
 
@@ -60,12 +62,21 @@ struct TokenViewState
     int num_text_display_lines() const
     {
         bool show_title_bar = token_view_styling.get_show_title_bar();
-        int num_display_lines = (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
-        if (num_display_lines > MAX_DISPLAY_LINES)
+        int num_display_lines = (SCREEN_HEIGHT - line_padding) / line_height;
+        if (num_display_lines > NUM_PREFETCH_LINES)
         {
-            throw std::runtime_error("num_display_lines > MAX_DISPLAY_LINES");
+            throw std::runtime_error("num_display_lines > NUM_PREFETCH_LINES");
         }
         return num_display_lines - (show_title_bar ? 1 : 0);
+    }
+
+    Uint16 content_crop_bottom() const
+    {
+        if (!token_view_styling.get_show_title_bar())
+        {
+            return SCREEN_HEIGHT;
+        }
+        return line_padding + num_text_display_lines() * line_height;
     }
 
     // Adjust scroll amount to avoid going beyond start or end of book.
@@ -103,7 +114,8 @@ struct TokenViewState
                   this->token_view_styling.get_font(),
                   this->sys_styling.get_font_size()
               );
-              line_height = detect_line_height(current_font);
+              line_height = detect_line_height(current_font) + line_padding;
+              line_scroller.set_line_height_pixels(line_height);
               line_scroller.reset_buffer();  // need to re-wrap lines if font-size changed
               needs_render = true;
           })),
@@ -114,15 +126,16 @@ struct TokenViewState
               token_view_styling.get_font(),
               sys_styling.get_font_size()
           )),
+          line_height(detect_line_height(token_view_styling.get_font(), sys_styling.get_font_size()) + line_padding),
           line_scroller(
               reader,
               address,
-              MAX_DISPLAY_LINES,  // pre-render enough lines to detect end of doc before we get there
+              NUM_PREFETCH_LINES,
               [this](const char *s, uint32_t len) {
                   return line_fits_on_screen(current_font, s, len);
-              }
+              },
+              line_height
           ),
-          line_height(detect_line_height(token_view_styling.get_font(), sys_styling.get_font_size())),
           line_scroll_throttle(250, 50),
           page_scroll_throttle(750, 150)
     {
@@ -174,24 +187,75 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     Sint16 y = line_padding;
 
     int num_text_display_lines = state->num_text_display_lines();
+
     for (int i = 0; i < num_text_display_lines; ++i)
     {
         const DisplayLine *line = state->line_scroller.get_line_relative(i);
-        if (line && line->type == DisplayLine::Type::Text)
+        if (line)
         {
-            const TextLine *text_line = static_cast<const TextLine *>(line);
             SDL_Rect dest_rect = {0, y, 0, 0};
-            SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, text_line->text.c_str(), theme.main_text, theme.background);
-            SDL_BlitSurface(surface, nullptr, dest_surface, &dest_rect);
-            SDL_FreeSurface(surface);
+            if (line->type == DisplayLine::Type::Text)
+            {
+                const char *s = static_cast<const TextLine *>(line)->text.c_str();
+                SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, s, theme.main_text, theme.background);
+                SDL_BlitSurface(surface, nullptr, dest_surface, &dest_rect);
+                SDL_FreeSurface(surface);
+            }
+            else if (line->type == DisplayLine::Type::Image || (line->type == DisplayLine::Type::ImageRef && i == 0))
+            {
+                const ImageLine *image_line = nullptr;
+                uint32_t line_offset = 0;
+
+                if (line->type == DisplayLine::Type::ImageRef)
+                {
+                    line_offset = static_cast<const ImageRefLine *>(line)->offset;
+                    const DisplayLine *ref_line = state->line_scroller.get_line_relative(i - line_offset);
+                    if (ref_line)
+                    {
+                        if (ref_line->type != DisplayLine::Type::Image)
+                        {
+                            throw std::runtime_error("ImageRefLine points to non image");
+                        }
+                        image_line = static_cast<const ImageLine *>(ref_line);
+                    }
+                }
+                else
+                {
+                    image_line = static_cast<const ImageLine *>(line);
+                }
+
+                if (image_line)
+                {
+                    auto *surface = state->line_scroller.load_scaled_image(image_line->image_path);
+
+                    uint32_t y_center = (image_line->num_lines * line_height - image_line->height) / 2;
+                    Sint16 crop_y = line_offset * line_height - y_center;
+                    if (surface && crop_y < (Sint16)image_line->height)
+                    {
+                        Uint16 width = image_line->width;
+                        Uint16 height = image_line->height - crop_y;
+                        auto y_bottom = y + height;
+
+                        Uint16 y_limit = state->content_crop_bottom();
+                        if (y_bottom > y_limit)
+                        {
+                            height -= y_bottom - y_limit;
+                        }
+
+                        dest_rect.x = (SCREEN_WIDTH - width) / 2;
+                        SDL_Rect src_rect = {0, crop_y, width, height};
+                        SDL_BlitSurface(surface, &src_rect, dest_surface, &dest_rect);
+                    }
+                }
+            }
         }
 
-        y += line_height + line_padding;
+        y += line_height;
     }
 
     if (state->token_view_styling.get_show_title_bar())
     {
-        y = 2 * line_padding + (line_height + line_padding) * num_text_display_lines;
+        y = line_padding + line_height * num_text_display_lines;
 
         SDL_Rect dest_rect = {0, y, 0, 0};
         SDL_Rect title_crop_rect = {0, 0, 0, (Uint16)line_height};

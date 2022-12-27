@@ -4,6 +4,7 @@
 #include "doc_api/doc_token.h"
 #include "./epub_token_iter.h"
 
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <memory>
@@ -42,6 +43,8 @@ public:
     DocAddr get_toc_item_address(uint32_t toc_item_index) const;
 
     EPubTokenIter get_iter(DocAddr address = make_address()) const;
+
+    std::vector<char> load_resource(std::filesystem::path path) const;
 };
 
 #endif

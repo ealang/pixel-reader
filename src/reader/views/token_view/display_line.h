@@ -10,13 +10,13 @@ struct DisplayLine
     {
         Text,
         Image,
+        ImageRef,
     };
 
     DocAddr address;
-    uint32_t num_lines;
     Type type;
 
-    DisplayLine(DocAddr address, uint32_t num_lines, Type type);
+    DisplayLine(DocAddr address, Type type);
     virtual ~DisplayLine() = default;
 };
 
@@ -31,9 +31,26 @@ struct TextLine: public DisplayLine
 struct ImageLine: public DisplayLine
 {
     std::string image_path;
+    uint32_t num_lines;
+    uint32_t width, height;
 
-    ImageLine(DocAddr addr, uint32_t num_lines, const std::string& image_path);
+    ImageLine(
+        DocAddr addr,
+        const std::string& image_path,
+        uint32_t num_lines,
+        uint32_t width,
+        uint32_t height
+    );
     virtual ~ImageLine() = default;
 };
 
+
+// Reference to an image starting on previous line
+struct ImageRefLine: public DisplayLine
+{
+    uint32_t offset;
+
+    ImageRefLine(DocAddr addr, uint32_t offset);
+    virtual ~ImageRefLine() = default;
+};
 #endif

@@ -35,7 +35,7 @@ void line_wrap_tokens(
         combined_text.reserve(combined_size);
         for (auto token: pending_text_tokens)
         {
-            combined_text += token->text;
+            combined_text += token->data;
         }
 
         wrap_lines(combined_text.c_str(), text_fits_on_line, [&](const char *str, uint32_t len) {

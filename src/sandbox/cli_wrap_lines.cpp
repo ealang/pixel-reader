@@ -23,7 +23,7 @@ std::vector<Line> cli_wrap_lines(
         [&out](const DocToken &token) {
             if (token.type == TokenType::Text)
             {
-                out.emplace_back(token.text, token.address);
+                out.emplace_back(token.data, token.address);
             }
             else if (token.type == TokenType::Section)
             {
@@ -31,7 +31,7 @@ std::vector<Line> cli_wrap_lines(
             }
             else if (token.type == TokenType::Image)
             {
-                out.emplace_back("[Image " + token.text + "]", token.address);
+                out.emplace_back("[Image " + token.data + "]", token.address);
             }
         }
     );

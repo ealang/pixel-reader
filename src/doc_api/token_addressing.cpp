@@ -40,7 +40,7 @@ uint32_t get_address_width(const DocToken &token)
 {
     if (token.type == TokenType::Text)
     {
-        return get_address_width(token.text.c_str());
+        return get_address_width(token.data.c_str());
     }
     else if (token.type == TokenType::Image)
     {
