@@ -202,19 +202,23 @@ int main(int, char *[])
                             );
                             needs_render = true;
                         }
-                        else if (key == SW_BTN_L2)
+                        else if (key == SW_BTN_L2 || key == SW_BTN_R2)
                         {
-                            sys_styling.set_font_size(
-                                get_prev_font_size(sys_styling.get_font_size())
-                            );
-                            needs_render = true;
-                        }
-                        else if (key == SW_BTN_R2)
-                        {
-                            sys_styling.set_font_size(
-                                get_next_font_size(sys_styling.get_font_size())
-                            );
-                            needs_render = true;
+                            bool enabled = true;
+                            #if PLATFORM == miyoomini
+                            // Avoid coflict with brightness shortcut
+                            enabled = !SDL_GetKeyState(nullptr)[SW_BTN_SELECT];
+                            #endif
+
+                            if (enabled)
+                            {
+                                sys_styling.set_font_size(
+                                    (key == SW_BTN_L2) ?
+                                        get_prev_font_size(sys_styling.get_font_size()) :
+                                        get_next_font_size(sys_styling.get_font_size())
+                                );
+                                needs_render = true;
+                            }
                         }
                         else
                         {
