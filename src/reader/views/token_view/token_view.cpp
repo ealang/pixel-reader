@@ -111,7 +111,7 @@ struct TokenViewState
           sys_styling_sub_id(sys_styling.subscribe_to_changes([this]() {
               // Color theme and font size
               current_font = cached_load_font(
-                  this->token_view_styling.get_font(),
+                  this->sys_styling.get_font_name(),
                   this->sys_styling.get_font_size()
               );
               line_height = detect_line_height(current_font) + line_padding;
@@ -123,10 +123,10 @@ struct TokenViewState
               needs_render = true;
           })),
           current_font(cached_load_font(
-              token_view_styling.get_font(),
+              sys_styling.get_font_name(),
               sys_styling.get_font_size()
           )),
-          line_height(detect_line_height(token_view_styling.get_font(), sys_styling.get_font_size()) + line_padding),
+          line_height(detect_line_height(sys_styling.get_font_name(), sys_styling.get_font_size()) + line_padding),
           line_scroller(
               reader,
               address,
@@ -167,7 +167,7 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
 
     scroll(0);  // Will adjust scroll position for end of book
 
-    TTF_Font *font = cached_load_font(state->token_view_styling.get_font(), state->sys_styling.get_font_size());
+    TTF_Font *font = state->current_font;
     const auto &theme = state->sys_styling.get_loaded_color_theme();
     const int line_height = state->line_height;
     const int line_padding = state->line_padding;

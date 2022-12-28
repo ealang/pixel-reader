@@ -13,11 +13,8 @@ class TokenViewStyling
     void notify_subscribers() const;
 
 public:
-    TokenViewStyling(std::string font, bool show_title_bar);
+    TokenViewStyling(bool show_title_bar);
     virtual ~TokenViewStyling();
-
-    // Font
-    const std::string &get_font() const;
 
     // Title bar
     bool get_show_title_bar() const;

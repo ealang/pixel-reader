@@ -23,6 +23,8 @@ public:
     bool pop_completed_views();
     // Pop all views.
     void shutdown();
+
+    std::shared_ptr<View> top_view() const;
 };
 
 #endif

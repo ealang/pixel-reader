@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 struct SystemStylingState {
+    std::string font_name;
     uint32_t font_size;
 
     std::string color_theme;
@@ -14,21 +15,36 @@ struct SystemStylingState {
     std::unordered_map<uint32_t, std::function<void()>> subscribers;
 
     SystemStylingState(
+        const std::string &font_name,
         uint32_t font_size,
-        std::string color_theme
-    ) : font_size(font_size),
+        const std::string &color_theme
+    ) : font_name(font_name),
+        font_size(font_size),
         color_theme(color_theme),
         loaded_color_theme(get_color_theme(color_theme))
     {}
 };
 
-SystemStyling::SystemStyling(uint32_t font_size, std::string color_theme)
-    : state(std::make_unique<SystemStylingState>(font_size, color_theme))
+SystemStyling::SystemStyling(const std::string &font_name, uint32_t font_size, const std::string &color_theme)
+    : state(std::make_unique<SystemStylingState>(font_name, font_size, color_theme))
 {
 }
 
 SystemStyling::~SystemStyling()
 {
+}
+
+void SystemStyling::set_font_name(std::string font_name)
+{
+    if (state->font_name != font_name) {
+        state->font_name = font_name;
+        notify_subscribers();
+    }
+}
+
+const std::string &SystemStyling::get_font_name() const
+{
+    return state->font_name;
 }
 
 void SystemStyling::set_font_size(uint32_t font_size)
@@ -53,7 +69,7 @@ void SystemStyling::notify_subscribers() const
     }
 }
 
-void SystemStyling::set_color_theme(std::string color_theme)
+void SystemStyling::set_color_theme(const std::string &color_theme)
 {
     if (state->color_theme != color_theme)
     {

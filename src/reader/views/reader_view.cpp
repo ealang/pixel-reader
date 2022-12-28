@@ -75,8 +75,7 @@ void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
     auto current_toc_index = state.reader.get_toc_position(get_current_address(state)).toc_index;
     auto toc_select_menu = std::make_shared<SelectionMenu>(
         menu_names,
-        state.sys_styling,
-        state.token_view_styling.get_font()
+        state.sys_styling
     );
     toc_select_menu->set_on_selection([&reader_view, last_toc_index=current_toc_index](uint32_t toc_index) {
         if (toc_index != last_toc_index)
@@ -158,7 +157,7 @@ void ReaderView::update_token_view_title(DocAddr address)
 void ReaderView::render_error_state(SDL_Surface *dest_surface) const
 {
     const auto &theme = state->sys_styling.get_loaded_color_theme();
-    TTF_Font *font = cached_load_font(state->token_view_styling.get_font(), state->sys_styling.get_font_size());
+    TTF_Font *font = cached_load_font(state->sys_styling.get_font_name(), state->sys_styling.get_font_size());
 
     // clear screen
     SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};

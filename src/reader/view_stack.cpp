@@ -11,11 +11,32 @@ ViewStack::~ViewStack()
 
 bool ViewStack::render(SDL_Surface *dest, bool force_render)
 {
+    bool rendered = false;
     if (!views.empty())
     {
-        return views.back()->render(dest, force_render);
+        if (!views.back()->is_modal())
+        {
+            rendered = views.back()->render(dest, force_render) || force_render;
+        }
+        else
+        {
+            // For modal views, find the last non-modal view and re-render back up to the top
+            auto it = views.rbegin();
+            while (it != views.rend() && (*it)->is_modal())
+            {
+                ++it;
+            }
+            while (it != views.rend() && it != views.rbegin())
+            {
+                (*it)->render(dest, true);
+                --it;
+            }
+            views.back()->render(dest, true);
+
+            rendered = true;
+        }
     }
-    return false;
+    return rendered;
 }
 
 bool ViewStack::is_done()
@@ -59,4 +80,13 @@ void ViewStack::shutdown()
         views.back()->on_pop();
         views.pop_back();
     }
+}
+
+std::shared_ptr<View> ViewStack::top_view() const
+{
+    if (views.empty())
+    {
+        return nullptr;
+    }
+    return views.back();
 }

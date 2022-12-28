@@ -19,7 +19,7 @@ class FileSelector: public View
 
 public:
     // Expects to receive a path to a file, or directory with trailing separator.
-    FileSelector(std::filesystem::path path, SystemStyling &styling, std::string font);
+    FileSelector(std::filesystem::path path, SystemStyling &styling);
     virtual ~FileSelector();
 
     bool render(SDL_Surface *dest_surface, bool force_render);

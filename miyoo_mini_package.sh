@@ -34,7 +34,6 @@ cp -v resources/icon/icon.png $STAGE_APP/icon.png
 cat resources/config.json | sed "s/VERSION/${VERSION}/" | tee $STAGE_APP/config.json
 
 cp -v resources/launch.sh   $STAGE_APP/
-cp -v reader.cfg            $STAGE_APP/
 cp -v README.md             $STAGE_APP
 
 LIB_SRC=cross-compile/miyoo-mini/lib

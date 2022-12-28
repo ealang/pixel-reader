@@ -1,10 +1,10 @@
-#include "./color_theme_def.h"
 #include "./settings_store.h"
 #include "./state_store.h"
 #include "./system_styling.h"
 #include "./view_stack.h"
 #include "./views/file_selector.h"
 #include "./views/reader_view.h"
+#include "./views/settings_view.h"
 #include "./views/token_view/token_view_styling.h"
 #include "epub/epub_reader.h"
 #include "sys/keymap.h"
@@ -24,21 +24,14 @@
 namespace
 {
 
-constexpr const char *CONFIG_FILE_NAME = "reader.cfg";
+constexpr const char *CONTROL_FONT = "resources/fonts/DejaVuSansMono.ttf";
 
-constexpr const char *CONFIG_KEY_READER_FONT = "reader_font";
-constexpr const char *DEFAULT_READER_FONT = "resources/fonts/DejaVuSans.ttf";
-
-constexpr const char *CONFIG_KEY_CONTROL_FONT = "control_font";
-constexpr const char *DEFAULT_CONTROL_FONT = "resources/fonts/DejaVuSansMono.ttf";
-
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, std::string control_font)
+void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
 {
     auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
         browse_path,
-        sys_styling,
-        control_font
+        sys_styling
     );
 
     auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling](std::filesystem::path path) {
@@ -103,20 +96,14 @@ int main(int, char *[])
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
     set_render_surface_format(screen->format);
 
-    // Stores
+    // Store
     StateStore state_store(".state");
 
-    auto cfg_values = load_key_value(CONFIG_FILE_NAME);
-    cfg_values.try_emplace(CONFIG_KEY_CONTROL_FONT, DEFAULT_CONTROL_FONT);
-    cfg_values.try_emplace(CONFIG_KEY_READER_FONT, DEFAULT_READER_FONT);
-
     // Preload & check fonts
-    std::string control_font = cfg_values[CONFIG_KEY_CONTROL_FONT];
-    std::string reader_font = cfg_values[CONFIG_KEY_READER_FONT];
     uint32_t init_font_size = settings_get_font_size(state_store);
     if (
-        !cached_load_font(control_font, init_font_size, FontLoadErrorOpt::NoThrow) ||
-        !cached_load_font(reader_font, init_font_size, FontLoadErrorOpt::NoThrow)
+        !cached_load_font(CONTROL_FONT, init_font_size, FontLoadErrorOpt::NoThrow) ||
+        !cached_load_font(settings_get_font_name(state_store), init_font_size, FontLoadErrorOpt::NoThrow)
     )
     {
         std::cerr << "Failed to load one or more fonts" << std::endl;
@@ -125,20 +112,19 @@ int main(int, char *[])
 
     // System styling
     SystemStyling sys_styling(
+        settings_get_font_name(state_store),
         settings_get_font_size(state_store),
         settings_get_color_theme(state_store)
     );
     sys_styling.subscribe_to_changes([&state_store, &sys_styling]() {
         // Persist changes to system styling
         settings_set_color_theme(state_store, sys_styling.get_color_theme());
+        settings_set_font_name(state_store, sys_styling.get_font_name());
         settings_set_font_size(state_store, sys_styling.get_font_size());
     });
 
     // Text Styling
-    TokenViewStyling token_view_styling(
-        reader_font,
-        settings_get_show_title_bar(state_store)
-    );
+    TokenViewStyling token_view_styling(settings_get_show_title_bar(state_store));
     token_view_styling.subscribe_to_changes([&token_view_styling, &state_store]() {
         // Persist changes to text view styling
         settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
@@ -146,7 +132,8 @@ int main(int, char *[])
 
     // Setup views
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, sys_styling, token_view_styling, control_font);
+    std::weak_ptr<SettingsView> last_settings_view;
+    initialize_views(view_stack, state_store, sys_styling, token_view_styling);
 
     // Track held keys
     HeldKeyTracker held_key_tracker(
@@ -198,28 +185,21 @@ int main(int, char *[])
                         }
                         else if (key == SW_BTN_X)
                         {
-                            sys_styling.set_color_theme(
-                                get_next_theme(sys_styling.get_color_theme())
-                            );
-                            needs_render = true;
-                        }
-                        else if (key == SW_BTN_L2 || key == SW_BTN_R2)
-                        {
-                            bool enabled = true;
-                            #if PLATFORM == miyoomini
-                            // Avoid coflict with brightness shortcut
-                            enabled = !SDL_GetKeyState(nullptr)[SW_BTN_SELECT];
-                            #endif
-
-                            if (enabled)
+                            auto _last_settings_view = last_settings_view.lock();
+                            if (view_stack.top_view() != _last_settings_view)
                             {
-                                sys_styling.set_font_size(
-                                    (key == SW_BTN_L2) ?
-                                        get_prev_font_size(sys_styling.get_font_size()) :
-                                        get_next_font_size(sys_styling.get_font_size())
+                                auto settings_view = std::make_shared<SettingsView>(
+                                    sys_styling,
+                                    CONTROL_FONT
                                 );
-                                needs_render = true;
+                                last_settings_view = settings_view;
+                                view_stack.push(settings_view);
                             }
+                            else
+                            {
+                                _last_settings_view->terminate();
+                            }
+                            needs_render = true;
                         }
                         else
                         {

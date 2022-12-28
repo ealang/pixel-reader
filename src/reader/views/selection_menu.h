@@ -21,7 +21,6 @@ class SelectionMenu: public View
     uint32_t scroll_pos = 0;
     bool close_on_select = false;
 
-    std::string font;
     SystemStyling &styling;
     const uint32_t styling_sub_id;
 
@@ -42,8 +41,8 @@ class SelectionMenu: public View
 
 public:
 
-    SelectionMenu(SystemStyling &styling, std::string font);
-    SelectionMenu(std::vector<std::string> entries, SystemStyling &styling, std::string font);
+    SelectionMenu(SystemStyling &styling);
+    SelectionMenu(std::vector<std::string> entries, SystemStyling &styling);
     virtual ~SelectionMenu();
 
     void set_entries(std::vector<std::string> new_entries);

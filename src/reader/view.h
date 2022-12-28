@@ -13,6 +13,9 @@ public:
     // Return true if the view is no longer needed.
     virtual bool is_done() = 0;
 
+    // If true, the stack will always re-render the view behind this view.
+    virtual bool is_modal() { return false; }
+
     // Key down event.
     virtual void on_keypress(SDLKey key) = 0;
 

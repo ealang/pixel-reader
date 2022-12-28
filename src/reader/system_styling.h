@@ -14,15 +14,23 @@ class SystemStyling {
     void notify_subscribers() const;
 
 public:
-    SystemStyling(uint32_t font_size, std::string color_theme);
+    SystemStyling(
+        const std::string &font_name,
+        uint32_t font_size,
+        const std::string &color_theme
+    );
     virtual ~SystemStyling();
+
+    // Font
+    void set_font_name(std::string font_name);
+    const std::string &get_font_name() const;
 
     // Font size
     void set_font_size(uint32_t font_size);
     uint32_t get_font_size() const;
 
     // Color theme definition
-    void set_color_theme(std::string color_theme);
+    void set_color_theme(const std::string &color_theme);
     const std::string &get_color_theme() const;
     const ColorTheme &get_loaded_color_theme() const;
 

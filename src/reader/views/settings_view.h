@@ -1,0 +1,39 @@
+#ifndef SETTINGS_VIEW_H_
+#define SETTINGS_VIEW_H_
+
+#include "reader/view.h"
+
+#include <string>
+
+struct SystemStyling;
+
+class SettingsView: public View
+{
+    bool _is_done = false;
+    bool needs_render = true;
+    uint32_t line_selected = 0;
+    std::string font_name;
+
+    SystemStyling &sys_styling;
+    uint32_t styling_sub_id;
+
+    void on_change_theme(int dir);
+    void on_change_font_name(int dir);
+    void on_change_font_size(int dir);
+
+public:
+    SettingsView(
+        SystemStyling &sys_styling,
+        std::string font_name
+    );
+    virtual ~SettingsView();
+
+    bool render(SDL_Surface *dest, bool force_render) override;
+    bool is_done() override;
+    bool is_modal() override;
+    void on_keypress(SDLKey key) override;
+
+    void terminate();
+};
+
+#endif

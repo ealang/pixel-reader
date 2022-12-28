@@ -17,9 +17,9 @@ struct FSState
 
     SelectionMenu menu;
 
-    FSState(std::filesystem::path path, SystemStyling &styling, std::string font)
+    FSState(std::filesystem::path path, SystemStyling &styling)
         : path(path),
-          menu(styling, font)
+          menu(styling)
     {
     }
 };
@@ -116,11 +116,10 @@ std::filesystem::path sanitize_starting_path(std::filesystem::path path)
 
 } // namespace
 
-FileSelector::FileSelector(std::filesystem::path path, SystemStyling &styling, std::string font)
+FileSelector::FileSelector(std::filesystem::path path, SystemStyling &styling)
     : state(std::make_unique<FSState>(
           sanitize_starting_path(path),
-          styling,
-          font
+          styling
       ))
 {
     state->menu.set_on_selection([this](uint32_t menu_index) {

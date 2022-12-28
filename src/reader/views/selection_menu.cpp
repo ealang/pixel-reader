@@ -12,25 +12,30 @@ uint32_t SelectionMenu::num_display_lines() const
     return (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
 }
 
-SelectionMenu::SelectionMenu(SystemStyling &styling, std::string font)
-    : SelectionMenu({}, styling, font)
+SelectionMenu::SelectionMenu(SystemStyling &styling)
+    : SelectionMenu({}, styling)
 {
 }
 
-SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &styling, std::string font)
+SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &styling)
     : entries(entries),
-      font(font),
       styling(styling),
       styling_sub_id(styling.subscribe_to_changes([this]() {
           needs_render = true;
-          int new_line_height = detect_line_height(this->font, this->styling.get_font_size());
+          int new_line_height = detect_line_height(
+              this->styling.get_font_name(),
+              this->styling.get_font_size()
+          );
           if (new_line_height != line_height)
           {
               line_height = new_line_height;
               set_cursor_pos(cursor_pos);
           }
       })),
-      line_height(detect_line_height(font, styling.get_font_size())),
+      line_height(detect_line_height(
+          styling.get_font_name(),
+          styling.get_font_size()
+      )),
       scroll_throttle(250, 100)
 {
 }
@@ -118,7 +123,10 @@ bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
     }
     needs_render = false;
 
-    TTF_Font *loaded_font = cached_load_font(font, styling.get_font_size());
+    TTF_Font *loaded_font = cached_load_font(
+        styling.get_font_name(),
+        styling.get_font_size()
+    );
 
     const SDL_PixelFormat *pixel_format = dest_surface->format;
 
