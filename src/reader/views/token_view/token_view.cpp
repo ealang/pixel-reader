@@ -44,7 +44,7 @@ struct TokenViewState
 
     TTF_Font *current_font = nullptr;
 
-    const int line_padding = 2;
+    const int line_padding = 4;
     int line_height;
 
     TokenLineScroller line_scroller;
@@ -62,7 +62,7 @@ struct TokenViewState
     int num_text_display_lines() const
     {
         bool show_title_bar = token_view_styling.get_show_title_bar();
-        int num_display_lines = (SCREEN_HEIGHT - line_padding) / line_height;
+        int num_display_lines = (SCREEN_HEIGHT + line_padding) / line_height;
         if (num_display_lines > NUM_PREFETCH_LINES)
         {
             throw std::runtime_error("num_display_lines > NUM_PREFETCH_LINES");
@@ -76,7 +76,7 @@ struct TokenViewState
         {
             return SCREEN_HEIGHT;
         }
-        return line_padding + num_text_display_lines() * line_height;
+        return num_text_display_lines() * line_height;
     }
 
     // Adjust scroll amount to avoid going beyond start or end of book.
@@ -184,7 +184,7 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
         );
     }
 
-    Sint16 y = line_padding;
+    Sint16 y = 0;
 
     int num_text_display_lines = state->num_text_display_lines();
 
@@ -255,7 +255,7 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
 
     if (state->token_view_styling.get_show_title_bar())
     {
-        y = line_padding + line_height * num_text_display_lines;
+        y = line_height * num_text_display_lines;
 
         SDL_Rect dest_rect = {0, y, 0, 0};
         SDL_Rect title_crop_rect = {0, 0, 0, (Uint16)line_height};
