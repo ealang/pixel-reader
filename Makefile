@@ -14,6 +14,7 @@ CXXFLAGS := $(CXXFLAGS) \
 	    -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7ve+simd \
 	    -Icross-compile/miyoo-mini/include/libxml2 \
 	    -Icross-compile/miyoo-mini/include \
+	    -DEXTRA_FONTS_LIST='{"/customer/app/wqy-microhei.ttc"}' \
 	    -Wno-psabi  # silence "parameter passing for argument of type '...' changed in GCC 7.1" warnings
 LDFLAGS := $(LDFLAGS) \
 	-Lcross-compile/miyoo-mini/lib \

@@ -2,6 +2,7 @@
 #include "./state_store.h"
 #include "./color_theme_def.h"
 #include "sys/filesystem.h"
+#include "util/str_utils.h"
 
 #include <algorithm>
 #include <iostream>
@@ -18,10 +19,22 @@ constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
 constexpr const char *FONT_DIR = "resources/fonts";
 constexpr const char *DEFAULT_FONT_NAME = "resources/fonts/DejaVuSans.ttf";
 
+const std::vector<std::filesystem::path> EXTRA_FONTS =
+#ifdef EXTRA_FONTS_LIST
+    EXTRA_FONTS_LIST
+#else
+    {}
+#endif
+;
+
 const std::vector<uint32_t> FONT_SIZES {
+    18,
     20,
+    22,
     24,
+    26,
     28,
+    30,
     32,
 };
 constexpr uint32_t DEFAULT_FONT_SIZE = 24;
@@ -35,12 +48,31 @@ void discover_fonts()
         return;
     }
 
+    auto test_font = [](std::filesystem::path file_path) {
+        auto norm_ext = to_lower(file_path.extension());
+        return std::filesystem::exists(file_path) && (norm_ext == ".ttf" || norm_ext == ".ttc");
+    };
+
+    // Discover fonts in resources dir
     for (const auto &entry: directory_listing(FONT_DIR))
     {
         std::filesystem::path path = std::filesystem::path(FONT_DIR) / entry.name;
-        if (!entry.is_dir && path.extension().string() == ".ttf")
+        if (!entry.is_dir && test_font(path))
         {
             available_fonts.push_back(path.string());
+        }
+    }
+
+    // Built-in fonts
+    for (const auto &path: EXTRA_FONTS)
+    {
+        if (test_font(path))
+        {
+            available_fonts.push_back(path.string());
+        }
+        else
+        {
+            std::cerr << "Skipping extra font: " << path.string() << std::endl;
         }
     }
 
