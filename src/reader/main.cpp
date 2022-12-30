@@ -14,6 +14,7 @@
 #include "util/held_key_tracker.h"
 #include "util/key_value_file.h"
 #include "util/sdl_font_cache.h"
+#include "util/str_utils.h"
 
 #include <libxml/parser.h>
 #include <SDL/SDL.h>
@@ -35,7 +36,7 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
     );
 
     auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling](std::filesystem::path path) {
-        if (path.extension() != ".epub" || !std::filesystem::exists(path))
+        if (to_lower(path.extension()) != ".epub" || !std::filesystem::exists(path))
         {
             return;
         }
@@ -132,7 +133,10 @@ int main(int, char *[])
 
     // Setup views
     ViewStack view_stack;
-    std::weak_ptr<SettingsView> last_settings_view;
+    std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
+        sys_styling,
+        CONTROL_FONT
+    );
     initialize_views(view_stack, state_store, sys_styling, token_view_styling);
 
     // Track held keys
@@ -185,19 +189,14 @@ int main(int, char *[])
                         }
                         else if (key == SW_BTN_X)
                         {
-                            auto _last_settings_view = last_settings_view.lock();
-                            if (view_stack.top_view() != _last_settings_view)
+                            if (view_stack.top_view() != settings_view)
                             {
-                                auto settings_view = std::make_shared<SettingsView>(
-                                    sys_styling,
-                                    CONTROL_FONT
-                                );
-                                last_settings_view = settings_view;
+                                settings_view->unterminate();
                                 view_stack.push(settings_view);
                             }
                             else
                             {
-                                _last_settings_view->terminate();
+                                settings_view->terminate();
                             }
                             needs_render = true;
                         }

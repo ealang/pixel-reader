@@ -67,7 +67,6 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             );
         };
 
-
         auto font_size_label_surf = surface_unique_ptr {
             TTF_RenderUTF8_Shaded(font, "Font size:", theme.secondary_text, bg_color)
         };
@@ -94,7 +93,7 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             );
         };
 
-        Uint16 line_width = 5;
+        Uint16 line_width = 3;
         Uint16 dialog_padding = 25;
         Uint16 text_padding = 5;
 
@@ -281,4 +280,9 @@ void SettingsView::on_keypress(SDLKey key)
 void SettingsView::terminate()
 {
     _is_done = true;
+}
+
+void SettingsView::unterminate()
+{
+    _is_done = false;
 }

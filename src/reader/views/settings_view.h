@@ -34,6 +34,7 @@ public:
     void on_keypress(SDLKey key) override;
 
     void terminate();
+    void unterminate();
 };
 
 #endif
