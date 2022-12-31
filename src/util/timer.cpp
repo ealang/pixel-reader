@@ -1,12 +1,23 @@
 #include "./timer.h"
 
+#include <SDL/SDL.h>
+
 Timer::Timer()
-    : start(std::chrono::high_resolution_clock::now())
+    : start_ms(SDL_GetTicks())
 {
+}
+
+void Timer::reset()
+{
+    start_ms = SDL_GetTicks();
 }
 
 uint32_t Timer::elapsed_ms() const
 {
-    auto end = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    return SDL_GetTicks() - start_ms;
+}
+
+uint32_t Timer::elapsed_sec() const
+{
+    return elapsed_ms() / 1000;
 }

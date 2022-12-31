@@ -14,9 +14,9 @@
 #include "sys/screen.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
-#include "util/key_value_file.h"
 #include "util/sdl_font_cache.h"
 #include "util/str_utils.h"
+#include "util/timer.h"
 
 #include <libxml/parser.h>
 #include <SDL/SDL.h>
@@ -158,6 +158,7 @@ int main(int, char *[])
     };
 
     // Timing
+    Timer idle_timer;
     FPSLimiter limit_fps(TARGET_FPS);
     const uint32_t avg_loop_time = 1000 / TARGET_FPS;
 
@@ -180,6 +181,8 @@ int main(int, char *[])
                     break;
                 case SDL_KEYDOWN:
                     {
+                        idle_timer.reset();
+
                         SDLKey key = event.key.keysym.sym;
                         if (key == SW_BTN_MENU)
                         {
@@ -236,6 +239,14 @@ int main(int, char *[])
         if (!quit)
         {
             limit_fps();
+        }
+
+        if (idle_timer.elapsed_sec() >= IDLE_SAVE_TIME_SEC)
+        {
+            // Make sure state is saved in case device auto-powers down. Don't seem
+            // to get a signal on miyoo mini when this happens.
+            state_store.flush();
+            idle_timer.reset();
         }
     }
 

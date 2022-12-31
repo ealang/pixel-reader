@@ -3,6 +3,8 @@
 
 #define TARGET_FPS 20
 
+#define IDLE_SAVE_TIME_SEC 60
+
 #define FONT_DIR            "resources/fonts"
 #define DEFAULT_FONT_NAME   "resources/fonts/DejaVuSans.ttf"
 #define SYSTEM_FONT         "resources/fonts/DejaVuSansMono.ttf"
