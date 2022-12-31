@@ -25,6 +25,13 @@ void display_epub(std::string path)
         const DocToken *token = nullptr;
         while ((token = it.read(1)) != nullptr)
         {
+            if (token->type == TokenType::Image)
+            {
+                if (!epub.load_resource(token->data).size())
+                {
+                    std::cerr << "Unable to load image: " << token->data << std::endl;
+                }
+            }
             tokens.push_back(*token);
         }
     }
