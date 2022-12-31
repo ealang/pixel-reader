@@ -9,6 +9,7 @@ namespace
 
 constexpr const char *ACTIVITY_KEY_BROWSER_PATH = "browser_path";
 constexpr const char *ACTIVITY_KEY_BOOK_PATH = "book_path";
+constexpr const char *ADDRESS_KEY = "address";
 
 void write_activity_store(const std::filesystem::path &path, const StateStore &store)
 {
@@ -60,23 +61,22 @@ std::filesystem::path address_store_path_for_book(const std::filesystem::path &b
 
 void write_book_address(const std::filesystem::path &path, const DocAddr &address)
 {
-    std::ofstream fp(path);
-    fp << encode_address(address);
-    fp.close();
+    std::unordered_map<std::string, std::string> kv = {
+        {ADDRESS_KEY, encode_address(address)}
+    };
+
+    write_key_value(path, kv);
 }
 
 std::optional<DocAddr> load_book_address(const std::filesystem::path &path)
 {
-    std::ifstream fp(path);
-    if (fp.is_open())
+    auto kv = load_key_value(path);
+    auto it = kv.find(ADDRESS_KEY);
+    if (it == kv.end())
     {
-        std::string contents;
-        std::getline(fp, contents);
-        fp.close();
-
-        return decode_address(contents);
+        return std::nullopt;
     }
-    return std::nullopt;
+    return decode_address(it->second);
 }
 
 } // namespace

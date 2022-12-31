@@ -11,6 +11,7 @@ DocAddr increment_address(DocAddr addr, uint32_t text_increment);
 uint32_t get_chapter_number(DocAddr addr);
 uint32_t get_text_number(DocAddr addr);
 
+// Human readable address
 std::string to_string(const DocAddr &address);
 
 std::string encode_address(const DocAddr &address);
