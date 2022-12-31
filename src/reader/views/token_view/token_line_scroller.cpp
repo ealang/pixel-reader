@@ -302,6 +302,8 @@ void TokenLineScroller::ensure_lines_around(int line_num)
 const DisplayLine *TokenLineScroller::get_line_relative(int offset)
 {
     int line = current_line + offset;
+    ensure_lines_around(line);
+
     if (line < lines_buf.start_index() || line >= lines_buf.end_index())
     {
         return nullptr;

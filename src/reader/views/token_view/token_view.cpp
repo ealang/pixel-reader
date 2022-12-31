@@ -14,7 +14,6 @@
 #include <stdexcept>
 #include <iostream>
 
-// Explore enough lines ahead to detect end of book before we get there
 #define NUM_PREFETCH_LINES 30
 
 namespace {
@@ -63,10 +62,6 @@ struct TokenViewState
     {
         bool show_title_bar = token_view_styling.get_show_title_bar();
         int num_display_lines = (SCREEN_HEIGHT + line_padding) / line_height;
-        if (num_display_lines > NUM_PREFETCH_LINES)
-        {
-            throw std::runtime_error("num_display_lines > NUM_PREFETCH_LINES");
-        }
         return num_display_lines - (show_title_bar ? 1 : 0);
     }
 
@@ -165,8 +160,6 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     }
     state->needs_render = false;
 
-    scroll(0);  // Will adjust scroll position for end of book
-
     TTF_Font *font = state->current_font;
     const auto &theme = state->sys_styling.get_loaded_color_theme();
     const int line_height = state->line_height;
@@ -185,8 +178,13 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     }
 
     Sint16 y = 0;
-
     int num_text_display_lines = state->num_text_display_lines();
+    {
+        // Start with a request for the last line on screen to make sure we'll
+        // know if we hit the end of the book.
+        state->line_scroller.get_line_relative(num_text_display_lines - 1);
+        scroll(0);  // Will adjust scroll position for end of book
+    }
 
     for (int i = 0; i < num_text_display_lines; ++i)
     {
