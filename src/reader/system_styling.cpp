@@ -1,4 +1,5 @@
 #include "./system_styling.h"
+#include "./config.h"
 
 #include "reader/color_theme_def.h"
 
@@ -59,6 +60,18 @@ void SystemStyling::set_font_size(uint32_t font_size)
 uint32_t SystemStyling::get_font_size() const
 {
     return state->font_size;
+}
+
+uint32_t SystemStyling::get_prev_font_size() const
+{
+    uint32_t range = MAX_FONT_SIZE - MIN_FONT_SIZE + FONT_SIZE_STEP;
+    return (state->font_size - MIN_FONT_SIZE + range - FONT_SIZE_STEP) % range + MIN_FONT_SIZE;
+}
+
+uint32_t SystemStyling::get_next_font_size() const
+{
+    uint32_t range = MAX_FONT_SIZE - MIN_FONT_SIZE + FONT_SIZE_STEP;
+    return (state->font_size - MIN_FONT_SIZE + FONT_SIZE_STEP) % range + MIN_FONT_SIZE;
 }
 
 void SystemStyling::notify_subscribers() const

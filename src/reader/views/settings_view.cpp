@@ -1,6 +1,7 @@
 #include "./settings_view.h"
 
 #include "reader/color_theme_def.h"
+#include "reader/font_catalog.h"
 #include "reader/settings_store.h"
 #include "reader/system_styling.h"
 #include "sys/keymap.h"
@@ -229,11 +230,10 @@ void SettingsView::on_change_font_name(int dir)
 
 void SettingsView::on_change_font_size(int dir)
 {
-    uint32_t font_size = sys_styling.get_font_size();
     sys_styling.set_font_size(
         (dir < 0) ?
-            get_prev_font_size(font_size) :
-            get_next_font_size(font_size)
+            sys_styling.get_prev_font_size() :
+            sys_styling.get_next_font_size()
     );
 }
 

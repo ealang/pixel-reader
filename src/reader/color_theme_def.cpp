@@ -1,4 +1,5 @@
 #include "./color_theme_def.h"
+#include "./config.h"
 
 #include <string>
 #include <utility>
@@ -69,6 +70,20 @@ const ColorTheme& get_color_theme(const std::string &name)
     }
 
     return theme_defs[i].second;
+}
+
+std::string get_valid_theme(const std::string &preferred)
+{
+    int i = get_theme_index(preferred);
+    if (i < 0)
+    {
+        i = get_theme_index(DEFAULT_COLOR_THEME);
+    }
+    if (i < 0)
+    {
+        i = 0;
+    }
+    return theme_defs[i].first;
 }
 
 std::string get_prev_theme(const std::string &name)

@@ -28,6 +28,8 @@ public:
     // Font size
     void set_font_size(uint32_t font_size);
     uint32_t get_font_size() const;
+    uint32_t get_prev_font_size() const;
+    uint32_t get_next_font_size() const;
 
     // Color theme definition
     void set_color_theme(const std::string &color_theme);

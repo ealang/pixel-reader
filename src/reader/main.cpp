@@ -1,6 +1,9 @@
+#include "./config.h"
+#include "./font_catalog.h"
 #include "./settings_store.h"
 #include "./state_store.h"
 #include "./system_styling.h"
+#include "./color_theme_def.h"
 #include "./view_stack.h"
 #include "./views/file_selector.h"
 #include "./views/reader_view.h"
@@ -9,7 +12,6 @@
 #include "epub/epub_reader.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
-#include "sys/timing.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
 #include "util/key_value_file.h"
@@ -24,8 +26,6 @@
 
 namespace
 {
-
-constexpr const char *CONTROL_FONT = "resources/fonts/DejaVuSansMono.ttf";
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
 {
@@ -101,10 +101,11 @@ int main(int, char *[])
     StateStore state_store(".state");
 
     // Preload & check fonts
-    uint32_t init_font_size = settings_get_font_size(state_store);
+    auto init_font_name = get_valid_font_name(settings_get_font_name(state_store).value_or(DEFAULT_FONT_NAME));
+    auto init_font_size = settings_get_font_size(state_store).value_or(DEFAULT_FONT_SIZE);
     if (
-        !cached_load_font(CONTROL_FONT, init_font_size, FontLoadErrorOpt::NoThrow) ||
-        !cached_load_font(settings_get_font_name(state_store), init_font_size, FontLoadErrorOpt::NoThrow)
+        !cached_load_font(SYSTEM_FONT, init_font_size, FontLoadErrorOpt::NoThrow) ||
+        !cached_load_font(init_font_name, init_font_size, FontLoadErrorOpt::NoThrow)
     )
     {
         std::cerr << "Failed to load one or more fonts" << std::endl;
@@ -113,31 +114,32 @@ int main(int, char *[])
 
     // System styling
     SystemStyling sys_styling(
-        settings_get_font_name(state_store),
-        settings_get_font_size(state_store),
-        settings_get_color_theme(state_store)
+        init_font_name,
+        init_font_size,
+        get_valid_theme(settings_get_color_theme(state_store).value_or(DEFAULT_COLOR_THEME))
     );
     sys_styling.subscribe_to_changes([&state_store, &sys_styling]() {
-        // Persist changes to system styling
+        // Persist changes
         settings_set_color_theme(state_store, sys_styling.get_color_theme());
         settings_set_font_name(state_store, sys_styling.get_font_name());
         settings_set_font_size(state_store, sys_styling.get_font_size());
     });
 
     // Text Styling
-    TokenViewStyling token_view_styling(settings_get_show_title_bar(state_store));
+    TokenViewStyling token_view_styling(settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS));
     token_view_styling.subscribe_to_changes([&token_view_styling, &state_store]() {
-        // Persist changes to text view styling
+        // Persist changes
         settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
     });
 
     // Setup views
     ViewStack view_stack;
+    initialize_views(view_stack, state_store, sys_styling, token_view_styling);
+
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
-        CONTROL_FONT
+        SYSTEM_FONT
     );
-    initialize_views(view_stack, state_store, sys_styling, token_view_styling);
 
     // Track held keys
     HeldKeyTracker held_key_tracker(

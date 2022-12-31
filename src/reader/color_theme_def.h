@@ -5,6 +5,7 @@
 #include <string>
 
 const ColorTheme& get_color_theme(const std::string &name);
+std::string get_valid_theme(const std::string &preferred);
 std::string get_prev_theme(const std::string &name);
 std::string get_next_theme(const std::string &name);
 
