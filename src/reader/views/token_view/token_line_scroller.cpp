@@ -226,7 +226,7 @@ void TokenLineScroller::initialize_buffer_at(DocAddr address)
 
         const DocToken *token = nullptr;
         // Look backward for first non-text token.
-        while ((token = it.read(-1)) && token->type != TokenType::Text);
+        while ((token = it.read(-1)) && token->type == TokenType::Text);
 
         forward_it = it;
         backward_it = it;
