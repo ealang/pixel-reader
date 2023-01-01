@@ -9,7 +9,12 @@
 
 uint32_t SelectionMenu::num_display_lines() const
 {
-    return (SCREEN_HEIGHT - line_padding) / (line_height + line_padding);
+    return SCREEN_HEIGHT / line_height;
+}
+
+uint32_t SelectionMenu::excess_pxl_y() const
+{
+    return SCREEN_HEIGHT - num_display_lines() * line_height;
 }
 
 SelectionMenu::SelectionMenu(SystemStyling &styling)
@@ -25,7 +30,7 @@ SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &st
           int new_line_height = detect_line_height(
               this->styling.get_font_name(),
               this->styling.get_font_size()
-          );
+          ) + line_padding;
           if (new_line_height != line_height)
           {
               line_height = new_line_height;
@@ -35,7 +40,7 @@ SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &st
       line_height(detect_line_height(
           styling.get_font_name(),
           styling.get_font_size()
-      )),
+      ) + line_padding),
       scroll_throttle(250, 100)
 {
 }
@@ -140,7 +145,7 @@ bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
     uint32_t rect_highlight_color = SDL_MapRGB(pixel_format, hl_bg_color.r, hl_bg_color.g, hl_bg_color.b);
 
     Sint16 x = line_padding;
-    Sint16 y = line_padding;
+    Sint16 y = excess_pxl_y() / 2;
 
     // Clear screen
     SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
@@ -163,24 +168,27 @@ bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
         // Draw hightlight
         if (is_highlighted)
         {
-            SDL_Rect rect = {0, (Sint16)(y - line_padding / 2), SCREEN_WIDTH, (Uint16)(line_height + line_padding)};
+            SDL_Rect rect = {0, y, SCREEN_WIDTH, (Uint16)(line_height)};
             SDL_FillRect(dest_surface, &rect, rect_highlight_color);
         }
 
         // Draw text
         {
-            SDL_Rect rectMessage = {x, y, 0, 0};
-            SDL_Surface *message = TTF_RenderUTF8_Shaded(
+            SDL_Rect rectMessage = {
+                x,
+                static_cast<Sint16>(y + line_padding / 2),
+                0, 0
+            };
+            auto message = surface_unique_ptr { TTF_RenderUTF8_Shaded(
                 loaded_font,
                 entry.c_str(),
                 is_highlighted ? hl_text_color : fg_color,
                 is_highlighted ? hl_bg_color : bg_color
-            );
-            SDL_BlitSurface(message, NULL, dest_surface, &rectMessage);
-            SDL_FreeSurface(message);
+            ) };
+            SDL_BlitSurface(message.get(), NULL, dest_surface, &rectMessage);
         }
 
-        y += line_height + line_padding;
+        y += line_height;
     }
 
     return true;

@@ -24,9 +24,10 @@ class SelectionMenu: public View
     SystemStyling &styling;
     const uint32_t styling_sub_id;
 
+    const int line_padding = 4;
     int line_height;
-    const int line_padding = 2;
     uint32_t num_display_lines() const;
+    uint32_t excess_pxl_y() const;
 
     Throttled scroll_throttle;
 

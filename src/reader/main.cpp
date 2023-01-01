@@ -80,6 +80,11 @@ void signal_handler(int)
     quit = true;
 }
 
+uint32_t bound(uint32_t val, uint32_t min, uint32_t max)
+{
+    return std::max(std::min(val, max), min);
+}
+
 } // namespace
 
 int main(int, char *[])
@@ -102,7 +107,7 @@ int main(int, char *[])
 
     // Preload & check fonts
     auto init_font_name = get_valid_font_name(settings_get_font_name(state_store).value_or(DEFAULT_FONT_NAME));
-    auto init_font_size = settings_get_font_size(state_store).value_or(DEFAULT_FONT_SIZE);
+    auto init_font_size = bound(settings_get_font_size(state_store).value_or(DEFAULT_FONT_SIZE), MIN_FONT_SIZE, MAX_FONT_SIZE);
     if (
         !cached_load_font(SYSTEM_FONT, init_font_size, FontLoadErrorOpt::NoThrow) ||
         !cached_load_font(init_font_name, init_font_size, FontLoadErrorOpt::NoThrow)

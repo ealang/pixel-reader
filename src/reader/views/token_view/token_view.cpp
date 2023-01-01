@@ -18,9 +18,9 @@
 
 namespace {
 
-bool line_fits_on_screen(TTF_Font *font, const char *s, uint32_t len)
+bool line_fits_on_screen(TTF_Font *font, int avail_width, const char *s, uint32_t len)
 {
-    int w = SCREEN_WIDTH, h;
+    int w = avail_width, h;
 
     char *mut_s = (char*)s;
     char replaced = mut_s[len];
@@ -29,7 +29,7 @@ bool line_fits_on_screen(TTF_Font *font, const char *s, uint32_t len)
     TTF_SizeUTF8(font, mut_s, &w, &h);
     mut_s[len] = replaced;
 
-    return w <= SCREEN_WIDTH;
+    return w <= avail_width;
 }
 
 }  // namespace
@@ -58,20 +58,30 @@ struct TokenViewState
     Throttled line_scroll_throttle;
     Throttled page_scroll_throttle;
 
+    int num_display_lines() const
+    {
+        return SCREEN_HEIGHT / line_height;
+    }
+
     int num_text_display_lines() const
     {
         bool show_title_bar = token_view_styling.get_show_title_bar();
-        int num_display_lines = (SCREEN_HEIGHT + line_padding) / line_height;
-        return num_display_lines - (show_title_bar ? 1 : 0);
+        return num_display_lines() - (show_title_bar ? 1 : 0);
     }
 
-    Uint16 content_crop_bottom() const
+    int excess_pxl_y() const
+    {
+        return SCREEN_HEIGHT - num_display_lines() * line_height;
+    }
+
+    int line_pxl_limit_y() const
     {
         if (!token_view_styling.get_show_title_bar())
         {
             return SCREEN_HEIGHT;
         }
-        return num_text_display_lines() * line_height;
+
+        return SCREEN_HEIGHT - line_height - excess_pxl_y() / 2;
     }
 
     // Adjust scroll amount to avoid going beyond start or end of book.
@@ -127,7 +137,12 @@ struct TokenViewState
               address,
               NUM_PREFETCH_LINES,
               [this](const char *s, uint32_t len) {
-                  return line_fits_on_screen(current_font, s, len);
+                  return line_fits_on_screen(
+                      current_font,
+                      SCREEN_WIDTH - line_padding * 2,
+                      s,
+                      len
+                  );
               },
               line_height
           ),
@@ -177,7 +192,6 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
         );
     }
 
-    Sint16 y = 0;
     int num_text_display_lines = state->num_text_display_lines();
     {
         // Start with a request for the last line on screen to make sure we'll
@@ -186,18 +200,24 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
         scroll(0);  // Will adjust scroll position for end of book
     }
 
+    const Uint16 padding_y = state->excess_pxl_y() / 2;
+    Sint16 line_y = padding_y;
+
     for (int i = 0; i < num_text_display_lines; ++i)
     {
         const DisplayLine *line = state->line_scroller.get_line_relative(i);
         if (line)
         {
-            SDL_Rect dest_rect = {0, y, 0, 0};
             if (line->type == DisplayLine::Type::Text)
             {
                 const char *s = static_cast<const TextLine *>(line)->text.c_str();
-                SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, s, theme.main_text, theme.background);
-                SDL_BlitSurface(surface, nullptr, dest_surface, &dest_rect);
-                SDL_FreeSurface(surface);
+                auto surface = surface_unique_ptr { TTF_RenderUTF8_Shaded(font, s, theme.main_text, theme.background) };
+                SDL_Rect dest_rect = {
+                    static_cast<Sint16>(line_padding),
+                    static_cast<Sint16>(line_y + line_padding / 2),
+                    0, 0
+                };
+                SDL_BlitSurface(surface.get(), nullptr, dest_surface, &dest_rect);
             }
             else if (line->type == DisplayLine::Type::Image || (line->type == DisplayLine::Type::ImageRef && i == 0))
             {
@@ -226,54 +246,76 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
                 {
                     auto *surface = state->line_scroller.load_scaled_image(image_line->image_path);
 
-                    uint32_t y_center = (image_line->num_lines * line_height - image_line->height) / 2;
-                    Sint16 crop_y = line_offset * line_height - y_center;
-                    if (surface && crop_y < (Sint16)image_line->height)
+                    // Amount of line height not used by image
+                    uint32_t img_excess_y = image_line->num_lines * line_height - image_line->height;
+                    // Y coordinate of image in screen space
+                    int screen_start_y = line_y + img_excess_y / 2 - line_height * line_offset;
+
+                    // Crop off-screen part of image. Allow to extend to edge of screen.
+                    Sint16 src_y = std::max(-screen_start_y, 0);
+                    Sint16 dst_y = std::max(screen_start_y, 0);
+
+                    if (surface && src_y < (Sint16)image_line->height)
                     {
                         Uint16 width = image_line->width;
-                        Uint16 height = image_line->height - crop_y;
-                        auto y_bottom = y + height;
+                        Uint16 height = image_line->height - src_y;
 
-                        Uint16 y_limit = state->content_crop_bottom();
-                        if (y_bottom > y_limit)
+                        // Crop bottom
+                        auto dst_y_bottom = dst_y + height;
+                        Uint16 y_limit = state->line_pxl_limit_y();
+                        if (dst_y_bottom > y_limit)
                         {
-                            height -= y_bottom - y_limit;
+                            height -= dst_y_bottom - y_limit;
                         }
 
-                        dest_rect.x = (SCREEN_WIDTH - width) / 2;
-                        SDL_Rect src_rect = {0, crop_y, width, height};
+                        SDL_Rect src_rect = {0, src_y, width, height};
+                        SDL_Rect dest_rect = {
+                            static_cast<Sint16>((SCREEN_WIDTH - width) / 2),
+                            dst_y,
+                            0,
+                            0
+                        };
                         SDL_BlitSurface(surface, &src_rect, dest_surface, &dest_rect);
                     }
                 }
             }
         }
 
-        y += line_height;
+        line_y += line_height;
     }
 
     if (state->token_view_styling.get_show_title_bar())
     {
-        y = line_height * num_text_display_lines;
-
-        SDL_Rect dest_rect = {0, y, 0, 0};
+        // Recompute for short book case
+        line_y = padding_y + num_text_display_lines * line_height;
         SDL_Rect title_crop_rect = {0, 0, 0, (Uint16)line_height};
 
+        // Progress
         {
-            char page_number[32];
-            snprintf(page_number, sizeof(page_number), " %d%%", state->title_progress_percent);
+            char percent_str[32];
+            snprintf(percent_str, sizeof(percent_str), " %d%%", state->title_progress_percent);
 
-            SDL_Surface *page_surface = TTF_RenderUTF8_Shaded(font, page_number, theme.secondary_text, theme.background);
+            SDL_Surface *page_surface = TTF_RenderUTF8_Shaded(font, percent_str, theme.secondary_text, theme.background);
 
-            dest_rect.x = SCREEN_WIDTH - page_surface->w - line_padding;
+            SDL_Rect dest_rect = {
+                static_cast<Sint16>(SCREEN_WIDTH - page_surface->w - line_padding),
+                static_cast<Sint16>(line_y + line_padding / 2),
+                0, 0
+            };
             title_crop_rect.w = SCREEN_WIDTH - line_padding * 2 - page_surface->w;
 
             SDL_BlitSurface(page_surface, nullptr, dest_surface, &dest_rect);
             SDL_FreeSurface(page_surface);
         }
 
+        // Toc item
         if (state->title.size() > 0)
         {
-            dest_rect.x = 0;
+            SDL_Rect dest_rect = {
+                static_cast<Sint16>(line_padding),
+                static_cast<Sint16>(line_y + line_padding / 2),
+                0, 0
+            };
             SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, state->title.c_str(), theme.secondary_text, theme.background);
             SDL_BlitSurface(surface, &title_crop_rect, dest_surface, &dest_rect);
             SDL_FreeSurface(surface);
