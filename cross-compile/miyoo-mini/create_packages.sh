@@ -28,7 +28,7 @@ stage_common() {
     cp -v resources/fonts/*.txt $STAGE_APP/resources/fonts
 
     cp -v README.md           $STAGE_APP
-    cp -v resources/launch.sh $STAGE_APP/
+    cp -v cross-compile/miyoo-mini/launch.sh $STAGE_APP/
 
     local LIB_SRC=cross-compile/miyoo-mini/lib
     cp -v $LIB_SRC/libSDL_image-1.2.so.0 $STAGE_APP/lib
@@ -52,7 +52,7 @@ create_onion_pkg() {
     stage_common $STAGE_ROOT
 
     cp -v resources/icon/icon.png $STAGE_APP/icon.png
-    cat resources/config.json | sed "s/VERSION/${VERSION}/" | tee $STAGE_APP/config.json
+    cat cross-compile/miyoo-mini/config.json | sed "s/VERSION/${VERSION}/" | tee $STAGE_APP/config.json
 
     local FILENAME="pixel_reader_onion_v${VERSION}.zip"
     (cd $STAGE_ROOT && zip -r $FILENAME App)
