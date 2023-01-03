@@ -7,7 +7,8 @@
 #include "reader/system_styling.h"
 #include "reader/view_stack.h"
 
-#include "epub/epub_reader.h"
+#include "doc_api/doc_reader.h"
+#include "filetypes/open_doc.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "util/sdl_font_cache.h"
@@ -22,7 +23,7 @@ struct ReaderViewState
     std::function<void()> on_quit;
     std::function<void(DocAddr)> on_change_address;
 
-    EPubReader reader;
+    std::shared_ptr<DocReader> reader;
     SystemStyling &sys_styling;
     TokenViewStyling &token_view_styling;
 
@@ -31,7 +32,7 @@ struct ReaderViewState
     std::unique_ptr<TokenView> token_view;
     
     ReaderViewState(std::filesystem::path path, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, ViewStack &view_stack)
-        : reader(path),
+        : reader(create_doc_reader(path)),
           sys_styling(sys_styling),
           token_view_styling(token_view_styling),
           view_stack(view_stack)
@@ -58,7 +59,7 @@ DocAddr get_current_address(const ReaderViewState &state)
 
 void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
 {
-    const auto &toc = state.reader.get_table_of_contents();
+    const auto &toc = state.reader->get_table_of_contents();
     if (toc.empty())
     {
         return;
@@ -72,7 +73,7 @@ void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
         menu_names.push_back(indent + toc_item.display_name);
     }
 
-    auto current_toc_index = state.reader.get_toc_position(get_current_address(state)).toc_index;
+    auto current_toc_index = state.reader->get_toc_position(get_current_address(state)).toc_index;
     auto toc_select_menu = std::make_shared<SelectionMenu>(
         menu_names,
         state.sys_styling
@@ -111,7 +112,7 @@ ReaderView::ReaderView(
     ViewStack &view_stack
 ) : state(std::make_unique<ReaderViewState>(path, sys_styling, token_view_styling, view_stack))
 {
-    if (!state->reader.open())
+    if (!state->reader->open())
     {
         std::cerr << "Error opening " << path << std::endl;
         state->is_error_state = true;
@@ -145,8 +146,8 @@ ReaderView::~ReaderView()
 
 void ReaderView::update_token_view_title(DocAddr address)
 {
-    const auto &toc = state->reader.get_table_of_contents();
-    auto toc_position = state->reader.get_toc_position(address);
+    const auto &toc = state->reader->get_table_of_contents();
+    auto toc_position = state->reader->get_toc_position(address);
     if (toc_position.toc_index < toc.size())
     {
         state->token_view->set_title(toc[toc_position.toc_index].display_name);
@@ -242,7 +243,7 @@ void ReaderView::set_on_change_address(std::function<void(DocAddr)> callback)
 
 void ReaderView::seek_to_toc_index(uint32_t toc_index)
 {
-    auto address = state->reader.get_toc_item_address(toc_index);
+    auto address = state->reader->get_toc_item_address(toc_index);
     seek_to_address(address);
 }
 

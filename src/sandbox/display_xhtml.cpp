@@ -1,4 +1,4 @@
-#include "epub/xhtml_parser.h"
+#include "filetypes/epub/xhtml_parser.h"
 #include "./cli_wrap_lines.h"
 
 #include <fstream>

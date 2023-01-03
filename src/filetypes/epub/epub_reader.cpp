@@ -3,6 +3,7 @@
 #include "./epub_doc_index.h"
 #include "./epub_metadata.h"
 #include "./epub_toc_index.h"
+#include "./epub_token_iter.h"
 #include "util/zip_utils.h"
 
 #include <algorithm>
@@ -11,7 +12,7 @@
 
 struct EpubReaderState
 {
-    const std::string path;
+    const std::filesystem::path path;
     zip_t *zip = nullptr;
 
     std::unique_ptr<EpubDocIndex> doc_index;
@@ -21,7 +22,7 @@ struct EpubReaderState
     EpubReaderState(std::string path) : path(std::move(path)) {}
 };
 
-EPubReader::EPubReader(std::string path)
+EPubReader::EPubReader(std::filesystem::path path)
     : state(std::make_unique<EpubReaderState>(std::move(path)))
 {
 }
@@ -178,9 +179,12 @@ DocAddr EPubReader::get_toc_item_address(uint32_t toc_item_index) const
     return state->toc_index->get_toc_item_address(toc_item_index);
 }
 
-EPubTokenIter EPubReader::get_iter(DocAddr address) const
+std::shared_ptr<TokenIter> EPubReader::get_iter(DocAddr address) const
 {
-    return { state->doc_index.get(), address };
+    return std::make_shared<EPubTokenIter>(
+        state->doc_index.get(),
+        address
+    );
 }
 
 std::vector<char> EPubReader::load_resource(std::filesystem::path path) const

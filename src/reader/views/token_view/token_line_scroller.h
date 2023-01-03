@@ -4,20 +4,21 @@
 #include "./display_line.h"
 
 #include "doc_api/doc_addr.h"
-#include "epub/epub_reader.h"
+#include "doc_api/doc_reader.h"
 #include "util/indexed_dequeue.h"
 #include "util/sdl_image_cache.h"
 #include "util/sdl_pointer.h"
 
 #include <functional>
+#include <optional>
 
 // Lazy renders tokens into lines of text, and provides access to the lines
 // through an infinite-scroll type interface.
 class TokenLineScroller
 {
-    const EPubReader &reader;
-    EPubTokenIter forward_it;
-    EPubTokenIter backward_it;
+    const std::shared_ptr<DocReader> reader;
+    std::shared_ptr<TokenIter> forward_it;
+    std::shared_ptr<TokenIter> backward_it;
     std::function<bool(const char *, uint32_t)> line_fits;
 
     std::optional<int> global_first_line;
@@ -41,7 +42,7 @@ class TokenLineScroller
 
 public:
     TokenLineScroller(
-        const EPubReader &reader,
+        const std::shared_ptr<DocReader> reader,
         DocAddr address,
         uint32_t num_lines_lookahead,
         std::function<bool(const char *, uint32_t)> line_fits,

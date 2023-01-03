@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-struct EPubReader;
+struct DocReader;
 struct SystemStyling;
 struct TokenViewState;
 struct TokenViewStyling;
@@ -22,7 +22,7 @@ class TokenView: public View
 
 public:
     TokenView(
-        EPubReader &reader,
+        std::shared_ptr<DocReader> reader,
         DocAddr address,
         SystemStyling &sys_styling,
         TokenViewStyling &token_view_styling

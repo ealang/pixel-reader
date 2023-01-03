@@ -3,7 +3,7 @@
 #include "./token_line_scroller.h"
 #include "./token_view_styling.h"
 
-#include "epub/epub_reader.h"
+#include "doc_api/doc_reader.h"
 #include "reader/system_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
@@ -110,7 +110,7 @@ struct TokenViewState
         return new_line - cur_line;
     }
 
-    TokenViewState(EPubReader &reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
+    TokenViewState(std::shared_ptr<DocReader> reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
         : sys_styling(sys_styling),
           token_view_styling(token_view_styling),
           sys_styling_sub_id(sys_styling.subscribe_to_changes([this]() {
@@ -158,7 +158,7 @@ struct TokenViewState
     }
 };
 
-TokenView::TokenView(EPubReader &reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
+TokenView::TokenView(std::shared_ptr<DocReader> reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
     : state(std::make_unique<TokenViewState>(reader, address, sys_styling, token_view_styling))
 {
 }

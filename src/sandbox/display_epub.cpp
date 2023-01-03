@@ -1,5 +1,5 @@
 #include "doc_api/token_addressing.h"
-#include "epub/epub_reader.h"
+#include "filetypes/epub/epub_reader.h"
 #include "./cli_wrap_lines.h"
 
 #include <iostream>
@@ -21,9 +21,9 @@ void display_epub(std::string path)
     // Read entire book
     std::vector<DocToken> tokens;
     {
-        EPubTokenIter it = epub.get_iter();
+        auto it = epub.get_iter();
         const DocToken *token = nullptr;
-        while ((token = it.read(1)) != nullptr)
+        while ((token = it->read(1)) != nullptr)
         {
             if (token->type == TokenType::Image)
             {

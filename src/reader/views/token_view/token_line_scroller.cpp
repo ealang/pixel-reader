@@ -117,7 +117,7 @@ uint32_t TokenLineScroller::get_more_lines_forward(uint32_t num_lines)
         std::vector<DocToken> tokens;
 
         const DocToken *token = nullptr;
-        while ((token = forward_it.read(1)))
+        while ((token = forward_it->read(1)))
         {
             tokens.push_back(*token);
             // Don't separate text tokens since line wrapper needs full lines.
@@ -162,7 +162,7 @@ uint32_t TokenLineScroller::get_more_lines_backward(uint32_t num_lines)
         std::vector<DocToken> tokens;
 
         const DocToken *token = nullptr;
-        while ((token = backward_it.read(-1)))
+        while ((token = backward_it->read(-1)))
         {
             tokens.push_back(*token);
             // Don't separate text tokens since line wrapper needs full lines.
@@ -222,14 +222,13 @@ void TokenLineScroller::initialize_buffer_at(DocAddr address)
     // Find starting point that isn't a text token.
     // Line wrapper is not able to handle partial lines of text.
     {
-        EPubTokenIter it = reader.get_iter(address);
+        backward_it = reader->get_iter(address);
 
         const DocToken *token = nullptr;
         // Look backward for first non-text token.
-        while ((token = it.read(-1)) && token->type == TokenType::Text);
+        while ((token = backward_it->read(-1)) && token->type == TokenType::Text);
 
-        forward_it = it;
-        backward_it = it;
+        forward_it = backward_it->clone();
     }
 
     // Backwards pass
@@ -255,14 +254,14 @@ void TokenLineScroller::initialize_buffer_at(DocAddr address)
 }
 
 TokenLineScroller::TokenLineScroller(
-    const EPubReader &reader,
+    const std::shared_ptr<DocReader> reader,
     DocAddr address,
     uint32_t num_lines_lookahead,
     std::function<bool(const char *, uint32_t)> line_fits,
     uint32_t line_height_pixels
 ) : reader(reader),
-    forward_it(reader.get_iter(address)),
-    backward_it(reader.get_iter(address)),
+    forward_it(nullptr),
+    backward_it(nullptr),
     line_fits(line_fits),
     line_height_pixels(line_height_pixels),
     num_lines_lookahead(num_lines_lookahead)
@@ -363,7 +362,7 @@ SDL_Surface *TokenLineScroller::load_scaled_image(const std::string &path)
         }
     }
 
-    auto img_data = reader.load_resource(path);
+    auto img_data = reader->load_resource(path);
     if (img_data.empty())
     {
         std::cerr << "Failed to read image data: " << path << std::endl;

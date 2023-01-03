@@ -9,13 +9,12 @@
 #include "./views/reader_view.h"
 #include "./views/settings_view.h"
 #include "./views/token_view/token_view_styling.h"
-#include "epub/epub_reader.h"
+#include "filetypes/open_doc.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
 #include "util/sdl_font_cache.h"
-#include "util/str_utils.h"
 #include "util/timer.h"
 
 #include <libxml/parser.h>
@@ -36,7 +35,7 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
     );
 
     auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling](std::filesystem::path path) {
-        if (to_lower(path.extension()) != ".epub" || !std::filesystem::exists(path))
+        if (!std::filesystem::exists(path) || !file_type_is_supported(path))
         {
             return;
         }

@@ -8,6 +8,13 @@ EPubTokenIter::EPubTokenIter(EpubDocIndex *index, DocAddr address)
     seek(address);
 }
 
+EPubTokenIter::EPubTokenIter(const EPubTokenIter &other)
+    : index(other.index)
+    , current_spine_idx(other.current_spine_idx)
+    , current_token_idx(other.current_token_idx)
+{
+}
+
 bool EPubTokenIter::seek_to_first()
 {
     while (current_spine_idx < index->spine_size())
@@ -99,3 +106,7 @@ void EPubTokenIter::seek(DocAddr address)
     current_token_idx = new_token_idx;
 }
 
+std::shared_ptr<TokenIter> EPubTokenIter::clone() const
+{
+    return std::make_shared<EPubTokenIter>(*this);
+}
