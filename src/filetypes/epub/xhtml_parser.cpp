@@ -3,6 +3,7 @@
 #include "./libxml_iter.h"
 #include "./xhtml_string_util.h"
 #include "doc_api/token_addressing.h"
+#include "util/str_utils.h"
 
 #include <libxml/parser.h>
 

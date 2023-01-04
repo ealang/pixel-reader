@@ -1,4 +1,5 @@
 #include "./token_addressing.h"
+#include "util/str_utils.h"
 #include "util/utf8.h"
 
 namespace {
@@ -9,9 +10,7 @@ namespace {
 // text-wrapping whitespace breaking are not altering the address calculations.
 inline bool char_has_width(char c)
 {
-    return !(
-        c == ' ' || c == '\n' || c == '\r' || c == '\t'
-    );
+    return !is_whitespace(c);
 }
 
 } // namespace

@@ -1,5 +1,6 @@
 #include "./text_wrap.h"
 
+#include "util/str_utils.h"
 #include "util/utf8.h"
 
 #include <cstring>
@@ -8,12 +9,6 @@
 namespace {
 
 using str_filter_func = std::function<bool(const char *, uint32_t)>;
-
-// Set of characters allowed to break on.
-inline bool is_whitespace(char c)
-{
-    return c == ' ' || c == '\n' || c == '\r' || c == '\t';
-}
 
 const char *find_first_break(const char *pos, int max_search)
 {

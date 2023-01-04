@@ -1,6 +1,6 @@
 #include "./epub_metadata.h"
 #include "./libxml_iter.h"
-#include "./xhtml_string_util.h"
+#include "util/str_utils.h"
 
 #include <libxml/parser.h>
 
