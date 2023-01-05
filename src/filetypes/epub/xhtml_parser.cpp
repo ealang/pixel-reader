@@ -348,7 +348,7 @@ public:
 
             if (strip_left)
             {
-                data = std::string(strip_whitespace_left(data.c_str()));
+                data = strip_whitespace_left(data);
             }
 
             if (data.size())

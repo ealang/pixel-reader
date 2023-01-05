@@ -1,6 +1,6 @@
 ## [Pixel Reader](https://github.com/ealang/pixel-reader)
 
-An epub reader for Linux. It is currently optimized for the Miyoo Mini.
+An ebook reader for Linux. Supports epub and txt formats. It is optimized for the Miyoo Mini.
 
 ![Screenshot](resources/demo.gif)
 
@@ -12,7 +12,7 @@ Supports Onion, MiniUI, and the default/factory OS.
 2. Extract the zip into the root of your SD card.
 3. Boot your device, and the app should now show up in the apps/tools list.
 
-Epub files can be placed anywhere on the SD card. Browse to the location after launching the app.
+Book files can be placed anywhere on the SD card. Browse to the location after launching the app.
 
 *Note:* Currently untested on firmware other than [April 2022](https://retrogamecorps.com/2022/05/15/miyoo-mini-v2-guide/#Firmware).
 

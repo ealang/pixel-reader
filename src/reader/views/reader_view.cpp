@@ -23,6 +23,7 @@ struct ReaderViewState
     std::function<void()> on_quit;
     std::function<void(DocAddr)> on_change_address;
 
+    std::string filename;
     std::shared_ptr<DocReader> reader;
     SystemStyling &sys_styling;
     TokenViewStyling &token_view_styling;
@@ -32,7 +33,8 @@ struct ReaderViewState
     std::unique_ptr<TokenView> token_view;
     
     ReaderViewState(std::filesystem::path path, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, ViewStack &view_stack)
-        : reader(create_doc_reader(path)),
+        : filename(path.filename()),
+          reader(create_doc_reader(path)),
           sys_styling(sys_styling),
           token_view_styling(token_view_styling),
           view_stack(view_stack)
@@ -151,8 +153,12 @@ void ReaderView::update_token_view_title(DocAddr address)
     if (toc_position.toc_index < toc.size())
     {
         state->token_view->set_title(toc[toc_position.toc_index].display_name);
-        state->token_view->set_title_progress(toc_position.progress_percent);
     }
+    else
+    {
+        state->token_view->set_title(state->filename);
+    }
+    state->token_view->set_title_progress(toc_position.progress_percent);
 }
 
 void ReaderView::render_error_state(SDL_Surface *dest_surface) const

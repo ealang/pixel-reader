@@ -4,13 +4,11 @@
 
 TEST(STR_UTILS, to_lower)
 {
-    EXPECT_EQ(to_lower(nullptr), "");
     EXPECT_EQ(to_lower(".ePUB"), ".epub");
 }
 
 TEST(STR_UTILS, remove_carriage_return)
 {
-    EXPECT_EQ(remove_carriage_returns(nullptr), "");
     EXPECT_EQ(remove_carriage_returns(""), "");
     EXPECT_EQ(remove_carriage_returns("\rfoo\r\n\tbar "), "foo\n\tbar ");
     EXPECT_EQ(remove_carriage_returns(" foo\tbar\n "), " foo\tbar\n ");
@@ -27,14 +25,28 @@ TEST(STR_UTILS, strip_whitespace)
 
 TEST(STR_UTILS, strip_whitespace_left)
 {
-    auto strip_count = [](const char *str) {
-        return strip_whitespace_left(str) - str;
-    };
+    EXPECT_EQ(strip_whitespace_left(""), "");
+    EXPECT_EQ(strip_whitespace_left("  "), "");
+    EXPECT_EQ(strip_whitespace_left("foo"), "foo");
+    EXPECT_EQ(strip_whitespace_left(" \n\t\r "), "");
+    EXPECT_EQ(strip_whitespace_left("  foo bar "), "foo bar ");
+    EXPECT_EQ(strip_whitespace_left("\nfoo bar\t"), "foo bar\t");
+}
 
-    EXPECT_EQ(strip_whitespace_left(nullptr), nullptr);
-    EXPECT_EQ(strip_count(""), 0);
-    EXPECT_EQ(strip_count("  "), 2);
-    EXPECT_EQ(strip_count(" \n\t\r "), 5);
-    EXPECT_EQ(strip_count("  foo bar "), 2);
-    EXPECT_EQ(strip_count("\nfoo bar\t"), 1);
+TEST(STR_UTILS, strip_whitespace_right)
+{
+    EXPECT_EQ(strip_whitespace_right(""), "");
+    EXPECT_EQ(strip_whitespace_right("  "), "");
+    EXPECT_EQ(strip_whitespace_right("foo"), "foo");
+    EXPECT_EQ(strip_whitespace_right(" \n\t\r "), "");
+    EXPECT_EQ(strip_whitespace_right("  foo bar "), "  foo bar");
+    EXPECT_EQ(strip_whitespace_right("\nfoo bar\t"), "\nfoo bar");
+}
+
+TEST(STR_UTILS, convert_tabs_to_space)
+{
+    EXPECT_EQ(convert_tabs_to_space("", 4), "");
+    EXPECT_EQ(convert_tabs_to_space("foo", 4), "foo");
+    EXPECT_EQ(convert_tabs_to_space("\tfoo\t", 2), "  foo  ");
+    EXPECT_EQ(convert_tabs_to_space("\tf\too", 0), "foo");
 }

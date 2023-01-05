@@ -14,8 +14,7 @@ const std::string EPUB_EXT = ".epub";
 const std::set<std::string> TEXT_EXTS = {
     ".txt",
     ".md",
-    ".markdown",
-    ".html",
+    ".markdown"
 };
 
 std::string norm_extension(const std::filesystem::path &path)
