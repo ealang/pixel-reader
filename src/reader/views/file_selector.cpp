@@ -1,6 +1,7 @@
 #include "./file_selector.h"
 
 #include "./selection_menu.h"
+#include "filetypes/open_doc.h"
 #include "reader/system_styling.h"
 #include "sys/filesystem.h"
 
@@ -28,10 +29,16 @@ namespace {
 
 void refresh_path_entries(FSState *s)
 {
-    s->path_entries = directory_listing(s->path);
+    s->path_entries.clear();
     if (s->path.has_parent_path() && s->path != s->path.root_path())
     {
-        s->path_entries.insert(s->path_entries.begin(), FSEntry::directory(".."));
+        s->path_entries.push_back(FSEntry::directory(".."));
+    }
+
+    for (const auto &entry : directory_listing(s->path)) {
+        if (entry.is_dir || file_type_is_supported(entry.name)) {
+            s->path_entries.push_back(entry);
+        }
     }
 
     std::vector<std::string> menu_entries;
