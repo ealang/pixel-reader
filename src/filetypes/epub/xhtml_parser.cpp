@@ -2,52 +2,24 @@
 
 #include "./libxml_iter.h"
 #include "./xhtml_string_util.h"
+#include "./util/str_utils.h"
+
 #include "doc_api/token_addressing.h"
-#include "util/str_utils.h"
 
 #include <libxml/parser.h>
 
 #include <cstring>
 #include <filesystem>
-#include <functional>
 #include <iostream>
 #include <set>
 #include <unordered_map>
 
 #define DEBUG 0
-#define DEBUG_LOG(msg) if (DEBUG) { std::cerr << std::string(context.node_depth * 2, ' ') << msg << std::endl; }
+#define DEBUG_LOG(msg) if (DEBUG) { std::cerr << std::string(node_depth * 2, ' ') << msg << std::endl; }
 
 namespace {
 
-#define EMPTY_STR ""
-
-struct Context
-{
-    int node_depth = 0;     // depth inside any nodes
-    int list_depth = 0;     // depth inside ul/ol nodes
-    int pre_depth = 0;      // depth inside pre nodes
-    DocAddr current_address;
-
-    std::filesystem::path base_path;  // directory of file (for resolving relative paths)
-
-    std::function<void(const Context&, TokenType, std::string)> _emit_token;
-    std::function<void(std::string)> emit_id;
-
-    void emit_token(TokenType type, std::string data)
-    {
-        _emit_token(*this, type, std::move(data));
-    }
-
-    Context(
-        DocAddr start_address,
-        std::filesystem::path base_path,
-        std::function<void(const Context&, TokenType, std::string)> _emit_token,
-        std::function<void(std::string)> emit_id
-    ) : current_address(start_address), base_path(base_path), _emit_token(_emit_token), emit_id(emit_id)
-    { }
-};
-
-bool _element_is_blocking(const xmlChar *name)
+bool element_is_blocking(const xmlChar *name)
 {
     if (!name)
     {
@@ -62,340 +34,385 @@ bool _element_is_blocking(const xmlChar *name)
     return blocking_elements.find((const char*)name) != blocking_elements.end();
 }
 
-/////////////////////////////
-
-void _on_enter_h(int, xmlNodePtr, Context &context)
+enum class ElementType
 {
-    context.emit_token(TokenType::Section, EMPTY_STR);
-}
-
-void _on_exit_h(int, xmlNodePtr, Context &context)
-{
-    context.emit_token(TokenType::Section, EMPTY_STR);
-}
-
-/////////////////////////////
-
-void _on_enter_ul(xmlNodePtr, Context &context)
-{
-    context.emit_token(TokenType::Section, EMPTY_STR);
-}
-
-void _on_exit_ul(xmlNodePtr, Context &context)
-{
-    context.emit_token(TokenType::Section, EMPTY_STR);
-}
-
-/////////////////////////////
-
-void _on_enter_p(xmlNodePtr, Context &context)
-{
-    if (context.list_depth == 0)
-    {
-        context.emit_token(TokenType::Section, EMPTY_STR);
-    }
-}
-
-void _on_exit_p(xmlNodePtr, Context &context)
-{
-    if (context.list_depth == 0)
-    {
-        context.emit_token(TokenType::Section, EMPTY_STR);
-    }
-}
-
-/////////////////////////////
-
-void _on_enter_pre(xmlNodePtr, Context &context)
-{
-    context.emit_token(TokenType::Section, EMPTY_STR);
-    context.pre_depth++;
-}
-
-void _on_exit_pre(xmlNodePtr, Context &context)
-{
-    context.emit_token(TokenType::Section, EMPTY_STR);
-    context.pre_depth--;
-}
-
-/////////////////////////////
-
-void _on_enter_image(xmlNodePtr node, Context &context)
-{
-    const xmlChar *img_path = xmlGetProp(node, BAD_CAST "href");
-    if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
-    if (img_path)
-    {
-        std::string data = (
-            (context.base_path / (const char*)img_path).lexically_normal()
-        );
-
-        context.emit_token(TokenType::Image, data);
-    }
-    else
-    {
-        std::cerr << "Unable to get link from image" << std::endl;
-        context.emit_token(TokenType::Image, EMPTY_STR);
-    }
-}
-
-/////////////////////////////
-
-const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>> _on_enter_handlers = {
-    {"h1", [](xmlNodePtr node, Context &context) {
-        _on_enter_h(1, node, context);
-    }},
-    {"h2", [](xmlNodePtr node, Context &context) {
-        _on_enter_h(2, node, context);
-    }},
-    {"h3", [](xmlNodePtr node, Context &context) {
-        _on_enter_h(3, node, context);
-    }},
-    {"h4", [](xmlNodePtr node, Context &context) {
-        _on_enter_h(4, node, context);
-    }},
-    {"h5", [](xmlNodePtr node, Context &context) {
-        _on_enter_h(5, node, context);
-    }},
-    {"h6", [](xmlNodePtr node, Context &context) {
-        _on_enter_h(6, node, context);
-    }},
-    {"ol", _on_enter_ul},
-    {"ul", _on_enter_ul},
-    {"p", _on_enter_p},
-    {"pre", _on_enter_pre},
-    {"image", _on_enter_image},
-    {"img", _on_enter_image}
+    H,
+    P,
+    Ol,
+    Ul,
+    Pre,
+    Unknown,
+    Image,
 };
 
-const std::unordered_map<std::string, std::function<void(xmlNodePtr, Context &)>> _on_exit_handlers = {
-    {"h1", [](xmlNodePtr node, Context &context) {
-        _on_exit_h(1, node, context);
-    }},
-    {"h2", [](xmlNodePtr node, Context &context) {
-        _on_exit_h(2, node, context);
-    }},
-    {"h3", [](xmlNodePtr node, Context &context) {
-        _on_exit_h(3, node, context);
-    }},
-    {"h4", [](xmlNodePtr node, Context &context) {
-        _on_exit_h(4, node, context);
-    }},
-    {"h5", [](xmlNodePtr node, Context &context) {
-        _on_exit_h(5, node, context);
-    }},
-    {"h6", [](xmlNodePtr node, Context &context) {
-        _on_exit_h(6, node, context);
-    }},
-    {"ol", _on_exit_ul},
-    {"ul", _on_exit_ul},
-    {"p", _on_exit_p},
-    {"pre", _on_exit_pre}
+const std::unordered_map<std::string, ElementType> _elem_name_to_enum {
+    {"p",     ElementType::P},
+    {"ol",    ElementType::Ol},
+    {"ul",    ElementType::Ul},
+    {"pre",   ElementType::Pre},
+    {"img",   ElementType::Image},
+    {"image", ElementType::Image},
 };
 
-/////////////////////////////
-
-void on_text_node(xmlNodePtr node, Context &context)
+ElementType elem_name_to_enum(const xmlChar *elem_name)
 {
-    const char *str = (const char*)node->content;
-    if (str)
+    if (!elem_name)
     {
-        context.emit_token(
-            TokenType::Text,
-            context.pre_depth > 0
-                ? remove_carriage_returns(str)
-                : compact_whitespace(str)
-        );
+        return ElementType::Unknown;
     }
+    auto it = _elem_name_to_enum.find((const char*)elem_name);
+    if (it != _elem_name_to_enum.end())
+    {
+        return it->second;
+    }
+    return ElementType::Unknown;
 }
 
-void on_enter_element_node(xmlNodePtr node, Context &context)
+std::string escape_newlines(const xmlChar *str)
 {
-    const xmlChar *elem_id = xmlGetProp(node, BAD_CAST "id");
-    if (elem_id && xmlStrlen(elem_id) > 0)
-    {
-        context.emit_id((const char*)elem_id);
-    }
+    std::string result;
+    result.reserve(xmlStrlen(str));
 
-    if (_element_is_blocking(node->name))
+    xmlChar c;
+    while ((c = *str++))
     {
-        context.emit_token(TokenType::TextBreak, EMPTY_STR);
+        if (c == '\n')
+        {
+            result += "\\n";
+        }
+        else
+        {
+            result += c;
+        }
     }
-
-    auto handler = _on_enter_handlers.find((const char*)node->name);
-    if (handler != _on_enter_handlers.end())
-    {
-        handler->second(node, context);
-    }
+    return result;
 }
 
-void on_exit_element_node(xmlNodePtr node, Context &context)
+// Receive callbacks for xhtml nodes, emit DocTokens.
+class NodeProcessor
 {
-    if (_element_is_blocking(node->name))
+    // Intermediate storage of xhtml nodes to be converted to DocTokens
+    struct Node
     {
-        context.emit_token(TokenType::TextBreak, EMPTY_STR);
+        enum class Type
+        {
+            InlineText,
+            InlineBreak,
+            SectionSeparator,
+            Image,
+        };
+
+        Type type;
+        DocAddr address;
+        xmlNodePtr node;
+        bool is_pre;
+
+        Node(Type type, DocAddr address, xmlNodePtr node, bool is_pre)
+            : type(type), address(address), node(node), is_pre(is_pre)
+        {
+        }
+
+        std::string to_string() const
+        {
+            std::string typestr;
+            switch (type)
+            {
+                case Type::InlineText:
+                    typestr = "InlineText";
+                    break;
+                case Type::InlineBreak:
+                    typestr = "InlineBreak";
+                    break;
+                case Type::SectionSeparator:
+                    typestr = "SectionSeparator";
+                    break;
+                case Type::Image:
+                    typestr = "Image";
+                    break;
+                default:
+                    typestr = "Unknown";
+                    break;
+            }
+            return typestr + " " + ::to_string(address);
+        }
+    };
+
+    int list_depth = 0;     // depth inside ul/ol tags
+    int pre_depth = 0;      // depth inside pre tags
+
+    DocAddr current_address;
+    std::filesystem::path base_path;  // directory of file (for resolving relative paths)
+
+    std::vector<Node> nodes;
+    std::set<std::string> unattached_ids;
+    std::unordered_map<std::string, DocAddr> &id_to_addr;
+
+    void attach_pending_ids(DocAddr address)
+    {
+        for (const auto &id : unattached_ids)
+        {
+            id_to_addr[id] = address;
+        }
+        unattached_ids.clear();
     }
 
-    auto handler = _on_exit_handlers.find((const char*)node->name);
-    if (handler != _on_exit_handlers.end())
+    void emit_node(int node_depth, Node::Type type, xmlNodePtr node)
     {
-        handler->second(node, context);
+        attach_pending_ids(current_address);
+        nodes.emplace_back(type, current_address, node, pre_depth > 0);
+        DEBUG_LOG("[node: " << nodes.back().to_string() << "]");
     }
-}
 
-void _process_node(xmlNodePtr node, Context &context)
-{
-    // Note: addressing scheme needs to be consistent across code revisions to ensure
-    // user bookmarks don't change position.
-    while (node)
+public:
+    NodeProcessor(
+        DocAddr current_address,
+        std::filesystem::path base_path,
+        std::unordered_map<std::string, DocAddr> &id_to_addr
+    ) : current_address(current_address), base_path(base_path), id_to_addr(id_to_addr)
+    {
+    }
+
+    void on_text_node(xmlNodePtr node, int node_depth)
+    {
+        DEBUG_LOG("\"" << escape_newlines(node->content) << "\"");
+
+        if (node->content && xmlStrlen(node->content))
+        {
+            emit_node(
+                node_depth,
+                Node::Type::InlineText,
+                node
+            );
+
+            current_address += get_address_width((const char*)node->content);
+        }
+    }
+
+    void on_enter_element_node(xmlNodePtr node, int node_depth)
     {
         DEBUG_LOG("<node name=\"" << node->name << "\">");
-        context.node_depth++;
 
-        // Enter handlers
-        if (node->type == XML_TEXT_NODE)
+        // Look for id
         {
-            on_text_node(node, context);
-            context.current_address += get_address_width((const char*)node->content);
-        }
-        else if (node->type == XML_ELEMENT_NODE)
-        {
-            on_enter_element_node(node, context);
-            if (xmlStrEqual(node->name, BAD_CAST "img") || xmlStrEqual(node->name, BAD_CAST "image"))
+            const xmlChar *elem_id = xmlGetProp(node, BAD_CAST "id");
+            if (elem_id && xmlStrlen(elem_id) > 0)
             {
-                context.current_address++;
+                unattached_ids.insert((const char*)elem_id);
             }
         }
 
+        if (element_is_blocking(node->name))
+        {
+            emit_node(node_depth, Node::Type::InlineBreak, node);
+        }
+
+        switch (elem_name_to_enum(node->name))
+        {
+            case ElementType::Ol:
+            case ElementType::Ul:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                ++list_depth;
+                break;
+            case ElementType::P:
+                if (list_depth == 0)
+                {
+                    emit_node(node_depth, Node::Type::SectionSeparator, node);
+                }
+                break;
+            case ElementType::Pre:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                ++pre_depth;
+                break;
+            case ElementType::Image:
+                emit_node(node_depth, Node::Type::Image, node);
+                break;
+            default:
+                break;
+        }
+    }
+
+    void on_exit_element_node(xmlNodePtr node, int node_depth)
+    {
+        DEBUG_LOG("</node name=\"" << node->name << "\">");
+
+        ElementType elem_type = elem_name_to_enum(node->name);
+        switch (elem_type)
+        {
+            case ElementType::Ol:
+            case ElementType::Ul:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                --list_depth;
+                break;
+            case ElementType::P:
+                if (list_depth == 0)
+                {
+                    emit_node(node_depth, Node::Type::SectionSeparator, node);
+                }
+                break;
+            case ElementType::Pre:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                --pre_depth;
+                break;
+            default:
+                break;
+        }
+
+        if (element_is_blocking(node->name))
+        {
+            emit_node(node_depth, Node::Type::InlineBreak, node);
+        }
+
+        if (elem_type == ElementType::Image)
+        {
+            ++current_address;
+        }
+    }
+
+    // Merge inline text types, emit DocTokens
+    void generate_doc_tokens(std::vector<DocToken> &tokens_out) const
+    {
+        auto get_group_size = [&_nodes=this->nodes](uint32_t i) -> uint32_t {
+            Node::Type head_type = _nodes[i].type;
+            if (head_type == Node::Type::InlineText)
+            {
+                bool head_pre = _nodes[i].is_pre;
+
+                uint32_t size = 1;
+                while (
+                    ++i < _nodes.size() &&
+                    _nodes[i].type == head_type &&
+                    _nodes[i].is_pre == head_pre
+                )
+                {
+                    ++size;
+                }
+
+                return size;
+            }
+            return 1;
+        };
+
+        uint32_t n = nodes.size();
+        tokens_out.reserve(n);
+
+        bool separator_allowed = false;
+        uint32_t i = 0;
+        while (i < n)
+        {
+            uint32_t group_size = get_group_size(i);
+            const Node &head = nodes[i];
+            DocAddr address = head.address;
+            Node::Type type = head.type;
+
+            switch (type)
+            {
+                case Node::Type::InlineText:
+                    if (!head.is_pre)
+                    {
+                        // Compact text types
+                        std::vector<const char*> substrings;
+                        substrings.reserve(group_size);
+                        for (uint32_t j = i; j < i + group_size; ++j)
+                        {
+                            const xmlChar *substr = nodes[j].node->content;
+                            if (substr)
+                            {
+                                substrings.push_back((const char*)substr);
+                            }
+                        }
+
+                        std::string text = compact_strings(substrings);
+                        if (text.size())
+                        {
+                            tokens_out.emplace_back(
+                                Node::Type::InlineText,
+                                address,
+                                text
+                            );
+                            separator_allowed = true;
+                        }
+                    }
+                    else
+                    {
+                        for (uint32_t j = i; j < i + group_size; ++j)
+                        {
+                            tokens_out.emplace_back(
+                                TokenType::Text,
+                                nodes[j].address,
+                                remove_carriage_returns((const char *)nodes[j].node->content)
+                            );
+                        }
+                        separator_allowed = true;
+                    }
+                    break;
+                case Node::Type::Image:
+                    {
+                        xmlNodePtr node = head.node;
+                        const xmlChar *img_path = xmlGetProp(node, BAD_CAST "href");
+                        if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
+                        if (img_path)
+                        {
+                            std::string data = (
+                                (base_path / (const char*)img_path).lexically_normal()
+                            );
+                            tokens_out.emplace_back(TokenType::Image, address, data);
+                        }
+                        else
+                        {
+                            std::cerr << "Unable to get link from image" << std::endl;
+                        }
+
+                        separator_allowed = true;
+                    }
+                    break;
+                case Node::Type::SectionSeparator:
+                    if (separator_allowed)
+                    {
+                        tokens_out.emplace_back(
+                            TokenType::Text,
+                            address,
+                            ""
+                        );
+
+                        separator_allowed = false;
+                    }
+                    break;
+                case Node::Type::InlineBreak:
+                    break;
+                default:
+                    throw std::runtime_error("Unknown node type");
+            }
+            i += group_size;
+        }
+    }
+};
+
+void visit_nodes(xmlNodePtr node, NodeProcessor &processor, int node_depth = 0)
+{
+    while (node)
+    {
+        // Enter handlers
+        if (node->type == XML_TEXT_NODE)
+        {
+            processor.on_text_node(node, node_depth);
+        }
+        else if (node->type == XML_ELEMENT_NODE)
+        {
+            processor.on_enter_element_node(node, node_depth);
+        }
+
         // Descend
-        _process_node(node->children, context);
+        visit_nodes(node->children, processor, node_depth + 1);
 
         // Exit handlers
         if (node->type == XML_ELEMENT_NODE)
         {
-            on_exit_element_node(node, context);
+            processor.on_exit_element_node(node, node_depth);
         }
-
-        context.node_depth--;
-        DEBUG_LOG("</node name=\"" << node->name << "\">");
 
         node = node->next;
     }
 }
-
-class TokenProcessor
-{
-    uint32_t chapter_number;
-    std::vector<DocToken> &tokens;
-    std::unordered_map<std::string, DocAddr> &id_to_addr;
-    bool fresh_line = true;
-
-    std::vector<std::string> pending_ids;
-    DocAddr last_address = 0;
-
-    void attach_pending_ids(DocAddr address)
-    {
-        for (const auto &id : pending_ids)
-        {
-            id_to_addr[id] = address;
-        }
-        pending_ids.clear();
-    }
-
-    void write_token(const Context &context, TokenType type, DocAddr address, const std::string &text)
-    {
-        tokens.emplace_back(type, address, text);
-        DEBUG_LOG(to_string(tokens.back()));
-
-        attach_pending_ids(address);
-    }
-
-public:
-    TokenProcessor(
-        uint32_t chapter_number,
-        std::vector<DocToken> &out_tokens,
-        std::unordered_map<std::string, DocAddr> &out_id_to_addr
-    ) : chapter_number(chapter_number),
-        tokens(out_tokens),
-        id_to_addr(out_id_to_addr)
-    { }
-
-    void on_id(std::string id)
-    {
-        // Don't store the id to address mapping yet, wait until we are storing a token
-        // to ensure it maps to a token that exists.
-        pending_ids.push_back(std::move(id));
-    }
-
-    void on_token(const Context &context, TokenType type, std::string data)
-    {
-        DocAddr address = context.current_address;
-
-        if (type == TokenType::Text)
-        {
-            const std::string *prev_text = (
-                !tokens.empty() && tokens.back().type == TokenType::Text ? &tokens.back().data : nullptr
-            );
-
-            bool strip_left = (
-                fresh_line ||
-                (
-                     is_whitespace(data[0]) &&
-                     prev_text->size() &&
-                     is_whitespace(prev_text->at(prev_text->size() - 1))
-                )
-            );
-
-            if (strip_left)
-            {
-                data = strip_whitespace_left(data);
-            }
-
-            if (data.size())
-            {
-                write_token(context, type, address, data);
-                fresh_line = false;
-            }
-        }
-        else
-        {
-            fresh_line = true;
-
-            if (type == TokenType::TextBreak)
-            {
-                if (!tokens.empty() && tokens.back().type == TokenType::Text)
-                {
-                    write_token(context, type, address, EMPTY_STR);
-                }
-            }
-            else if (type == TokenType::Section)
-            {
-                DocAddr adjusted_address = address;
-                if (!tokens.empty() && tokens.back().type == TokenType::TextBreak)
-                {
-                    // There might have been ids attached to the popped token. Use the previous
-                    // address when we emit the new token.
-                    adjusted_address = tokens.back().address;
-                    tokens.pop_back();
-                    DEBUG_LOG("pop");
-                }
-                if (!tokens.empty() && tokens.back().type != TokenType::Section)
-                {
-                    write_token(context, type, adjusted_address, EMPTY_STR);
-                }
-            }
-            else
-            {
-                write_token(context, type, address, data);
-            }
-        }
-    }
-
-    void finalize()
-    {
-        attach_pending_ids(last_address);
-    }
-};
 
 } // namespace
 
@@ -413,23 +430,14 @@ bool parse_xhtml_tokens(const char *xml_str, std::filesystem::path file_path, ui
     node = elem_first_child(elem_first_by_name(node, BAD_CAST "html"));
     node = elem_first_child(elem_first_by_name(node, BAD_CAST "body"));
 
-    TokenProcessor processor(chapter_number, tokens_out, id_to_addr_out);
-    if (node)
-    {
-        Context context(
-            make_address(chapter_number),
-            file_path.parent_path(),
-            [&processor](const Context &context, TokenType type, std::string data){
-                processor.on_token(context, type, std::move(data));
-            },
-            [&processor](std::string id){
-                processor.on_id(std::move(id));
-            }
-        );
-        _process_node(node, context);
-    }
+    NodeProcessor processor(
+        make_address(chapter_number),
+        file_path.parent_path(),
+        id_to_addr_out
+    );
+    visit_nodes(node, processor);
 
-    processor.finalize();
+    processor.generate_doc_tokens(tokens_out);
     xmlFreeDoc(doc);
 
     return true;

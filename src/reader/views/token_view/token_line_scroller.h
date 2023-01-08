@@ -22,10 +22,9 @@ class TokenLineScroller
     std::function<bool(const char *, uint32_t)> line_fits;
 
     std::optional<int> global_first_line;
-    std::optional<int> global_last_line;
+    std::optional<int> global_end_line;
 
     uint32_t line_height_pixels;
-    uint32_t num_lines_lookahead;
     int current_line = 0;
 
     IndexedDequeue<std::unique_ptr<DisplayLine>> lines_buf;
@@ -34,17 +33,16 @@ class TokenLineScroller
     std::vector<std::unique_ptr<DisplayLine>> image_to_display_lines(const DocToken &token);
     std::vector<std::unique_ptr<DisplayLine>> token_to_display_lines(const DocToken &token);
 
-    uint32_t get_more_lines_forward(uint32_t num);
-    uint32_t get_more_lines_backward(uint32_t num);
+    void get_more_lines_forward(uint32_t num);
+    void get_more_lines_backward(uint32_t num);
     void clear_buffer();
     void initialize_buffer_at(DocAddr address);
-    void ensure_lines_around(int line_num);
+    void materialize_line(int line_num);
 
 public:
     TokenLineScroller(
         const std::shared_ptr<DocReader> reader,
         DocAddr address,
-        uint32_t num_lines_lookahead,
         std::function<bool(const char *, uint32_t)> line_fits,
         uint32_t line_height_pixels
     );
@@ -57,7 +55,7 @@ public:
     void set_line_height_pixels(uint32_t line_height_pixels);
 
     std::optional<int> first_line_number() const;
-    std::optional<int> last_line_number() const;
+    std::optional<int> end_line_number() const;
 
     SDL_Surface *load_scaled_image(const std::string &path);
 };

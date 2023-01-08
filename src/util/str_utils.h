@@ -8,6 +8,7 @@ std::string to_lower(const std::string &str);
 std::string remove_carriage_returns(const std::string &str);
 
 std::string strip_whitespace(const char *str);
+std::string strip_whitespace(const std::string &str);
 
 std::string strip_whitespace_left(const std::string &str);
 std::string strip_whitespace_right(const std::string &str);

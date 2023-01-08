@@ -79,9 +79,15 @@ void wrap_lines(
     uint32_t max_line_search_chars
 )
 {
-    const char *cur_pos = str;
-    const char *string_end_pos = cur_pos + strlen(str);
+    uint32_t n = strlen(str);
+    if (n == 0)
+    {
+        on_next_line(str, 0);
+        return;
+    }
 
+    const char *cur_pos = str;
+    const char *string_end_pos = cur_pos + n;
     while (cur_pos < string_end_pos)
     {
         const char *break_pos;

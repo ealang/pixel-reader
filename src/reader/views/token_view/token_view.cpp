@@ -13,9 +13,6 @@
 
 #include <stdexcept>
 #include <iostream>
-
-#define NUM_PREFETCH_LINES 30
-
 namespace {
 
 bool line_fits_on_screen(TTF_Font *font, int avail_width, const char *s, uint32_t len)
@@ -84,32 +81,6 @@ struct TokenViewState
         return SCREEN_HEIGHT - line_height - excess_pxl_y() / 2;
     }
 
-    // Adjust scroll amount to avoid going beyond start or end of book.
-    int get_bounded_scroll_amount(int num_lines) const
-    {
-        int cur_line = line_scroller.get_line_number();
-        int new_line = cur_line + num_lines;
-        auto first_line = line_scroller.first_line_number();
-        auto last_line = line_scroller.last_line_number();
-
-        if (last_line)
-        {
-            new_line = std::min(
-                *last_line - num_text_display_lines(),
-                new_line
-            );
-        }
-        if (first_line)
-        {
-            new_line = std::max(
-                *first_line,
-                new_line
-            );
-        }
-
-        return new_line - cur_line;
-    }
-
     TokenViewState(std::shared_ptr<DocReader> reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
         : sys_styling(sys_styling),
           token_view_styling(token_view_styling),
@@ -135,7 +106,6 @@ struct TokenViewState
           line_scroller(
               reader,
               address,
-              NUM_PREFETCH_LINES,
               [this](const char *s, uint32_t len) {
                   return line_fits_on_screen(
                       current_font,
@@ -175,6 +145,8 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     }
     state->needs_render = false;
 
+    scroll(0);  // Will adjust scroll position if necessary for end of book
+
     TTF_Font *font = state->current_font;
     const auto &theme = state->sys_styling.get_loaded_color_theme();
     const int line_height = state->line_height;
@@ -193,13 +165,6 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     }
 
     int num_text_display_lines = state->num_text_display_lines();
-    {
-        // Start with a request for the last line on screen to make sure we'll
-        // know if we hit the end of the book.
-        state->line_scroller.get_line_relative(num_text_display_lines - 1);
-        scroll(0);  // Will adjust scroll position for end of book
-    }
-
     const Uint16 padding_y = state->excess_pxl_y() / 2;
     Sint16 line_y = padding_y;
 
@@ -280,6 +245,10 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
                 }
             }
         }
+        else
+        {
+            break;
+        }
 
         line_y += line_height;
     }
@@ -325,9 +294,46 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
     return true;
 }
 
+// Adjust scroll amount to avoid going beyond start or end of book.
+static int get_bounded_scroll_amount(TokenLineScroller &line_scroller, int num_display_lines, int num_lines)
+{
+    {
+        // if start/end of book is within reach, make sure it is discovered
+        line_scroller.get_line_relative(num_display_lines);
+        line_scroller.get_line_relative(-num_display_lines);
+    }
+
+    int cur_line = line_scroller.get_line_number();
+    int new_line = cur_line + num_lines;
+
+    auto end_line = line_scroller.end_line_number();
+    if (end_line)
+    {
+        new_line = std::min(
+            *end_line - num_display_lines,
+            new_line
+        );
+    }
+
+    auto first_line = line_scroller.first_line_number();
+    if (first_line)
+    {
+        new_line = std::max(
+            *first_line,
+            new_line
+        );
+    }
+
+    return new_line - cur_line;
+}
+
 void TokenView::scroll(int num_lines)
 {
-    num_lines = state->get_bounded_scroll_amount(num_lines);
+    num_lines = get_bounded_scroll_amount(
+        state->line_scroller,
+        state->num_text_display_lines(),
+        num_lines
+    );
     if (num_lines != 0)
     {
         state->needs_render = true;

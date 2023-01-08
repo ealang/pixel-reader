@@ -1,5 +1,6 @@
 #include "./epub_metadata.h"
 #include "./libxml_iter.h"
+#include "./xhtml_string_util.h"
 #include "util/str_utils.h"
 
 #include <libxml/parser.h>
@@ -263,41 +264,32 @@ bool epub_parse_ncx(const std::string &ncx_file_path, const char *ncx_xml, std::
 namespace parse_nav
 {
 
-std::string concat_with_whitespace(const std::string &s1, const std::string &s2)
+void _collect_text(xmlNodePtr node, std::vector<const char*> &substrings)
 {
-    if (s1.empty())
-    {
-        return s2;
-    }
-    if (s2.empty())
-    {
-        return s1;
-    }
-    return s1 + " " + s2;
-}
-
-// Simplistic way to gather label text for a TOC item. TODO: Improved whitespace handling.
-std::string collect_text(xmlNodePtr node)
-{
-    std::string result;
-
     while (node)
     {
         if (node->type == XML_TEXT_NODE)
         {
             if (node->content)
             {
-                result = concat_with_whitespace(result, strip_whitespace((const char*)node->content));
+                substrings.push_back((const char*)node->content);
             }
         }
         else if (node->type == XML_ELEMENT_NODE)
         {
-            result = concat_with_whitespace(result, collect_text(elem_first_child(node)));
+            _collect_text(elem_first_child(node), substrings);
         }
         node = node->next;
     }
+}
 
-    return result;
+// Grab and join all text inside this node
+std::string collect_text(xmlNodePtr node)
+{
+    std::vector<const char*> substrings;
+    _collect_text(node, substrings);
+
+    return compact_strings(substrings);
 }
 
 std::optional<NavPoint> try_parse_anchor(xmlNodePtr anchor, const std::filesystem::path &base_path)

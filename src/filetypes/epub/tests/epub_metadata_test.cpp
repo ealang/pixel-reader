@@ -170,7 +170,7 @@ TEST(EPUB_METADATA, epub_parse_nav__basic)
         "            <ol class=\"none\">"
         "                <li><a href=\"file1.xhtml\">Item 1</a></li>"
         "                <li><a href=\"file2.xhtml\">Item 2</a></li>"
-        "                <li><span><span>Item</span><span>3</span></span></li>"
+        "                <li><span><span>Item</span> <span>3</span></span></li>"
         "            </ol>"
         "        </nav>"
         "    </body>"

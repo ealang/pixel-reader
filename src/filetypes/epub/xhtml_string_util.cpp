@@ -31,3 +31,41 @@ std::string compact_whitespace(const char *str)
 
     return result;
 }
+
+std::string compact_strings(const std::vector<const char*> &strings)
+{
+    std::string result;
+    {
+        uint32_t upper_size = 0;
+        for (const char *str : strings)
+        {
+            upper_size += strlen(str);
+        }
+        result.reserve(upper_size);
+    }
+
+    for (const char *str : strings)
+    {
+        std::string substring = compact_whitespace(str);
+
+        if (result.empty())
+        {
+            substring = strip_whitespace_left(substring);
+        }
+
+        bool space_left = result.empty() ? false : is_whitespace(result[result.size() - 1]);
+        bool space_right = substring.empty() ? false : is_whitespace(substring[0]);
+        if (space_left && space_right)
+        {
+            substring = strip_whitespace_left(substring);
+        }
+
+        result.append(substring);
+    }
+
+    if (!result.empty() && is_whitespace(result[result.size() - 1]))
+    {
+        result = strip_whitespace_right(result);
+    }
+    return result;
+}

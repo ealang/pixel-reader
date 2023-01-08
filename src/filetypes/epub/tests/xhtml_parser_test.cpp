@@ -6,19 +6,21 @@ static void ASSERT_TOKENS_EQ(const std::vector<DocToken> &actual_tokens, const s
 {
     auto actual_it = actual_tokens.begin();
     auto expected_it = expected_tokens.begin();
+    int i = 0;
     while (actual_it != actual_tokens.end() && expected_it != expected_tokens.end())
     {
         const auto &actual = *actual_it;
         const auto &expected = *expected_it;
     
-        EXPECT_EQ(actual.type, expected.type);
-        EXPECT_EQ(actual.address, expected.address);
-        EXPECT_EQ(actual.data, expected.data);
+        EXPECT_EQ(actual.type, expected.type) << i << ": Type didn't match";
+        EXPECT_EQ(actual.address, expected.address) << i << ": Address didn't match";
+        EXPECT_EQ(actual.data, expected.data) << i << ": Data didn't match";
     
         ASSERT_EQ(actual, expected);
     
         ++actual_it;
         ++expected_it;
+        ++i;
     }
 
     ASSERT_EQ(actual_tokens.size(), expected_tokens.size());
@@ -33,7 +35,7 @@ static std::vector<DocToken> _parse_xhtml_tokens(const char *xml)
     return tokens;
 }
 
-TEST(XHTML_PARSER, basic_text_in_valid_xhtml)
+TEST(XHTML_PARSER, basic_text_valid_xhtml)
 {
     const char *xml = (
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"
@@ -49,7 +51,7 @@ TEST(XHTML_PARSER, basic_text_in_valid_xhtml)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Text, 0, "Text "}
+        {TokenType::Text, 0, "Text"}
     };
   
     ASSERT_TOKENS_EQ(
@@ -67,13 +69,7 @@ TEST(XHTML_PARSER, whitespace_compaction)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Text,  0, "This " },
-        {TokenType::Text,  4, "has "  },
-        {TokenType::Text,  7, "some " },
-        {TokenType::Text, 11, "extra" },
-        {TokenType::Text, 16, " white"},
-        {TokenType::Text, 21, " "     },
-        {TokenType::Text, 21, "space "}
+        {TokenType::Text,  0, "This has some extra white space"},
     };
   
     ASSERT_TOKENS_EQ(
@@ -92,10 +88,8 @@ TEST(XHTML_PARSER, line_break)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Text,       0, "Line 1"},
-        {TokenType::TextBreak,  5, ""      },
-        {TokenType::Text,       5, "Line 2"},
-        {TokenType::TextBreak, 10, ""      }
+        {TokenType::Text, 0, "Line 1"},
+        {TokenType::Text, 5, "Line 2"},
     };
   
     ASSERT_TOKENS_EQ(
@@ -122,10 +116,10 @@ TEST(XHTML_PARSER, section_compaction)
     );
   
     std::vector<DocToken> expected_tokens {
-        {TokenType::Text,     0, "Some text. "},
-        {TokenType::Section,  9, ""           },
-        {TokenType::Text,     9, "Some more. "},
-        {TokenType::Section, 18, ""           }
+        {TokenType::Text, 0,  "Some text."},
+        {TokenType::Text, 9,  ""           },
+        {TokenType::Text, 9,  "Some more."},
+        {TokenType::Text, 18, ""           }
     };
   
     ASSERT_TOKENS_EQ(
@@ -135,20 +129,54 @@ TEST(XHTML_PARSER, section_compaction)
 }
 
 TEST(XHTML_PARSER, image_addresses)
+TEST(XHTML_PARSER, pre_elems)
+{
+    const char *xml = (
+        "<html><body>"
+            "<span>start</span>"
+
+            "<pre>line1\r\n"
+            "line2\r\n"
+            "line3</pre>"
+
+            "<pre>line4</pre>"
+
+            "<span>end</span>"
+        "</body></html>"
+    );
+
+    std::vector<DocToken> expected_tokens {
+        {TokenType::Text, 0, "start"              },
+        {TokenType::Text, 5, ""                   },
+        {TokenType::Text, 5, "line1\nline2\nline3"},
+        {TokenType::Text, 20, ""                  },
+        {TokenType::Text, 20, "line4"             },
+        {TokenType::Text, 25, ""                  },
+        {TokenType::Text, 25, "end"               },
+    };
+
+    ASSERT_TOKENS_EQ(
+        _parse_xhtml_tokens(xml),
+        expected_tokens
+    );
+}
+
+TEST(XHTML_PARSER, image_elems)
 {
     const char *xml = (
         "<html><body>"
         "<img src=\"foo.png\"></img>"
+        "<img src=\"../bar.png\"></img>"
         "<div>Line 2</div>"
         "</body></html>"
     );
-  
+
     std::vector<DocToken> expected_tokens {
-        {TokenType::Image,      0, "/base/foo.png"},
-        {TokenType::Text,       1, "Line 2"},
-        {TokenType::TextBreak,  6, ""},
+        {TokenType::Image, 0, "/base/foo.png"},
+        {TokenType::Image, 1, "/bar.png"},
+        {TokenType::Text,  2, "Line 2"},
     };
-  
+
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
         expected_tokens

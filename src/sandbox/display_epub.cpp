@@ -1,6 +1,6 @@
 #include "doc_api/token_addressing.h"
 #include "filetypes/epub/epub_reader.h"
-#include "./cli_wrap_lines.h"
+#include "./cli_render_lines.h"
 
 #include <iostream>
 #include <iomanip>
@@ -66,7 +66,7 @@ void display_epub(std::string path)
     // Display book
     TocPosition last_progress {0, 0};
     uint32_t line_count = 0;
-    for (const auto &line: cli_wrap_lines(tokens, 80))
+    for (const auto &line: cli_render_tokens(tokens, 80))
     {
         auto progress = epub.get_toc_position(line.address);
 

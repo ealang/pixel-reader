@@ -6,10 +6,6 @@ std::string to_string(TokenType type)
     {
         case TokenType::Text:
             return "Text";
-        case TokenType::TextBreak:
-            return "TextBreak";
-        case TokenType::Section:
-            return "Section";
         case TokenType::Image:
             return "Image";
         default:

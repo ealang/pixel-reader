@@ -89,6 +89,11 @@ std::string strip_whitespace(const char *str)
     return std::string(start, end - start);
 }
 
+std::string strip_whitespace(const std::string &str)
+{
+    return strip_whitespace(str.c_str());
+}
+
 std::string strip_whitespace_left(const std::string &str)
 {
     return _strip_whitespace_left(str.c_str());

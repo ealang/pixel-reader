@@ -23,8 +23,10 @@ static std::vector<std::string> default_invocation(const char *str, unsigned int
 
 TEST(TEXT_WRAP, empty_string)
 {
-    auto lines = default_invocation("");
-    EXPECT_EQ(lines.size(), 0);
+    EXPECT_EQ(
+        default_invocation(""),
+        (std::vector<std::string>{""})
+    );
 }
 
 

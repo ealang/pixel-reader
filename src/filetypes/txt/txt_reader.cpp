@@ -31,30 +31,11 @@ bool tokenize_text_file(const std::filesystem::path &path, std::vector<DocToken>
             )
         );
 
-        if (line.empty())
-        {
-            tokens_out.emplace_back(
-                TokenType::Section,
-                cur_address,
-                ""
-            );
-        }
-        else
-        {
-            tokens_out.emplace_back(
-                TokenType::Text,
-                cur_address,
-                line
-            );
-
-            cur_address += get_address_width(tokens_out.back());
-
-            tokens_out.emplace_back(
-                TokenType::TextBreak,
-                cur_address,
-                ""
-            );
-        }
+        tokens_out.emplace_back(
+            TokenType::Text,
+            cur_address,
+            line
+        );
 
         cur_address += get_address_width(tokens_out.back());
     }
