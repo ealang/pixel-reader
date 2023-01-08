@@ -82,7 +82,11 @@ std::vector<std::unique_ptr<DisplayLine>> TokenLineScroller::token_to_display_li
     switch (token.type)
     {
         case TokenType::Text:
-            line = std::make_unique<TextLine>(token.address, token.data);
+        case TokenType::Header:
+            {
+                bool centered = token.type == TokenType::Header;
+                line = std::make_unique<TextLine>(token.address, token.data, centered);
+            }
             break;
         default:
             break;

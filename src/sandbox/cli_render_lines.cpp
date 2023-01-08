@@ -22,6 +22,17 @@ std::vector<Line> cli_render_tokens(
         {
             out.emplace_back(token.data, token.address);
         }
+        else if (token.type == TokenType::Header)
+        {
+            int num_spaces = std::max(
+                ((int)max_column_width - (int)token.data.size()) / 2,
+                0
+            );
+            out.emplace_back(
+                std::string(num_spaces, ' ') + token.data,
+                token.address
+            );
+        }
         else if (token.type == TokenType::Image)
         {
             out.emplace_back("[Image " + token.data + "]", token.address);

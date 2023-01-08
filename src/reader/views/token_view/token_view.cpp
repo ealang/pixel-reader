@@ -175,10 +175,11 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
         {
             if (line->type == DisplayLine::Type::Text)
             {
-                const char *s = static_cast<const TextLine *>(line)->text.c_str();
+                const auto *text_line = static_cast<const TextLine *>(line);
+                const char *s = text_line->text.c_str();
                 auto surface = surface_unique_ptr { TTF_RenderUTF8_Shaded(font, s, theme.main_text, theme.background) };
                 SDL_Rect dest_rect = {
-                    static_cast<Sint16>(line_padding),
+                    static_cast<Sint16>(line_padding + (text_line->centered ? (SCREEN_WIDTH - 2 * line_padding - surface->w) /2 : 0)),
                     static_cast<Sint16>(line_y + line_padding / 2),
                     0, 0
                 };

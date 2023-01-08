@@ -5,9 +5,10 @@ DisplayLine::DisplayLine(DocAddr address, Type type)
 {
 }
 
-TextLine::TextLine(DocAddr addr, const std::string& text)
+TextLine::TextLine(DocAddr addr, const std::string& text, bool centered)
     : DisplayLine{addr, DisplayLine::Type::Text}
     , text{text}
+    , centered{centered}
 {
 }
 

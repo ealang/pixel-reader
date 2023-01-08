@@ -7,6 +7,7 @@ enum class TokenType
 {
     Text,
     Image,
+    Header,
 };
 
 std::string to_string(TokenType type);

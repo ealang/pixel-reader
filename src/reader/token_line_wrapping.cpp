@@ -11,7 +11,7 @@ void line_wrap_token(
     std::function<void(const DocToken &)> for_each
 )
 {
-    if (token.type == TokenType::Text)
+    if (token.type == TokenType::Text || token.type == TokenType::Header)
     {
         DocAddr address = token.address;
         wrap_lines(token.data.c_str(), text_fits_on_line, [&](const char *str, uint32_t len) {

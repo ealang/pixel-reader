@@ -37,7 +37,7 @@ uint32_t get_address_width(const char *str)
 
 uint32_t get_address_width(const DocToken &token)
 {
-    if (token.type == TokenType::Text)
+    if (token.type == TokenType::Text || token.type == TokenType::Header)
     {
         return get_address_width(token.data.c_str());
     }

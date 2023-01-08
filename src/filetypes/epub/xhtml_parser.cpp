@@ -46,6 +46,12 @@ enum class ElementType
 };
 
 const std::unordered_map<std::string, ElementType> _elem_name_to_enum {
+    {"h1",    ElementType::H},
+    {"h2",    ElementType::H},
+    {"h3",    ElementType::H},
+    {"h4",    ElementType::H},
+    {"h5",    ElementType::H},
+    {"h6",    ElementType::H},
     {"p",     ElementType::P},
     {"ol",    ElementType::Ol},
     {"ul",    ElementType::Ul},
@@ -97,6 +103,7 @@ class NodeProcessor
         enum class Type
         {
             InlineText,
+            InlineHeader,
             InlineBreak,
             SectionSeparator,
             Image,
@@ -120,6 +127,9 @@ class NodeProcessor
                 case Type::InlineText:
                     typestr = "InlineText";
                     break;
+                case Type::InlineHeader:
+                    typestr = "InlineHeader";
+                    break;
                 case Type::InlineBreak:
                     typestr = "InlineBreak";
                     break;
@@ -139,6 +149,7 @@ class NodeProcessor
 
     int list_depth = 0;     // depth inside ul/ol tags
     int pre_depth = 0;      // depth inside pre tags
+    int header_depth = 0;   // depth inside header tags
 
     DocAddr current_address;
     std::filesystem::path base_path;  // directory of file (for resolving relative paths)
@@ -180,7 +191,7 @@ public:
         {
             emit_node(
                 node_depth,
-                Node::Type::InlineText,
+                header_depth > 0 ? Node::Type::InlineHeader : Node::Type::InlineText,
                 node
             );
 
@@ -208,6 +219,10 @@ public:
 
         switch (elem_name_to_enum(node->name))
         {
+            case ElementType::H:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                ++header_depth;
+                break;
             case ElementType::Ol:
             case ElementType::Ul:
                 emit_node(node_depth, Node::Type::SectionSeparator, node);
@@ -238,6 +253,10 @@ public:
         ElementType elem_type = elem_name_to_enum(node->name);
         switch (elem_type)
         {
+            case ElementType::H:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                --header_depth;
+                break;
             case ElementType::Ol:
             case ElementType::Ul:
                 emit_node(node_depth, Node::Type::SectionSeparator, node);
@@ -273,7 +292,7 @@ public:
     {
         auto get_group_size = [&_nodes=this->nodes](uint32_t i) -> uint32_t {
             Node::Type head_type = _nodes[i].type;
-            if (head_type == Node::Type::InlineText)
+            if (head_type == Node::Type::InlineText || head_type == Node::Type::InlineHeader)
             {
                 bool head_pre = _nodes[i].is_pre;
 
@@ -307,6 +326,7 @@ public:
             switch (type)
             {
                 case Node::Type::InlineText:
+                case Node::Type::InlineHeader:
                     if (!head.is_pre)
                     {
                         // Compact text types
@@ -325,7 +345,7 @@ public:
                         if (text.size())
                         {
                             tokens_out.emplace_back(
-                                Node::Type::InlineText,
+                                type == Node::Type::InlineText ? TokenType::Text : TokenType::Header,
                                 address,
                                 text
                             );

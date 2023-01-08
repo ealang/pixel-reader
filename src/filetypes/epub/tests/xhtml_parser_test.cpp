@@ -128,7 +128,36 @@ TEST(XHTML_PARSER, section_compaction)
     );
 }
 
-TEST(XHTML_PARSER, image_addresses)
+TEST(XHTML_PARSER, header_elems)
+{
+    const char *xml = (
+        "<html><body>"
+        "  <h1>heading <span>1</span></h1>"
+        "  <h1>heading 2</h1>"
+        "  <h6>heading 3</h6>"
+        "  <p>"
+        "    Some text"
+        "  </p>"
+        "</body></html>"
+    );
+
+    std::vector<DocToken> expected_tokens {
+        {TokenType::Header, 0,  "heading 1"},
+        {TokenType::Text,   8,  ""         },
+        {TokenType::Header, 8,  "heading 2"},
+        {TokenType::Text,   16, ""         },
+        {TokenType::Header, 16, "heading 3"},
+        {TokenType::Text,   24, ""         },
+        {TokenType::Text,   24, "Some text"},
+        {TokenType::Text,   32, ""         },
+    };
+
+    ASSERT_TOKENS_EQ(
+        _parse_xhtml_tokens(xml),
+        expected_tokens
+    );
+}
+
 TEST(XHTML_PARSER, pre_elems)
 {
     const char *xml = (
