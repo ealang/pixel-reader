@@ -165,7 +165,7 @@ TEST(XHTML_PARSER, pre_elems)
             "<span>start</span>"
 
             "<pre>line1\r\n"
-            "line2\r\n"
+            "<span>line2</span>\r\n"
             "line3</pre>"
 
             "<pre>line4</pre>"

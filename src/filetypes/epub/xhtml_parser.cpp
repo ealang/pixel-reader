@@ -327,9 +327,9 @@ public:
             {
                 case Node::Type::InlineText:
                 case Node::Type::InlineHeader:
+                    // Compact text types
                     if (!head.is_pre)
                     {
-                        // Compact text types
                         std::vector<const char*> substrings;
                         substrings.reserve(group_size);
                         for (uint32_t j = i; j < i + group_size; ++j)
@@ -354,15 +354,27 @@ public:
                     }
                     else
                     {
+                        std::vector<std::string> substrings;
+                        substrings.reserve(group_size);
                         for (uint32_t j = i; j < i + group_size; ++j)
+                        {
+                            const xmlChar *substr = nodes[j].node->content;
+                            if (substr)
+                            {
+                                substrings.push_back(remove_carriage_returns((const char*)substr));
+                            }
+                        }
+
+                        std::string text = join_strings(substrings);
+                        if (text.size())
                         {
                             tokens_out.emplace_back(
                                 TokenType::Text,
-                                nodes[j].address,
-                                remove_carriage_returns((const char *)nodes[j].node->content)
+                                nodes[i].address,
+                                text
                             );
+                            separator_allowed = true;
                         }
-                        separator_allowed = true;
                     }
                     break;
                 case Node::Type::Image:

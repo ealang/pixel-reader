@@ -50,3 +50,12 @@ TEST(STR_UTILS, convert_tabs_to_space)
     EXPECT_EQ(convert_tabs_to_space("\tfoo\t", 2), "  foo  ");
     EXPECT_EQ(convert_tabs_to_space("\tf\too", 0), "foo");
 }
+
+TEST(STR_UTILS, join_strings)
+{
+    EXPECT_EQ(join_strings({}), "");
+    EXPECT_EQ(join_strings({""}), "");
+    EXPECT_EQ(join_strings({"a"}), "a");
+    EXPECT_EQ(join_strings({"a", "b"}), "ab");
+    EXPECT_EQ(join_strings({"a", "", "b", ""}), "ab");
+}

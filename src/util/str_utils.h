@@ -2,6 +2,7 @@
 #define STR_UTILS_H_
 
 #include <string>
+#include <vector>
 
 std::string to_lower(const std::string &str);
 
@@ -20,5 +21,7 @@ inline bool is_whitespace(char c)
 }
 
 std::string convert_tabs_to_space(const std::string &str, int tab_width);
+
+std::string join_strings(const std::vector<std::string> &strings);
 
 #endif
