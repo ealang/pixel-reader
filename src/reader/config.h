@@ -11,15 +11,17 @@
 
 #define MIN_FONT_SIZE      18
 #define MAX_FONT_SIZE      32
-#define DEFAULT_FONT_SIZE  24
+#define DEFAULT_FONT_SIZE  26
 #define FONT_SIZE_STEP     2
 
 #define DEFAULT_COLOR_THEME "night_contrast"
 
 #if PLATFORM_MIYOO_MINI
     #define EXTRA_FONTS_LIST {"/customer/app/wqy-microhei.ttc"}
+    #define DEFAULT_BROWSE_PATH "/mnt/SDCARD/"
 #else
     #define EXTRA_FONTS_LIST {}
+    #define DEFAULT_BROWSE_PATH std::filesystem::current_path() / ""
 #endif
 
 #define DEFAULT_SHOW_PROGRESS true

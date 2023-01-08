@@ -19,7 +19,7 @@ static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
     {
         "light_contrast",
         {
-            {250, 250, 250, 0}, // background
+            {255, 255, 255, 0}, // background
             {0, 0, 0, 0},       // main text
             {160, 160, 160, 0}, // secondary text
             {163, 81, 200, 0},  // highlight background
@@ -30,7 +30,7 @@ static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
         "light_sepia",
         {
             {250, 240, 220, 0}, // background
-            {32, 32, 32, 0},    // main text
+            {0, 0, 0, 0},    // main text
             {160, 160, 160, 0}, // secondary text
             {163, 81, 200, 0},  // highlight background
             {250, 240, 220, 0}, // highlight text

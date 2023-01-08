@@ -28,7 +28,7 @@ namespace
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
 {
-    auto browse_path = state_store.get_current_browse_path().value_or(std::filesystem::current_path() / "");
+    auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
         browse_path,
         sys_styling
