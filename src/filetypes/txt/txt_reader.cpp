@@ -11,7 +11,7 @@ namespace
 
 constexpr uint32_t SPACES_PER_TAB = 4;
 
-bool tokenize_text_file(const std::filesystem::path &path, std::vector<DocToken> &tokens_out)
+bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::unique_ptr<DocToken>> &tokens_out)
 {
     std::ifstream file(path);
     if (!file.is_open())
@@ -31,13 +31,9 @@ bool tokenize_text_file(const std::filesystem::path &path, std::vector<DocToken>
             )
         );
 
-        tokens_out.emplace_back(
-            TokenType::Text,
-            cur_address,
-            line
-        );
+        tokens_out.emplace_back(std::make_unique<TextDocToken>(cur_address, line));
 
-        cur_address += get_address_width(tokens_out.back());
+        cur_address += get_address_width(*tokens_out.back().get());
     }
 
     return true;
@@ -49,7 +45,7 @@ struct TxtReaderState
 {
     std::filesystem::path path;
     std::vector<TocItem> toc;
-    std::vector<DocToken> tokens;
+    std::vector<std::unique_ptr<DocToken>> tokens;
     bool is_open = false;
     uint32_t total_address_width = 0;
 
@@ -77,8 +73,8 @@ bool TxtReader::open()
     state->is_open = tokenize_text_file(state->path, state->tokens);
     if (state->is_open && state->tokens.size())
     {
-        const auto &last_token = state->tokens.back();
-        state->total_address_width = get_text_number(last_token.address) + get_address_width(last_token);
+        const auto *last_token = state->tokens.back().get();
+        state->total_address_width = get_text_number(last_token->address) + get_address_width(*last_token);
     }
 
     return state->is_open;
@@ -117,7 +113,7 @@ std::shared_ptr<TokenIter> TxtReader::get_iter(DocAddr address) const
     return std::make_shared<TxtTokenIter>(state->tokens, address);
 }
 
-std::vector<char> TxtReader::load_resource(std::filesystem::path) const
+std::vector<char> TxtReader::load_resource(const std::filesystem::path &) const
 {
     throw std::runtime_error("Load resource is not supported for txt");
 }

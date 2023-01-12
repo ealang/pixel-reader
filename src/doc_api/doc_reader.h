@@ -35,7 +35,7 @@ public:
 
     virtual std::shared_ptr<TokenIter> get_iter(DocAddr address = make_address()) const = 0;
 
-    virtual std::vector<char> load_resource(std::filesystem::path path) const = 0;
+    virtual std::vector<char> load_resource(const std::filesystem::path &path) const = 0;
 };
 
 #endif

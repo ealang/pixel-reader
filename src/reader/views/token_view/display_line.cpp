@@ -14,7 +14,7 @@ TextLine::TextLine(DocAddr addr, const std::string& text, bool centered)
 
 ImageLine::ImageLine(
     DocAddr addr,
-    const std::string& image_path,
+    const std::filesystem::path& image_path,
     uint32_t num_lines,
     uint32_t width,
     uint32_t height

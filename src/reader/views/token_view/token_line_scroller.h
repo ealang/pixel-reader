@@ -30,8 +30,8 @@ class TokenLineScroller
     IndexedDequeue<std::unique_ptr<DisplayLine>> lines_buf;
     SDLImageCache image_cache;
 
-    std::vector<std::unique_ptr<DisplayLine>> image_to_display_lines(const DocToken &token);
-    std::vector<std::unique_ptr<DisplayLine>> token_to_display_lines(const DocToken &token);
+    std::vector<std::unique_ptr<DisplayLine>> image_to_display_lines(const ImageDocToken &token);
+    std::vector<std::unique_ptr<DisplayLine>> render_display_lines(const DocToken &token);
 
     void get_more_lines_forward(uint32_t num);
     void get_more_lines_backward(uint32_t num);
@@ -57,7 +57,7 @@ public:
     std::optional<int> first_line_number() const;
     std::optional<int> end_line_number() const;
 
-    SDL_Surface *load_scaled_image(const std::string &path);
+    SDL_Surface *load_scaled_image(const std::filesystem::path &path);
 };
 
 #endif

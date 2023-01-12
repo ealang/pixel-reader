@@ -2,6 +2,7 @@
 #define DISPLAY_LINE_H_
 
 #include "doc_api/doc_addr.h"
+#include <filesystem>
 #include <string>
 
 struct DisplayLine
@@ -31,13 +32,13 @@ struct TextLine: public DisplayLine
 
 struct ImageLine: public DisplayLine
 {
-    std::string image_path;
+    std::filesystem::path image_path;
     uint32_t num_lines;
     uint32_t width, height;
 
     ImageLine(
         DocAddr addr,
-        const std::string& image_path,
+        const std::filesystem::path& image_path,
         uint32_t num_lines,
         uint32_t width,
         uint32_t height

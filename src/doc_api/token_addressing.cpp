@@ -35,15 +35,22 @@ uint32_t get_address_width(const char *str)
     return count;
 }
 
+uint32_t get_address_width(const std::string &str)
+{
+    return get_address_width(str.c_str());
+}
+
 uint32_t get_address_width(const DocToken &token)
 {
-    if (token.type == TokenType::Text || token.type == TokenType::Header)
+    switch (token.type)
     {
-        return get_address_width(token.data.c_str());
+        case TokenType::Text:
+            return get_address_width(static_cast<const TextDocToken &>(token).text);
+        case TokenType::Header:
+            return get_address_width(static_cast<const HeaderDocToken &>(token).text);
+        case TokenType::Image:
+            return 1;
+        default:
+            throw std::runtime_error("Unknown token type");
     }
-    else if (token.type == TokenType::Image)
-    {
-        return 1;
-    }
-    return 0;
 }

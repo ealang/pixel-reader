@@ -1,27 +1,109 @@
 #include "./doc_token.h"
 
-DocToken::DocToken(TokenType type, DocAddr address, std::string data)
-    : type(type), address(address), data(std::move(data))
+DocToken::DocToken(TokenType type, DocAddr address)
+    : type(type), address(address)
 {
 }
 
 bool DocToken::operator==(const DocToken &other) const
 {
-    return type == other.type && address == other.address && data == other.data;
+    return type == other.type && address == other.address;
 }
 
-std::string to_string(const DocToken &token)
+std::string DocToken::common_to_string(std::string data) const
 {
     return (
         "[DocToken "
-        "address=" + to_string(token.address) + ", "
-        "type=" + to_string(token.type) +
+        "address=" + ::to_string(address) + ", "
+        "type=" + ::to_string(type) +
         (
-            token.data.empty()
+            data.empty()
             ? ""
-            : ", data=\"" + token.data + "\""
+            : ", data=\"" + data + "\""
         ) +
         "]"
     );
 }
 
+////////////////////////
+
+HeaderDocToken::HeaderDocToken(DocAddr address, const std::string &text)
+    : DocToken(TokenType::Header, address), text(text)
+{
+}
+
+bool HeaderDocToken::operator==(const DocToken &other) const
+{
+    if (!DocToken::operator==(other))
+    {
+        return false;
+    }
+    const HeaderDocToken &other_header = static_cast<const HeaderDocToken &>(other);
+    return text == other_header.text;
+}
+
+std::string HeaderDocToken::to_string() const
+{
+    return common_to_string(text);
+}
+
+////////////////////////
+
+TextDocToken::TextDocToken(DocAddr address, const std::string &text)
+    : DocToken(TokenType::Text, address), text(text)
+{
+}
+
+bool TextDocToken::operator==(const DocToken &other) const
+{
+    if (!DocToken::operator==(other))
+    {
+        return false;
+    }
+    const TextDocToken &other_text = static_cast<const TextDocToken &>(other);
+    return text == other_text.text;
+}
+
+std::string TextDocToken::to_string() const
+{
+    return common_to_string(text);
+}
+
+////////////////////////
+
+ImageDocToken::ImageDocToken(DocAddr address, const std::filesystem::path &path)
+    : DocToken(TokenType::Image, address), path(path)
+{
+}
+
+bool ImageDocToken::operator==(const DocToken &other) const
+{
+    if (!DocToken::operator==(other))
+    {
+        return false;
+    }
+    const ImageDocToken &other_image = static_cast<const ImageDocToken &>(other);
+    return path == other_image.path;
+}
+
+std::string ImageDocToken::to_string() const
+{
+    return common_to_string(path);
+}
+
+////////////////////////
+
+std::string to_string(TokenType type)
+{
+    switch (type)
+    {
+        case TokenType::Text:
+            return "Text";
+        case TokenType::Header:
+            return "Header";
+        case TokenType::Image:
+            return "Image";
+        default:
+            return "Unknown";
+    }
+}

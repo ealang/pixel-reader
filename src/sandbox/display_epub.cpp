@@ -19,7 +19,7 @@ void display_epub(std::string path)
     }
 
     // Read entire book
-    std::vector<DocToken> tokens;
+    std::vector<const DocToken*> tokens;
     {
         auto it = epub.get_iter();
         const DocToken *token = nullptr;
@@ -27,12 +27,13 @@ void display_epub(std::string path)
         {
             if (token->type == TokenType::Image)
             {
-                if (!epub.load_resource(token->data).size())
+                const auto *image_token = static_cast<const ImageDocToken*>(token);
+                if (!epub.load_resource(image_token->path).size())
                 {
-                    std::cerr << "Unable to load image: " << token->data << std::endl;
+                    std::cerr << "Unable to load image: " << image_token->path << std::endl;
                 }
             }
-            tokens.push_back(*token);
+            tokens.push_back(token);
         }
     }
 
@@ -50,7 +51,7 @@ void display_epub(std::string path)
             bool found_matching_addr = false;
             for (const auto &token : tokens)
             {
-                if (toc_addr == token.address)
+                if (toc_addr == token->address)
                 {
                     found_matching_addr = true;
                     break;

@@ -8,10 +8,10 @@
 class TxtTokenIter: public TokenIter
 {
     uint32_t i = 0;
-    const std::vector<DocToken> &tokens;
+    const std::vector<std::unique_ptr<DocToken>> &tokens;
 
 public:
-    TxtTokenIter(const std::vector<DocToken> &tokens, DocAddr address);
+    TxtTokenIter(const std::vector<std::unique_ptr<DocToken>> &tokens, DocAddr address);
     TxtTokenIter(const TxtTokenIter &);
 
     const DocToken *read(int direction) override;

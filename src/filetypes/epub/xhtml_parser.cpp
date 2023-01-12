@@ -288,7 +288,7 @@ public:
     }
 
     // Merge inline text types, emit DocTokens
-    void generate_doc_tokens(std::vector<DocToken> &tokens_out) const
+    void generate_doc_tokens(std::vector<std::unique_ptr<DocToken>> &tokens_out) const
     {
         auto get_group_size = [&_nodes=this->nodes](uint32_t i) -> uint32_t {
             Node::Type head_type = _nodes[i].type;
@@ -344,11 +344,21 @@ public:
                         std::string text = compact_strings(substrings);
                         if (text.size())
                         {
-                            tokens_out.emplace_back(
-                                type == Node::Type::InlineText ? TokenType::Text : TokenType::Header,
-                                address,
-                                text
-                            );
+                            if (type == Node::Type::InlineText)
+                            {
+                                tokens_out.push_back(std::make_unique<TextDocToken>(
+                                    address,
+                                    text
+                                ));
+                            }
+                            else
+                            {
+                                tokens_out.push_back(std::make_unique<HeaderDocToken>(
+                                    address,
+                                    text
+                                ));
+                            }
+
                             separator_allowed = true;
                         }
                     }
@@ -368,11 +378,10 @@ public:
                         std::string text = join_strings(substrings);
                         if (text.size())
                         {
-                            tokens_out.emplace_back(
-                                TokenType::Text,
-                                nodes[i].address,
+                            tokens_out.push_back(std::make_unique<TextDocToken>(
+                                address,
                                 text
-                            );
+                            ));
                             separator_allowed = true;
                         }
                     }
@@ -384,10 +393,10 @@ public:
                         if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
                         if (img_path)
                         {
-                            std::string data = (
+                            tokens_out.push_back(std::make_unique<ImageDocToken>(
+                                address,
                                 (base_path / (const char*)img_path).lexically_normal()
-                            );
-                            tokens_out.emplace_back(TokenType::Image, address, data);
+                            ));
                         }
                         else
                         {
@@ -400,11 +409,10 @@ public:
                 case Node::Type::SectionSeparator:
                     if (separator_allowed)
                     {
-                        tokens_out.emplace_back(
-                            TokenType::Text,
+                        tokens_out.push_back(std::make_unique<TextDocToken>(
                             address,
                             ""
-                        );
+                        ));
 
                         separator_allowed = false;
                     }
@@ -448,7 +456,7 @@ void visit_nodes(xmlNodePtr node, NodeProcessor &processor, int node_depth = 0)
 
 } // namespace
 
-bool parse_xhtml_tokens(const char *xml_str, std::filesystem::path file_path, uint32_t chapter_number, std::vector<DocToken> &tokens_out, std::unordered_map<std::string, DocAddr> &id_to_addr_out)
+bool parse_xhtml_tokens(const char *xml_str, std::filesystem::path file_path, uint32_t chapter_number, std::vector<std::unique_ptr<DocToken>> &tokens_out, std::unordered_map<std::string, DocAddr> &id_to_addr_out)
 {
     xmlDocPtr doc = xmlReadMemory(xml_str, strlen(xml_str), nullptr, nullptr, XML_PARSE_NOERROR | XML_PARSE_NOWARNING | XML_PARSE_RECOVER);
     if (doc == nullptr)

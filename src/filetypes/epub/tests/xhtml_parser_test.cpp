@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-static void ASSERT_TOKENS_EQ(const std::vector<DocToken> &actual_tokens, const std::vector<DocToken> &expected_tokens)
+static void ASSERT_TOKENS_EQ(const std::vector<std::unique_ptr<DocToken>> &actual_tokens, const std::vector<std::unique_ptr<DocToken>> &expected_tokens)
 {
     auto actual_it = actual_tokens.begin();
     auto expected_it = expected_tokens.begin();
@@ -12,11 +12,9 @@ static void ASSERT_TOKENS_EQ(const std::vector<DocToken> &actual_tokens, const s
         const auto &actual = *actual_it;
         const auto &expected = *expected_it;
     
-        EXPECT_EQ(actual.type, expected.type) << i << ": Type didn't match";
-        EXPECT_EQ(actual.address, expected.address) << i << ": Address didn't match";
-        EXPECT_EQ(actual.data, expected.data) << i << ": Data didn't match";
-    
-        ASSERT_EQ(actual, expected);
+        EXPECT_EQ(actual->type, expected->type) << i << ": Type didn't match";
+        EXPECT_EQ(actual->address, expected->address) << i << ": Address didn't match";
+        ASSERT_EQ(*actual.get(), *expected.get()) << i << ": Token didn't match";
     
         ++actual_it;
         ++expected_it;
@@ -24,12 +22,11 @@ static void ASSERT_TOKENS_EQ(const std::vector<DocToken> &actual_tokens, const s
     }
 
     ASSERT_EQ(actual_tokens.size(), expected_tokens.size());
-    ASSERT_EQ(actual_tokens, expected_tokens);
 }
 
-static std::vector<DocToken> _parse_xhtml_tokens(const char *xml)
+static std::vector<std::unique_ptr<DocToken>> _parse_xhtml_tokens(const char *xml)
 {
-    std::vector<DocToken> tokens;
+    std::vector<std::unique_ptr<DocToken>> tokens;
     std::unordered_map<std::string, DocAddr> ids;
     parse_xhtml_tokens(xml, "/base/file.xhtml", 0, tokens, ids);
     return tokens;
@@ -50,9 +47,8 @@ TEST(XHTML_PARSER, basic_text_valid_xhtml)
         "</html>"
     );
   
-    std::vector<DocToken> expected_tokens {
-        {TokenType::Text, 0, "Text"}
-    };
+    std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<TextDocToken>(0, "Text"));
   
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
@@ -68,9 +64,8 @@ TEST(XHTML_PARSER, whitespace_compaction)
         "</body></html>"
     );
   
-    std::vector<DocToken> expected_tokens {
-        {TokenType::Text,  0, "This has some extra white space"},
-    };
+    std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<TextDocToken>(0, "This has some extra white space"));
   
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
@@ -87,10 +82,9 @@ TEST(XHTML_PARSER, line_break)
         "</body></html>"
     );
   
-    std::vector<DocToken> expected_tokens {
-        {TokenType::Text, 0, "Line 1"},
-        {TokenType::Text, 5, "Line 2"},
-    };
+    std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<TextDocToken>(0, "Line 1"));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(5, "Line 2"));
   
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
@@ -115,12 +109,11 @@ TEST(XHTML_PARSER, section_compaction)
         "</body></html>"
     );
   
-    std::vector<DocToken> expected_tokens {
-        {TokenType::Text, 0,  "Some text."},
-        {TokenType::Text, 9,  ""           },
-        {TokenType::Text, 9,  "Some more."},
-        {TokenType::Text, 18, ""           }
-    };
+    std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<TextDocToken>(0,  "Some text."));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(9,  ""          ));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(9,  "Some more."));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(18, ""          ));
   
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
@@ -141,16 +134,15 @@ TEST(XHTML_PARSER, header_elems)
         "</body></html>"
     );
 
-    std::vector<DocToken> expected_tokens {
-        {TokenType::Header, 0,  "heading 1"},
-        {TokenType::Text,   8,  ""         },
-        {TokenType::Header, 8,  "heading 2"},
-        {TokenType::Text,   16, ""         },
-        {TokenType::Header, 16, "heading 3"},
-        {TokenType::Text,   24, ""         },
-        {TokenType::Text,   24, "Some text"},
-        {TokenType::Text,   32, ""         },
-    };
+    std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<HeaderDocToken>(0, "heading 1"));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(8, ""));
+    expected_tokens.push_back(std::make_unique<HeaderDocToken>(8, "heading 2"));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(16, ""));
+    expected_tokens.push_back(std::make_unique<HeaderDocToken>(16, "heading 3"));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(24, ""));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(24, "Some text"));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(32, ""));
 
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
@@ -174,15 +166,14 @@ TEST(XHTML_PARSER, pre_elems)
         "</body></html>"
     );
 
-    std::vector<DocToken> expected_tokens {
-        {TokenType::Text, 0, "start"              },
-        {TokenType::Text, 5, ""                   },
-        {TokenType::Text, 5, "line1\nline2\nline3"},
-        {TokenType::Text, 20, ""                  },
-        {TokenType::Text, 20, "line4"             },
-        {TokenType::Text, 25, ""                  },
-        {TokenType::Text, 25, "end"               },
-    };
+    std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<TextDocToken>(0, "start"              ));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(5, ""                   ));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(5, "line1\nline2\nline3"));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(20, ""                  ));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(20, "line4"             ));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(25, ""                  ));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(25, "end"               ));
 
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
@@ -200,11 +191,10 @@ TEST(XHTML_PARSER, image_elems)
         "</body></html>"
     );
 
-    std::vector<DocToken> expected_tokens {
-        {TokenType::Image, 0, "/base/foo.png"},
-        {TokenType::Image, 1, "/bar.png"},
-        {TokenType::Text,  2, "Line 2"},
-    };
+    std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<ImageDocToken>(0, "/base/foo.png"));
+    expected_tokens.push_back(std::make_unique<ImageDocToken>(1, "/bar.png"));
+    expected_tokens.push_back(std::make_unique<TextDocToken>(2, "Line 2"));
 
     ASSERT_TOKENS_EQ(
         _parse_xhtml_tokens(xml),
@@ -226,7 +216,7 @@ TEST(XHTML_PARSER, capture_ids)
         {"id2", 5},
     };
   
-    std::vector<DocToken> tokens;
+    std::vector<std::unique_ptr<DocToken>> tokens;
     std::unordered_map<std::string, DocAddr> ids;
     ASSERT_TRUE(parse_xhtml_tokens(xml, "", 0, tokens, ids));
 

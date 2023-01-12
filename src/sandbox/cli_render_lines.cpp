@@ -1,5 +1,7 @@
 #include "./cli_render_lines.h"
-#include "reader/token_line_wrapping.h"
+
+#include "doc_api/token_addressing.h"
+#include "reader/text_wrap.h"
 
 Line::Line(std::string text, DocAddr address)
     : text(std::move(text)), address(address)
@@ -7,7 +9,7 @@ Line::Line(std::string text, DocAddr address)
 }
 
 std::vector<Line> cli_render_tokens(
-    const std::vector<DocToken> &tokens,
+    const std::vector<const DocToken *> &tokens,
     uint32_t max_column_width
 )
 {
@@ -17,34 +19,37 @@ std::vector<Line> cli_render_tokens(
         return strlen <= max_column_width;
     };
 
-    auto on_token = [max_column_width, &out](const DocToken &token) {
-        if (token.type == TokenType::Text)
-        {
-            out.emplace_back(token.data, token.address);
-        }
-        else if (token.type == TokenType::Header)
-        {
-            int num_spaces = std::max(
-                ((int)max_column_width - (int)token.data.size()) / 2,
-                0
-            );
-            out.emplace_back(
-                std::string(num_spaces, ' ') + token.data,
-                token.address
-            );
-        }
-        else if (token.type == TokenType::Image)
-        {
-            out.emplace_back("[Image " + token.data + "]", token.address);
-        }
+    auto wrap_text = [&](DocAddr address, const std::string &text, bool centered = false)
+    {
+        uint32_t line_num = 0;
+        wrap_lines(text.c_str(), fits_on_line, [&](const char *str, uint32_t len) {
+            std::string line_text(str, len);
+
+            if (centered) {
+                int center_spacing = (max_column_width - line_text.size()) / 2;
+                line_text = std::string(center_spacing, ' ') + line_text;
+            }
+
+            out.emplace_back(line_text, address);
+            address += get_address_width(line_text);
+        });
     };
 
-    for (const auto &token : tokens) {
-        line_wrap_token(
-            token,
-            fits_on_line,
-            on_token
-        );
+    for (const auto *token : tokens) {
+        DocAddr address = token->address;
+        switch (token->type) {
+            case TokenType::Text:
+                wrap_text(address, static_cast<const TextDocToken *>(token)->text);
+                break;
+            case TokenType::Header:
+                wrap_text(address, static_cast<const HeaderDocToken *>(token)->text, true);
+                break;
+            case TokenType::Image:
+                wrap_text(address, "[Image " + static_cast<const ImageDocToken *>(token)->path.string() + "]");
+                break;
+            default:
+                break;
+        }
     }
 
     return out;

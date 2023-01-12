@@ -1,6 +1,6 @@
 #include "./txt_token_iter.h"
 
-TxtTokenIter::TxtTokenIter(const std::vector<DocToken> &tokens, DocAddr address)
+TxtTokenIter::TxtTokenIter(const std::vector<std::unique_ptr<DocToken>> &tokens, DocAddr address)
     : tokens(tokens)
 {
     seek(address);
@@ -38,14 +38,14 @@ const DocToken *TxtTokenIter::read(int direction)
         return nullptr;
     }
 
-    return &tokens[read_pos];
+    return tokens[read_pos].get();
 }
 
 void TxtTokenIter::seek(DocAddr address)
 {
     for (uint32_t j = 0; j < tokens.size(); ++j)
     {
-        DocAddr other_address = tokens[j].address;
+        DocAddr other_address = tokens[j]->address;
         if (other_address <= address)
         {
             i = j;

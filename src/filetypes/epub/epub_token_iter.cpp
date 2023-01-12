@@ -63,14 +63,14 @@ const DocToken *EPubTokenIter::read(int direction)
     {
         if (seek_to_prev())
         {
-            token = &index->tokens(current_spine_idx)[current_token_idx];
+            token = index->tokens(current_spine_idx)[current_token_idx].get();
         }
     }
     else
     {
         if (seek_to_first())
         {
-            token = &index->tokens(current_spine_idx)[current_token_idx++];
+            token = index->tokens(current_spine_idx)[current_token_idx++].get();
         }
     }
 
@@ -90,11 +90,11 @@ void EPubTokenIter::seek(DocAddr address)
         uint32_t token_idx = 0;
         for (const auto &token: tokens)
         {
-            if (token.address <= address)
+            if (token->address <= address)
             {
                 new_token_idx = token_idx;
             }
-            if (token.address >= address)
+            if (token->address >= address)
             {
                 break;
             }

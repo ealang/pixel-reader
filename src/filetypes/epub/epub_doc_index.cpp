@@ -13,9 +13,9 @@ Document::Document(std::filesystem::path zip_path)
     : zip_path(zip_path), cache_is_valid(false)
 {}
 
-const std::vector<DocToken> &EpubDocIndex::ensure_cached(uint32_t spine_index) const
+const std::vector<std::unique_ptr<DocToken>> &EpubDocIndex::ensure_cached(uint32_t spine_index) const
 {
-    static const std::vector<DocToken> empty_tokens;
+    static const std::vector<std::unique_ptr<DocToken>> empty_tokens;
 
     if (spine_index >= spine_entries.size())
     {
@@ -88,7 +88,7 @@ uint32_t EpubDocIndex::token_count(uint32_t spine_index) const
     return 0;
 }
 
-const std::vector<DocToken> &EpubDocIndex::tokens(uint32_t spine_index) const
+const std::vector<std::unique_ptr<DocToken>> &EpubDocIndex::tokens(uint32_t spine_index) const
 {
     return ensure_cached(spine_index);
 }

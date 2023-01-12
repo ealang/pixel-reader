@@ -102,8 +102,8 @@ DocAddr document_upper_address(const EpubDocIndex &doc_index, uint32_t spine_ind
     const auto &tokens = doc_index.tokens(spine_index);
     if (tokens.size())
     {
-        const auto &last_token = tokens.back();
-        return last_token.address + get_address_width(last_token);
+        const auto *last_token = tokens.back().get();
+        return last_token->address + get_address_width(*last_token);
     }
     return make_address(spine_index);
 }

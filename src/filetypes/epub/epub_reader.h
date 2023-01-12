@@ -25,7 +25,7 @@ public:
 
     std::shared_ptr<TokenIter> get_iter(DocAddr address = make_address()) const override;
 
-    std::vector<char> load_resource(std::filesystem::path path) const override;
+    std::vector<char> load_resource(const std::filesystem::path &path) const override;
 };
 
 #endif

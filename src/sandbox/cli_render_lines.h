@@ -15,7 +15,7 @@ struct Line
 
 // Text-only rendering of tokens.
 std::vector<Line> cli_render_tokens(
-    const std::vector<DocToken> &tokens,
+    const std::vector<const DocToken *> &tokens,
     uint32_t max_column_width
 );
 
