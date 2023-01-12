@@ -19,6 +19,8 @@
 
 namespace {
 
+const std::string SPACE = " ";
+
 bool element_is_blocking(const xmlChar *name)
 {
     if (!name)
@@ -43,6 +45,9 @@ enum class ElementType
     Pre,
     Unknown,
     Image,
+    Table,
+    Tr,
+    Td,
 };
 
 const std::unordered_map<std::string, ElementType> _elem_name_to_enum {
@@ -58,6 +63,9 @@ const std::unordered_map<std::string, ElementType> _elem_name_to_enum {
     {"pre",   ElementType::Pre},
     {"img",   ElementType::Image},
     {"image", ElementType::Image},
+    {"table", ElementType::Table},
+    {"tr",    ElementType::Tr},
+    {"td",    ElementType::Td},
 };
 
 ElementType elem_name_to_enum(const xmlChar *elem_name)
@@ -94,65 +102,85 @@ std::string escape_newlines(const xmlChar *str)
     return result;
 }
 
-// Receive callbacks for xhtml nodes, emit DocTokens.
-class NodeProcessor
+// Decorate xml nodes with additional context. Intermediate structure to
+// assist conversion between xml nodes and DocTokens.
+struct Node
 {
-    // Intermediate storage of xhtml nodes to be converted to DocTokens
-    struct Node
+    enum class Type
     {
-        enum class Type
-        {
-            InlineText,
-            InlineHeader,
-            InlineBreak,
-            SectionSeparator,
-            Image,
-        };
-
-        Type type;
-        DocAddr address;
-        xmlNodePtr node;
-        bool is_pre;
-
-        Node(Type type, DocAddr address, xmlNodePtr node, bool is_pre)
-            : type(type), address(address), node(node), is_pre(is_pre)
-        {
-        }
-
-        std::string to_string() const
-        {
-            std::string typestr;
-            switch (type)
-            {
-                case Type::InlineText:
-                    typestr = "InlineText";
-                    break;
-                case Type::InlineHeader:
-                    typestr = "InlineHeader";
-                    break;
-                case Type::InlineBreak:
-                    typestr = "InlineBreak";
-                    break;
-                case Type::SectionSeparator:
-                    typestr = "SectionSeparator";
-                    break;
-                case Type::Image:
-                    typestr = "Image";
-                    break;
-                default:
-                    typestr = "Unknown";
-                    break;
-            }
-            return typestr + " " + ::to_string(address);
-        }
+        InlineText,
+        InlinePre,
+        InlineHeader,
+        InlineList,
+        InlineBreak,
+        SectionSeparator,
+        Image,
     };
 
+    Type type;
+    DocAddr address;
+    xmlNodePtr node;
+    std::string text;
+    int list_depth;
+
+    Node(Type type, DocAddr address, xmlNodePtr node, std::string text, int list_depth)
+        : type(type)
+        , address(address)
+        , node(node)
+        , text(std::move(text))
+        , list_depth(list_depth)
+    {
+    }
+
+    bool is_inline() const
+    {
+        return type == Type::InlineText
+            || type == Type::InlinePre
+            || type == Type::InlineHeader
+            || type == Type::InlineList;
+    }
+
+    std::string to_string() const
+    {
+        std::string typestr;
+        switch (type)
+        {
+            case Type::InlineText:
+                typestr = "InlineText";
+                break;
+            case Type::InlinePre:
+                typestr = "InlinePre";
+                break;
+            case Type::InlineHeader:
+                typestr = "InlineHeader";
+                break;
+            case Type::InlineList:
+                typestr = "InlineList";
+                break;
+            case Type::InlineBreak:
+                typestr = "InlineBreak";
+                break;
+            case Type::SectionSeparator:
+                typestr = "SectionSeparator";
+                break;
+            case Type::Image:
+                typestr = "Image";
+                break;
+            default:
+                throw std::runtime_error("Unknown node type");
+        }
+        return typestr + " " + ::to_string(address);
+    }
+};
+
+class NodeProcessor
+{
     int list_depth = 0;     // depth inside ul/ol tags
-    int pre_depth = 0;      // depth inside pre tags
-    int header_depth = 0;   // depth inside header tags
+    int pre_depth = 0;
+    int header_depth = 0;
+    int table_depth = 0;
 
     DocAddr current_address;
-    std::filesystem::path base_path;  // directory of file (for resolving relative paths)
 
     std::vector<Node> nodes;
     std::set<std::string> unattached_ids;
@@ -167,19 +195,18 @@ class NodeProcessor
         unattached_ids.clear();
     }
 
-    void emit_node(int node_depth, Node::Type type, xmlNodePtr node)
+    void emit_node(int node_depth, Node::Type type, xmlNodePtr node, std::string text = "")
     {
         attach_pending_ids(current_address);
-        nodes.emplace_back(type, current_address, node, pre_depth > 0);
+        nodes.emplace_back(type, current_address, node, std::move(text), list_depth);
         DEBUG_LOG("[node: " << nodes.back().to_string() << "]");
     }
 
 public:
     NodeProcessor(
         DocAddr current_address,
-        std::filesystem::path base_path,
         std::unordered_map<std::string, DocAddr> &id_to_addr
-    ) : current_address(current_address), base_path(base_path), id_to_addr(id_to_addr)
+    ) : current_address(current_address), id_to_addr(id_to_addr)
     {
     }
 
@@ -189,10 +216,29 @@ public:
 
         if (node->content && xmlStrlen(node->content))
         {
+            Node::Type type;
+            if (pre_depth > 0)
+            {
+                type = Node::Type::InlinePre;
+            }
+            else if (header_depth > 0)
+            {
+                type = Node::Type::InlineHeader;
+            }
+            else if (list_depth > 0)
+            {
+                type = Node::Type::InlineList;
+            }
+            else
+            {
+                type = Node::Type::InlineText;
+            }
+
             emit_node(
                 node_depth,
-                header_depth > 0 ? Node::Type::InlineHeader : Node::Type::InlineText,
-                node
+                type,
+                node,
+                (const char*)node->content
             );
 
             current_address += get_address_width((const char*)node->content);
@@ -225,18 +271,28 @@ public:
                 break;
             case ElementType::Ol:
             case ElementType::Ul:
-                emit_node(node_depth, Node::Type::SectionSeparator, node);
-                ++list_depth;
-                break;
-            case ElementType::P:
                 if (list_depth == 0)
                 {
                     emit_node(node_depth, Node::Type::SectionSeparator, node);
+                }
+                ++list_depth;
+                break;
+            case ElementType::P:
+                {
+                    bool suppress_blocking = table_depth > 0 || list_depth > 0;
+                    if (!suppress_blocking)
+                    {
+                        emit_node(node_depth, Node::Type::SectionSeparator, node);
+                    }
                 }
                 break;
             case ElementType::Pre:
                 emit_node(node_depth, Node::Type::SectionSeparator, node);
                 ++pre_depth;
+                break;
+            case ElementType::Table:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                ++table_depth;
                 break;
             case ElementType::Image:
                 emit_node(node_depth, Node::Type::Image, node);
@@ -259,18 +315,34 @@ public:
                 break;
             case ElementType::Ol:
             case ElementType::Ul:
-                emit_node(node_depth, Node::Type::SectionSeparator, node);
                 --list_depth;
-                break;
-            case ElementType::P:
                 if (list_depth == 0)
                 {
                     emit_node(node_depth, Node::Type::SectionSeparator, node);
                 }
                 break;
+            case ElementType::P:
+                {
+                    bool suppress_blocking = table_depth > 0 || list_depth > 0;
+                    if (!suppress_blocking)
+                    {
+                        emit_node(node_depth, Node::Type::SectionSeparator, node);
+                    }
+                }
+                break;
             case ElementType::Pre:
                 emit_node(node_depth, Node::Type::SectionSeparator, node);
                 --pre_depth;
+                break;
+            case ElementType::Table:
+                emit_node(node_depth, Node::Type::SectionSeparator, node);
+                --table_depth;
+                break;
+            case ElementType::Tr:
+                emit_node(node_depth, Node::Type::InlineBreak, node);
+                break;
+            case ElementType::Td:
+                emit_node(node_depth, Node::Type::InlineText, node, SPACE);
                 break;
             default:
                 break;
@@ -287,143 +359,9 @@ public:
         }
     }
 
-    // Merge inline text types, emit DocTokens
-    void generate_doc_tokens(std::vector<std::unique_ptr<DocToken>> &tokens_out) const
+    const std::vector<Node> &get_nodes() const
     {
-        auto get_group_size = [&_nodes=this->nodes](uint32_t i) -> uint32_t {
-            Node::Type head_type = _nodes[i].type;
-            if (head_type == Node::Type::InlineText || head_type == Node::Type::InlineHeader)
-            {
-                bool head_pre = _nodes[i].is_pre;
-
-                uint32_t size = 1;
-                while (
-                    ++i < _nodes.size() &&
-                    _nodes[i].type == head_type &&
-                    _nodes[i].is_pre == head_pre
-                )
-                {
-                    ++size;
-                }
-
-                return size;
-            }
-            return 1;
-        };
-
-        uint32_t n = nodes.size();
-        tokens_out.reserve(n);
-
-        bool separator_allowed = false;
-        uint32_t i = 0;
-        while (i < n)
-        {
-            uint32_t group_size = get_group_size(i);
-            const Node &head = nodes[i];
-            DocAddr address = head.address;
-            Node::Type type = head.type;
-
-            switch (type)
-            {
-                case Node::Type::InlineText:
-                case Node::Type::InlineHeader:
-                    // Compact text types
-                    if (!head.is_pre)
-                    {
-                        std::vector<const char*> substrings;
-                        substrings.reserve(group_size);
-                        for (uint32_t j = i; j < i + group_size; ++j)
-                        {
-                            const xmlChar *substr = nodes[j].node->content;
-                            if (substr)
-                            {
-                                substrings.push_back((const char*)substr);
-                            }
-                        }
-
-                        std::string text = compact_strings(substrings);
-                        if (text.size())
-                        {
-                            if (type == Node::Type::InlineText)
-                            {
-                                tokens_out.push_back(std::make_unique<TextDocToken>(
-                                    address,
-                                    text
-                                ));
-                            }
-                            else
-                            {
-                                tokens_out.push_back(std::make_unique<HeaderDocToken>(
-                                    address,
-                                    text
-                                ));
-                            }
-
-                            separator_allowed = true;
-                        }
-                    }
-                    else
-                    {
-                        std::vector<std::string> substrings;
-                        substrings.reserve(group_size);
-                        for (uint32_t j = i; j < i + group_size; ++j)
-                        {
-                            const xmlChar *substr = nodes[j].node->content;
-                            if (substr)
-                            {
-                                substrings.push_back(remove_carriage_returns((const char*)substr));
-                            }
-                        }
-
-                        std::string text = join_strings(substrings);
-                        if (text.size())
-                        {
-                            tokens_out.push_back(std::make_unique<TextDocToken>(
-                                address,
-                                text
-                            ));
-                            separator_allowed = true;
-                        }
-                    }
-                    break;
-                case Node::Type::Image:
-                    {
-                        xmlNodePtr node = head.node;
-                        const xmlChar *img_path = xmlGetProp(node, BAD_CAST "href");
-                        if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
-                        if (img_path)
-                        {
-                            tokens_out.push_back(std::make_unique<ImageDocToken>(
-                                address,
-                                (base_path / (const char*)img_path).lexically_normal()
-                            ));
-                        }
-                        else
-                        {
-                            std::cerr << "Unable to get link from image" << std::endl;
-                        }
-
-                        separator_allowed = true;
-                    }
-                    break;
-                case Node::Type::SectionSeparator:
-                    if (separator_allowed)
-                    {
-                        tokens_out.push_back(std::make_unique<TextDocToken>(
-                            address,
-                            ""
-                        ));
-
-                        separator_allowed = false;
-                    }
-                    break;
-                case Node::Type::InlineBreak:
-                    break;
-                default:
-                    throw std::runtime_error("Unknown node type");
-            }
-            i += group_size;
-        }
+        return nodes;
     }
 };
 
@@ -454,6 +392,143 @@ void visit_nodes(xmlNodePtr node, NodeProcessor &processor, int node_depth = 0)
     }
 }
 
+// Merge inline text types, emit DocTokens
+void generate_doc_tokens(
+    const std::vector<Node> &nodes,
+    const std::filesystem::path &base_path,
+    std::vector<std::unique_ptr<DocToken>> &tokens_out
+)
+{
+    auto get_group_size = [&nodes](uint32_t i) -> uint32_t {
+        const auto &head = nodes[i];
+        if (head.is_inline())
+        {
+            Node::Type head_type = head.type;
+
+            uint32_t size = 1;
+            while (++i < nodes.size() && nodes[i].type == head_type)
+            {
+                ++size;
+            }
+            return size;
+        }
+        return 1;
+    };
+
+    uint32_t n = nodes.size();
+    tokens_out.reserve(n);
+
+    bool separator_allowed = false;
+    uint32_t i = 0;
+    while (i < n)
+    {
+        uint32_t group_size = get_group_size(i);
+        const Node &head = nodes[i];
+        DocAddr address = head.address;
+
+        switch (head.type)
+        {
+            case Node::Type::InlineText:
+            case Node::Type::InlineHeader:
+            case Node::Type::InlineList:
+                {
+                    std::vector<const char*> substrings;
+                    substrings.reserve(group_size);
+                    for (uint32_t j = i; j < i + group_size; ++j)
+                    {
+                        substrings.push_back(nodes[j].text.c_str());
+                    }
+
+                    std::string text = compact_strings(substrings);
+                    if (text.size())
+                    {
+                        if (head.type == Node::Type::InlineText)
+                        {
+                            tokens_out.push_back(std::make_unique<TextDocToken>(
+                                address,
+                                text
+                            ));
+                        }
+                        else if (head.type == Node::Type::InlineHeader)
+                        {
+                            tokens_out.push_back(std::make_unique<HeaderDocToken>(
+                                address,
+                                text
+                            ));
+                        }
+                        else
+                        {
+                            tokens_out.push_back(std::make_unique<ListItemDocToken>(
+                                address,
+                                text,
+                                head.list_depth
+                            ));
+                        }
+
+                        separator_allowed = true;
+                    }
+                }
+                break;
+            case Node::Type::InlinePre:
+                {
+                    std::vector<const char *> substrings;
+                    substrings.reserve(group_size);
+                    for (uint32_t j = i; j < i + group_size; ++j)
+                    {
+                        substrings.push_back(nodes[j].text.c_str());
+                    }
+
+                    std::string text = remove_carriage_returns(join_strings(substrings));
+                    if (text.size())
+                    {
+                        tokens_out.push_back(std::make_unique<TextDocToken>(
+                            address,
+                            text
+                        ));
+                        separator_allowed = true;
+                    }
+                }
+                break;
+            case Node::Type::Image:
+                {
+                    xmlNodePtr node = head.node;
+                    const xmlChar *img_path = xmlGetProp(node, BAD_CAST "href");
+                    if (!img_path) img_path = xmlGetProp(node, BAD_CAST "src");
+                    if (img_path)
+                    {
+                        tokens_out.push_back(std::make_unique<ImageDocToken>(
+                            address,
+                            (base_path / (const char*)img_path).lexically_normal()
+                        ));
+                    }
+                    else
+                    {
+                        std::cerr << "Unable to get link from image" << std::endl;
+                    }
+
+                    separator_allowed = true;
+                }
+                break;
+            case Node::Type::SectionSeparator:
+                if (separator_allowed)
+                {
+                    tokens_out.push_back(std::make_unique<TextDocToken>(
+                        address,
+                        ""
+                    ));
+
+                    separator_allowed = false;
+                }
+                break;
+            case Node::Type::InlineBreak:
+                break;
+            default:
+                throw std::runtime_error("Unknown node type");
+        }
+        i += group_size;
+    }
+}
+
 } // namespace
 
 bool parse_xhtml_tokens(const char *xml_str, std::filesystem::path file_path, uint32_t chapter_number, std::vector<std::unique_ptr<DocToken>> &tokens_out, std::unordered_map<std::string, DocAddr> &id_to_addr_out)
@@ -472,12 +547,12 @@ bool parse_xhtml_tokens(const char *xml_str, std::filesystem::path file_path, ui
 
     NodeProcessor processor(
         make_address(chapter_number),
-        file_path.parent_path(),
         id_to_addr_out
     );
     visit_nodes(node, processor);
 
-    processor.generate_doc_tokens(tokens_out);
+    generate_doc_tokens(processor.get_nodes(), file_path.parent_path(), tokens_out);
+
     xmlFreeDoc(doc);
 
     return true;

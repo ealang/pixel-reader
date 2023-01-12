@@ -126,17 +126,17 @@ std::string convert_tabs_to_space(const std::string &str, int tab_width)
     return result;
 }
 
-std::string join_strings(const std::vector<std::string> &strings)
+std::string join_strings(const std::vector<const char *> &strings)
 {
     uint32_t total_size = 0;
-    for (const auto &str: strings)
+    for (const char *str: strings)
     {
-        total_size += str.size();
+        total_size += strlen(str);
     }
 
     std::string result;
     result.reserve(total_size);
-    for (const auto &str: strings)
+    for (const char *str: strings)
     {
         result += str;
     }

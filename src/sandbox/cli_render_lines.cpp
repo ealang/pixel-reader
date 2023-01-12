@@ -3,6 +3,8 @@
 #include "doc_api/token_addressing.h"
 #include "reader/text_wrap.h"
 
+static const std::string BULLET = "•";
+
 Line::Line(std::string text, DocAddr address)
     : text(std::move(text)), address(address)
 {
@@ -19,7 +21,7 @@ std::vector<Line> cli_render_tokens(
         return strlen <= max_column_width;
     };
 
-    auto wrap_text = [&](DocAddr address, const std::string &text, bool centered = false)
+    auto wrap_text = [&](DocAddr address, const std::string &text, bool centered = false, uint32_t extra_text_width = 0)
     {
         uint32_t line_num = 0;
         wrap_lines(text.c_str(), fits_on_line, [&](const char *str, uint32_t len) {
@@ -32,6 +34,10 @@ std::vector<Line> cli_render_tokens(
 
             out.emplace_back(line_text, address);
             address += get_address_width(line_text);
+            if (line_num++ == 0)
+            {
+                address -= extra_text_width;
+            }
         });
     };
 
@@ -43,6 +49,18 @@ std::vector<Line> cli_render_tokens(
                 break;
             case TokenType::Header:
                 wrap_text(address, static_cast<const HeaderDocToken *>(token)->text, true);
+                break;
+            case TokenType::ListItem:
+                {
+                    const auto *list_token = static_cast<const ListItemDocToken *>(token);
+                    std::string prefix = std::string(
+                        (list_token->nest_level > 1 ? list_token->nest_level - 1 : 0) * 2,
+                        ' '
+                    ) + BULLET + " ";
+                    uint32_t extra_text_width = get_address_width(prefix);
+
+                    wrap_text(address, prefix + static_cast<const ListItemDocToken *>(token)->text, false, extra_text_width);
+                }
                 break;
             case TokenType::Image:
                 wrap_text(address, "[Image " + static_cast<const ImageDocToken *>(token)->path.string() + "]");

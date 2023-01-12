@@ -11,6 +11,7 @@ enum class TokenType
     Text,
     Header,
     Image,
+    ListItem,
 };
 
 struct DocToken
@@ -49,6 +50,16 @@ struct ImageDocToken : public DocToken
     std::filesystem::path path;
 
     ImageDocToken(DocAddr address, const std::filesystem::path &path);
+    bool operator==(const DocToken &other) const override;
+    std::string to_string() const override;
+};
+
+struct ListItemDocToken : public DocToken
+{
+    std::string text;
+    int nest_level;
+
+    ListItemDocToken(DocAddr address, const std::string &text, int nest_level);
     bool operator==(const DocToken &other) const override;
     std::string to_string() const override;
 };

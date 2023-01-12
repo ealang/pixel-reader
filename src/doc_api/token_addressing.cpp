@@ -50,6 +50,8 @@ uint32_t get_address_width(const DocToken &token)
             return get_address_width(static_cast<const HeaderDocToken &>(token).text);
         case TokenType::Image:
             return 1;
+        case TokenType::ListItem:
+            return get_address_width(static_cast<const ListItemDocToken &>(token).text);
         default:
             throw std::runtime_error("Unknown token type");
     }

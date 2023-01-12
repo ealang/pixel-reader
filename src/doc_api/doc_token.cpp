@@ -93,6 +93,28 @@ std::string ImageDocToken::to_string() const
 
 ////////////////////////
 
+ListItemDocToken::ListItemDocToken(DocAddr address, const std::string &text, int nest_level)
+    : DocToken(TokenType::ListItem, address), text(text), nest_level(nest_level)
+{
+}
+
+bool ListItemDocToken::operator==(const DocToken &other) const
+{
+    if (!DocToken::operator==(other))
+    {
+        return false;
+    }
+    const ListItemDocToken &other_list_item = static_cast<const ListItemDocToken &>(other);
+    return text == other_list_item.text && nest_level == other_list_item.nest_level;
+}
+
+std::string ListItemDocToken::to_string() const
+{
+    return common_to_string(text);
+}
+
+////////////////////////
+
 std::string to_string(TokenType type)
 {
     switch (type)
@@ -103,6 +125,8 @@ std::string to_string(TokenType type)
             return "Header";
         case TokenType::Image:
             return "Image";
+        case TokenType::ListItem:
+            return "ListItem";
         default:
             return "Unknown";
     }

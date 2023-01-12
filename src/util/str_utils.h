@@ -22,6 +22,6 @@ inline bool is_whitespace(char c)
 
 std::string convert_tabs_to_space(const std::string &str, int tab_width);
 
-std::string join_strings(const std::vector<std::string> &strings);
+std::string join_strings(const std::vector<const char *> &strings);
 
 #endif

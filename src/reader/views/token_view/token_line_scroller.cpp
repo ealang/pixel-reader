@@ -14,6 +14,8 @@
 namespace
 {
 
+const std::string BULLET = "•";
+
 uint32_t get_line_for_address(const IndexedDequeue<std::unique_ptr<DisplayLine>> &lines, DocAddr address)
 {
     int best_line = lines.start_index();
@@ -82,10 +84,22 @@ std::vector<std::unique_ptr<DisplayLine>> TokenLineScroller::render_display_line
     else
     {
         std::string text;
+        uint32_t extra_text_width = 0;
 
         if (token.type == TokenType::Text)
         {
             text = static_cast<const TextDocToken &>(token).text;
+        }
+        else if (token.type == TokenType::ListItem)
+        {
+            const ListItemDocToken &list_token = static_cast<const ListItemDocToken &>(token);
+            int nest_level = list_token.nest_level;
+            std::string prefix = std::string(
+                (nest_level > 1 ? nest_level - 1 : 0) * 2,
+                ' '
+            ) + BULLET + " ";
+            text = prefix + list_token.text;
+            extra_text_width = get_address_width(prefix);
         }
         else if (token.type == TokenType::Header)
         {
@@ -98,7 +112,7 @@ std::vector<std::unique_ptr<DisplayLine>> TokenLineScroller::render_display_line
 
         DocAddr address = token.address;
         std::vector<std::unique_ptr<DisplayLine>> lines;
-        wrap_lines(text.c_str(), line_fits, [type=token.type, &lines, &address](const char *str, uint32_t len) {
+        wrap_lines(text.c_str(), line_fits, [type=token.type, &lines, &address, extra_text_width](const char *str, uint32_t len) {
             std::string line_text(str, len);
             bool centered = type == TokenType::Header;
 
@@ -107,6 +121,10 @@ std::vector<std::unique_ptr<DisplayLine>> TokenLineScroller::render_display_line
             );
 
             address += get_address_width(line_text);
+            if (lines.size() == 1)
+            {
+                address -= extra_text_width;
+            }
         });
 
         return lines;
