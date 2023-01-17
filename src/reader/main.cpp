@@ -102,7 +102,7 @@ int main(int, char *[])
     set_render_surface_format(screen->format);
 
     // Store
-    StateStore state_store(".state");
+    StateStore state_store(STATE_PATH);
 
     // Preload & check fonts
     auto init_font_name = get_valid_font_name(settings_get_font_name(state_store).value_or(DEFAULT_FONT_NAME));
