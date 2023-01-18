@@ -4,6 +4,7 @@
 #include "./txt/txt_reader.h"
 #include "util/str_utils.h"
 
+#include <iostream>
 #include <set>
 #include <string>
 
@@ -42,5 +43,6 @@ std::shared_ptr<DocReader> create_doc_reader(const std::filesystem::path &path)
         return std::make_shared<TxtReader>(path);
     }
 
-    throw std::runtime_error("Unsupported file type: " + path.string());
+    std::cerr << "Unsupported file type: " << path.string() << std::endl;
+    return nullptr;
 }

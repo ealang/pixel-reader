@@ -38,8 +38,8 @@ public:
     void remove_current_book_path();
 
     // book addresses
-    std::optional<DocAddr> get_book_address(const std::string &book_path) const;
-    void set_book_address(const std::string &book_path, const DocAddr &address);
+    std::optional<DocAddr> get_book_address(const std::string &book_id) const;
+    void set_book_address(const std::string &book_id, DocAddr address);
 
     // generic settings
     std::optional<std::string> get_setting(const std::string &name) const;

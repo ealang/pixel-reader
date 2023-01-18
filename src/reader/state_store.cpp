@@ -51,12 +51,9 @@ std::pair<std::optional<std::string>, std::optional<std::string>> load_activity_
     return {browse_path, book_path};
 }
 
-std::filesystem::path address_store_path_for_book(const std::filesystem::path &base_path, const std::filesystem::path &book_path)
+std::filesystem::path address_store_path_for_book(const std::filesystem::path &base_path, const std::string &book_id)
 {
-    auto store_filename = book_path.filename();
-    store_filename += ".address";
-
-    return base_path / store_filename;
+    return base_path / (book_id + ".address");
 }
 
 void write_book_address(const std::filesystem::path &path, const DocAddr &address)
@@ -145,31 +142,31 @@ void StateStore::remove_current_book_path()
     }
 }
 
-std::optional<DocAddr> StateStore::get_book_address(const std::string &book_path) const
+std::optional<DocAddr> StateStore::get_book_address(const std::string &book_id) const
 {
-    auto it = book_addresses.find(book_path);
+    auto it = book_addresses.find(book_id);
     if (it != book_addresses.end())
     {
         return it->second;
     }
 
     auto cache = load_book_address(
-        address_store_path_for_book(addresses_root_path, book_path)
+        address_store_path_for_book(addresses_root_path, book_id)
     );
     if (cache)
     {
-        book_addresses[book_path] = *cache;
+        book_addresses[book_id] = *cache;
     }
 
     return cache;
 }
 
-void StateStore::set_book_address(const std::string &book_path, const DocAddr &address)
+void StateStore::set_book_address(const std::string &book_id, DocAddr address)
 {
-    auto it = book_addresses.find(book_path);
+    auto it = book_addresses.find(book_id);
     if (it == book_addresses.end() || it->second != address)
     {
-        book_addresses[book_path] = address;
+        book_addresses[book_id] = address;
     }
 }
 
@@ -183,10 +180,10 @@ void StateStore::flush() const
 
     // book addresses
     {
-        for (const auto &[book_path, address] : book_addresses)
+        for (const auto &[book_id, address] : book_addresses)
         {
             write_book_address(
-                address_store_path_for_book(addresses_root_path, book_path),
+                address_store_path_for_book(addresses_root_path, book_id),
                 address
             );
         }

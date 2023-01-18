@@ -29,6 +29,8 @@ public:
     virtual bool open() = 0;
     virtual bool is_open() const = 0;
 
+    virtual std::string get_id() const = 0;
+
     virtual const std::vector<TocItem> &get_table_of_contents() const = 0;
     virtual TocPosition get_toc_position(const DocAddr &address) const = 0;
     virtual DocAddr get_toc_item_address(uint32_t toc_item_index) const = 0;

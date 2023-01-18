@@ -6,14 +6,18 @@
 #include "./epub_token_iter.h"
 #include "util/zip_utils.h"
 
+#include "extern/hash-library/md5.h"
+
 #include <algorithm>
 #include <iostream>
 #include <zip.h>
 
 struct EpubReaderState
 {
-    const std::filesystem::path path;
+    std::filesystem::path path;
     zip_t *zip = nullptr;
+
+    std::string package_md5;
 
     std::unique_ptr<EpubDocIndex> doc_index;
     std::unique_ptr<EpubTocIndex> toc_index;
@@ -83,6 +87,8 @@ bool EPubReader::open()
             return false;
         }
 
+        state->package_md5 = MD5()(package_xml.data(), package_xml.size());
+
         if (!epub_parse_package_contents(rootfile_path, package_xml.data(), package))
         {
             std::cerr << "Failed to parse " << rootfile_path << std::endl;
@@ -147,6 +153,11 @@ bool EPubReader::open()
 bool EPubReader::is_open() const
 {
     return state->zip != nullptr;
+}
+
+std::string EPubReader::get_id() const
+{
+    return state->package_md5;
 }
 
 const std::vector<TocItem> &EPubReader::get_table_of_contents() const

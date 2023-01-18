@@ -8,7 +8,6 @@
 #include "reader/view_stack.h"
 
 #include "doc_api/doc_reader.h"
-#include "filetypes/open_doc.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "util/sdl_font_cache.h"
@@ -17,7 +16,6 @@
 
 struct ReaderViewState
 {
-    bool is_error_state = false;
     bool is_done = false;
 
     std::function<void()> on_quit;
@@ -32,12 +30,18 @@ struct ReaderViewState
 
     std::unique_ptr<TokenView> token_view;
     
-    ReaderViewState(std::filesystem::path path, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, ViewStack &view_stack)
+    ReaderViewState(std::filesystem::path path, DocAddr seek_address, std::shared_ptr<DocReader> reader, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, ViewStack &view_stack)
         : filename(path.filename()),
-          reader(create_doc_reader(path)),
+          reader(reader),
           sys_styling(sys_styling),
           token_view_styling(token_view_styling),
-          view_stack(view_stack)
+          view_stack(view_stack),
+          token_view(std::make_unique<TokenView>(
+              reader,
+              seek_address,
+              sys_styling,
+              token_view_styling
+          ))
     {
     }
 
@@ -108,38 +112,24 @@ void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
 
 ReaderView::ReaderView(
     std::filesystem::path path,
+    std::shared_ptr<DocReader> reader,
     DocAddr seek_address,
     SystemStyling &sys_styling,
     TokenViewStyling &token_view_styling,
     ViewStack &view_stack
-) : state(std::make_unique<ReaderViewState>(path, sys_styling, token_view_styling, view_stack))
+) : state(std::make_unique<ReaderViewState>(path, seek_address, reader, sys_styling, token_view_styling, view_stack))
 {
-    if (!state->reader->open())
-    {
-        std::cerr << "Error opening " << path << std::endl;
-        state->is_error_state = true;
-    }
-    else
-    {
-        state->token_view = std::make_unique<TokenView>(
-            state->reader,
-            seek_address,
-            sys_styling,
-            token_view_styling
-        );
+    update_token_view_title(seek_address);
 
-        update_token_view_title(seek_address);
+    // Update title info on scroll
+    state->token_view->set_on_scroll([this](DocAddr address) {
+        update_token_view_title(address);
 
-        // Update title info on scroll
-        state->token_view->set_on_scroll([this](DocAddr address) {
-            update_token_view_title(address);
-
-            if (state->on_change_address)
-            {
-                state->on_change_address(address);
-            }
-        });
-    }
+        if (state->on_change_address)
+        {
+            state->on_change_address(address);
+        }
+    });
 }
 
 ReaderView::~ReaderView()
@@ -161,33 +151,8 @@ void ReaderView::update_token_view_title(DocAddr address)
     state->token_view->set_title_progress(toc_position.progress_percent);
 }
 
-void ReaderView::render_error_state(SDL_Surface *dest_surface) const
-{
-    const auto &theme = state->sys_styling.get_loaded_color_theme();
-    TTF_Font *font = cached_load_font(state->sys_styling.get_font_name(), state->sys_styling.get_font_size());
-
-    // clear screen
-    SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-    const auto &bgcolor = theme.background;
-    SDL_FillRect(
-        dest_surface,
-        &rect,
-        SDL_MapRGB(dest_surface->format, bgcolor.r, bgcolor.g, bgcolor.b)
-    );
-
-    SDL_Surface *surface = TTF_RenderUTF8_Shaded(font, "Error loading", theme.main_text, theme.background);
-    SDL_BlitSurface(surface, nullptr, dest_surface, nullptr);
-    SDL_FreeSurface(surface);
-}
-
 bool ReaderView::render(SDL_Surface *dest_surface, bool force_render)
 {
-    if (state->is_error_state)
-    {
-        render_error_state(dest_surface);
-        return true;
-    }
-
     return state->token_view->render(dest_surface, force_render);
 }
 
@@ -208,11 +173,6 @@ void ReaderView::on_keypress(SDLKey key)
         return;
     }
 
-    if (state->is_error_state)
-    {
-        return;
-    }
-
     switch (key) {
         case SW_BTN_A:
             state->token_view_styling.set_show_title_bar(
@@ -230,10 +190,6 @@ void ReaderView::on_keypress(SDLKey key)
 
 void ReaderView::on_keyheld(SDLKey key, uint32_t hold_time_ms)
 {
-    if (state->is_error_state)
-    {
-        return;
-    }
     state->token_view->on_keyheld(key, hold_time_ms);
 }
 

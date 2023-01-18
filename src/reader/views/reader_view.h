@@ -8,6 +8,7 @@
 #include <functional>
 #include <string>
 
+struct DocReader;
 struct ReaderViewState;
 struct SystemStyling;
 struct TokenViewStyling;
@@ -18,11 +19,11 @@ class ReaderView: public View
     std::unique_ptr<ReaderViewState> state;
 
     void update_token_view_title(DocAddr address);
-    void render_error_state(SDL_Surface *dest_surface) const;
 
 public:
     ReaderView(
         std::filesystem::path path,
+        std::shared_ptr<DocReader> reader,
         DocAddr seek_address,
         SystemStyling &sys_styling,
         TokenViewStyling &token_view_styling,

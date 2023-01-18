@@ -39,18 +39,29 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         {
             return;
         }
+
+        std::shared_ptr<DocReader> reader = create_doc_reader(path);
+        if (!reader || !reader->open())
+        {
+            std::cerr << "Failed to open " << path << std::endl;
+            // TODO: error dialog
+            return;
+        }
+
         state_store.set_current_book_path(path);
 
+        auto book_id = reader->get_id();
         auto reader_view = std::make_shared<ReaderView>(
             path,
-            state_store.get_book_address(path).value_or(0),
+            reader,
+            state_store.get_book_address(book_id).value_or(make_address()),
             sys_styling,
             token_view_styling,
             view_stack
         );
 
-        reader_view->set_on_change_address([&state_store, path_str=path.string()](DocAddr addr) {
-            state_store.set_book_address(path_str, addr);
+        reader_view->set_on_change_address([&state_store, book_id](DocAddr addr) {
+            state_store.set_book_address(book_id, addr);
         });
         reader_view->set_on_quit_requested([&state_store]() {
             state_store.remove_current_book_path();

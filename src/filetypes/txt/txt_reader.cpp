@@ -3,6 +3,8 @@
 #include "doc_api/token_addressing.h"
 #include "util/str_utils.h"
 
+#include "extern/hash-library/md5.h"
+
 #include <fstream>
 #include <iostream>
 
@@ -11,7 +13,7 @@ namespace
 
 constexpr uint32_t SPACES_PER_TAB = 4;
 
-bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::unique_ptr<DocToken>> &tokens_out)
+bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::unique_ptr<DocToken>> &tokens_out, std::string &md5_out)
 {
     std::ifstream file(path);
     if (!file.is_open())
@@ -22,8 +24,12 @@ bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::uniq
     DocAddr cur_address = make_address();
 
     std::string line;
+    MD5 md5;
     while (std::getline(file, line))
     {
+        md5.add(line.c_str(), line.size());
+        md5.add("\n", 1);
+
         line = strip_whitespace_right(
             convert_tabs_to_space(
                 remove_carriage_returns(line),
@@ -36,6 +42,8 @@ bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::uniq
         cur_address += get_address_width(*tokens_out.back().get());
     }
 
+    md5_out = md5.getHash();
+
     return true;
 }
 
@@ -46,6 +54,7 @@ struct TxtReaderState
     std::filesystem::path path;
     std::vector<TocItem> toc;
     std::vector<std::unique_ptr<DocToken>> tokens;
+    std::string md5;
     bool is_open = false;
     uint32_t total_address_width = 0;
 
@@ -70,7 +79,7 @@ bool TxtReader::open()
     {
         return true;
     }
-    state->is_open = tokenize_text_file(state->path, state->tokens);
+    state->is_open = tokenize_text_file(state->path, state->tokens, state->md5);
     if (state->is_open && state->tokens.size())
     {
         const auto *last_token = state->tokens.back().get();
@@ -83,6 +92,11 @@ bool TxtReader::open()
 bool TxtReader::is_open() const
 {
     return state->is_open;
+}
+
+std::string TxtReader::get_id() const
+{
+    return state->md5;
 }
 
 const std::vector<TocItem> &TxtReader::get_table_of_contents() const
