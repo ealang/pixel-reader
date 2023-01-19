@@ -7,6 +7,8 @@
 #include <memory>
 #include <string>
 
+#include <SDL/SDL_ttf.h>
+
 struct SystemStylingState;
 
 class SystemStyling {
@@ -24,6 +26,7 @@ public:
     // Font
     void set_font_name(std::string font_name);
     const std::string &get_font_name() const;
+    TTF_Font *get_loaded_font() const;
 
     // Font size
     void set_font_size(uint32_t font_size);

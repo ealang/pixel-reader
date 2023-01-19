@@ -7,7 +7,6 @@
 #include "reader/system_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
-#include "util/sdl_font_cache.h"
 #include "util/sdl_utils.h"
 #include "util/throttled.h"
 
@@ -86,10 +85,7 @@ struct TokenViewState
           token_view_styling(token_view_styling),
           sys_styling_sub_id(sys_styling.subscribe_to_changes([this]() {
               // Color theme and font size
-              current_font = cached_load_font(
-                  this->sys_styling.get_font_name(),
-                  this->sys_styling.get_font_size()
-              );
+              current_font = this->sys_styling.get_loaded_font();
               line_height = detect_line_height(current_font) + line_padding;
               line_scroller.set_line_height_pixels(line_height);
               line_scroller.reset_buffer();  // need to re-wrap lines if font-size changed
@@ -98,10 +94,7 @@ struct TokenViewState
           token_view_styling_sub_id(token_view_styling.subscribe_to_changes([this]() {
               needs_render = true;
           })),
-          current_font(cached_load_font(
-              sys_styling.get_font_name(),
-              sys_styling.get_font_size()
-          )),
+          current_font(sys_styling.get_loaded_font()),
           line_height(detect_line_height(sys_styling.get_font_name(), sys_styling.get_font_size()) + line_padding),
           line_scroller(
               reader,

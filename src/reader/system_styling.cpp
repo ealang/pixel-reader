@@ -2,6 +2,7 @@
 #include "./config.h"
 
 #include "reader/color_theme_def.h"
+#include "util/sdl_font_cache.h"
 
 #include <unordered_map>
 
@@ -46,6 +47,11 @@ void SystemStyling::set_font_name(std::string font_name)
 const std::string &SystemStyling::get_font_name() const
 {
     return state->font_name;
+}
+
+TTF_Font *SystemStyling::get_loaded_font() const
+{
+    return cached_load_font(state->font_name, state->font_size);
 }
 
 void SystemStyling::set_font_size(uint32_t font_size)

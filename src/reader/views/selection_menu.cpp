@@ -4,7 +4,6 @@
 #include "sys/screen.h"
 #include "sys/keymap.h"
 #include "reader/system_styling.h"
-#include "util/sdl_font_cache.h"
 #include "util/sdl_utils.h"
 
 uint32_t SelectionMenu::num_display_lines() const
@@ -128,10 +127,7 @@ bool SelectionMenu::render(SDL_Surface *dest_surface, bool force_render)
     }
     needs_render = false;
 
-    TTF_Font *loaded_font = cached_load_font(
-        styling.get_font_name(),
-        styling.get_font_size()
-    );
+    TTF_Font *loaded_font = styling.get_loaded_font();
 
     const SDL_PixelFormat *pixel_format = dest_surface->format;
 
