@@ -6,7 +6,7 @@
 #include "util/sdl_utils.h"
 #include "util/str_utils.h"
 
-#include "extern/SDL_rotozoom.h"
+#include "extern/rotozoom/SDL_rotozoom.h"
 
 #include <filesystem>
 #include <iostream>
