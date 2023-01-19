@@ -1,6 +1,7 @@
 #include "./settings_view.h"
 
 #include "reader/color_theme_def.h"
+#include "reader/draw_modal_border.h"
 #include "reader/font_catalog.h"
 #include "reader/settings_store.h"
 #include "reader/system_styling.h"
@@ -94,8 +95,6 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             );
         };
 
-        Uint16 line_width = 3;
-        Uint16 dialog_padding = 25;
         Uint16 text_padding = 5;
 
         Uint16 content_w = std::max(
@@ -118,56 +117,14 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             font_name_label_surf->h +
             font_name_value_surf().get()->h
         );
-        Sint16 content_x = SCREEN_WIDTH / 2 - content_w / 2;
         Sint16 content_y = SCREEN_HEIGHT / 2 - content_h / 2;
 
-        // transparent background
-        {
-            surface_unique_ptr mask = surface_unique_ptr {
-                SDL_CreateRGBSurface(
-                    SDL_SWSURFACE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
-                    32,
-                    0, 0, 0, 0
-                )
-            };
-            SDL_SetAlpha(mask.get(), SDL_SRCALPHA, 128);
-
-            SDL_Rect rect = { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT };
-            SDL_FillRect(
-                mask.get(),
-                &rect,
-                SDL_MapRGB(mask->format, 0, 0, 0)
-            );
-            SDL_BlitSurface(mask.get(), NULL, dest_surface, &rect);
-        }
-
-        // draw border
-        {
-            SDL_Rect rect = {
-                static_cast<Sint16>(content_x - dialog_padding),
-                static_cast<Sint16>(content_y - dialog_padding),
-                static_cast<Uint16>(content_w + dialog_padding * 2),
-                static_cast<Uint16>(content_h + dialog_padding * 2)
-            };
-            SDL_FillRect(
-                dest_surface,
-                &rect,
-                SDL_MapRGB(dest_surface->format, text_color.r, text_color.g, text_color.b)
-            );
-
-            rect.x += line_width;
-            rect.y += line_width;
-            rect.w -= line_width * 2;
-            rect.h -= line_width * 2;
-
-            SDL_FillRect(
-                dest_surface,
-                &rect,
-                SDL_MapRGB(dest_surface->format, bg_color.r, bg_color.g, bg_color.b)
-            );
-        }
+        draw_modal_border(
+            content_w,
+            content_h,
+            sys_styling.get_loaded_color_theme(),
+            dest_surface
+        );
 
         // draw text
         {

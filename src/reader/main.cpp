@@ -6,6 +6,7 @@
 #include "./color_theme_def.h"
 #include "./view_stack.h"
 #include "./views/file_selector.h"
+#include "./views/popup_view.h"
 #include "./views/reader_view.h"
 #include "./views/settings_view.h"
 #include "./views/token_view/token_view_styling.h"
@@ -44,7 +45,7 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         if (!reader || !reader->open())
         {
             std::cerr << "Failed to open " << path << std::endl;
-            // TODO: error dialog
+            view_stack.push(std::make_shared<PopupView>("Error opening", SYSTEM_FONT, sys_styling));
             return;
         }
 
@@ -184,7 +185,7 @@ int main(int, char *[])
 
     while (!quit)
     {
-        bool needs_render = false;
+        bool ran_user_code = false;
 
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -207,23 +208,24 @@ int main(int, char *[])
                         {
                             state_store.flush();
                         }
-                        else if (key == SW_BTN_X)
-                        {
-                            if (view_stack.top_view() != settings_view)
-                            {
-                                settings_view->unterminate();
-                                view_stack.push(settings_view);
-                            }
-                            else
-                            {
-                                settings_view->terminate();
-                            }
-                            needs_render = true;
-                        }
                         else
                         {
                             view_stack.on_keypress(key);
-                            needs_render = true;
+
+                            if (key == SW_BTN_X)
+                            {
+                                if (view_stack.top_view() != settings_view)
+                                {
+                                    settings_view->unterminate();
+                                    view_stack.push(settings_view);
+                                }
+                                else
+                                {
+                                    settings_view->terminate();
+                                }
+                            }
+
+                            ran_user_code = true;
                         }
                     }
                     break;
@@ -233,9 +235,9 @@ int main(int, char *[])
         }
 
         held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
-        needs_render = held_key_tracker.for_each_held_key(key_held_callback) || needs_render;
+        ran_user_code = held_key_tracker.for_each_held_key(key_held_callback) || ran_user_code;
 
-        if (needs_render)
+        if (ran_user_code)
         {
             bool force_render = view_stack.pop_completed_views();
 
