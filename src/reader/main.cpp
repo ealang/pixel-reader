@@ -235,7 +235,7 @@ int main(int, char *[])
         }
 
         held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
-        ran_user_code = held_key_tracker.for_each_held_key(key_held_callback) || ran_user_code;
+        ran_user_code = held_key_tracker.for_longest_held(key_held_callback) || ran_user_code;
 
         if (ran_user_code)
         {

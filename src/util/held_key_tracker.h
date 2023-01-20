@@ -16,7 +16,7 @@ public:
     virtual ~HeldKeyTracker();
 
     void accumulate(uint32_t ms);
-    bool for_each_held_key(const std::function<void(SDLKey, uint32_t)> &callback);
+    bool for_longest_held(const std::function<void(SDLKey, uint32_t)> &callback);
 };
 
 #endif
