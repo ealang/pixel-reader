@@ -18,7 +18,7 @@
 
 #if PLATFORM_MIYOO_MINI
     #define STATE_PATH          "/mnt/SDCARD/.pixel_reader"
-    #define DEFAULT_BROWSE_PATH "/mnt/SDCARD/"
+    #define DEFAULT_BROWSE_PATH "/mnt/SDCARD/Media/Books/"
     #define EXTRA_FONTS_LIST    {"/customer/app/wqy-microhei.ttc"}
 #else
     #define STATE_PATH          std::filesystem::current_path() / ".state"

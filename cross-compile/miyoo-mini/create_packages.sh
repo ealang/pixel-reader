@@ -19,7 +19,9 @@ make -j
 
 stage_common() {
     local STAGE_ROOT=$1
+    local STAGE_APP=$2
 
+    mkdir -p $STAGE_ROOT/Media/Books
     mkdir -p $STAGE_APP
     mkdir -p $STAGE_APP/lib
     mkdir -p $STAGE_APP/resources/fonts
@@ -28,6 +30,7 @@ stage_common() {
     cp -v resources/fonts/*.txt $STAGE_APP/resources/fonts
 
     cp -v README.md           $STAGE_APP
+    cp -v README.md           $STAGE_ROOT/Media/Books/
     cp -v cross-compile/miyoo-mini/launch.sh $STAGE_APP/
 
     local LIB_SRC=cross-compile/miyoo-mini/lib
@@ -49,13 +52,13 @@ create_onion_pkg() {
     echo "Onion: Staging to $STAGE_ROOT"
     rm -rf $STAGE_ROOT
 
-    stage_common $STAGE_ROOT
+    stage_common $STAGE_ROOT $STAGE_APP
 
     cp -v resources/icon/icon.png $STAGE_APP/icon.png
     cat cross-compile/miyoo-mini/config.json | sed "s/VERSION/${VERSION}/" | tee $STAGE_APP/config.json
 
     local FILENAME="pixel_reader_onion_v${VERSION}.zip"
-    (cd $STAGE_ROOT && zip -r $FILENAME App)
+    (cd $STAGE_ROOT && zip -r $FILENAME .)
     cp -v $STAGE_ROOT/$FILENAME build/
 }
 
@@ -67,12 +70,12 @@ create_miniui_pkg() {
     echo "MiniUI: Staging to $STAGE_ROOT"
     rm -rf $STAGE_ROOT
 
-    stage_common $STAGE_ROOT
+    stage_common $STAGE_ROOT $STAGE_APP
 
     echo $VERSION > $STAGE_APP/version
 
     local FILENAME="pixel_reader_miniui_v${VERSION}.zip"
-    (cd $STAGE_ROOT && zip -r $FILENAME Tools)
+    (cd $STAGE_ROOT && zip -r $FILENAME .)
     cp -v $STAGE_ROOT/$FILENAME build/
 }
 
