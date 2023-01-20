@@ -5,16 +5,19 @@
 struct TokenViewStylingState
 {
     bool show_title_bar;
+    std::string shoulder_keymap;
 
     uint32_t next_subscriber_id = 1;
     std::unordered_map<uint32_t, std::function<void()>> subscribers;
 
-    TokenViewStylingState(bool show_title_bar) : show_title_bar(show_title_bar)
+    TokenViewStylingState(bool show_title_bar, std::string shoulder_keymap)
+        : show_title_bar(show_title_bar)
+        , shoulder_keymap(std::move(shoulder_keymap))
     {}
 };
 
-TokenViewStyling::TokenViewStyling(bool show_title_bar)
-    : state(std::make_unique<TokenViewStylingState>(show_title_bar))
+TokenViewStyling::TokenViewStyling(bool show_title_bar, std::string shoulder_keymap)
+    : state(std::make_unique<TokenViewStylingState>(show_title_bar, shoulder_keymap))
 {
 }
 
@@ -40,6 +43,20 @@ void TokenViewStyling::set_show_title_bar(bool show_title_bar)
     if (state->show_title_bar != show_title_bar)
     {
         state->show_title_bar = show_title_bar;
+        notify_subscribers();
+    }
+}
+
+const std::string &TokenViewStyling::get_shoulder_keymap() const
+{
+    return state->shoulder_keymap;
+}
+
+void TokenViewStyling::set_shoulder_keymap(const std::string &keymap)
+{
+    if (state->shoulder_keymap != keymap)
+    {
+        state->shoulder_keymap = keymap;
         notify_subscribers();
     }
 }

@@ -4,7 +4,9 @@
 #include "reader/draw_modal_border.h"
 #include "reader/font_catalog.h"
 #include "reader/settings_store.h"
+#include "reader/shoulder_keymap.h"
 #include "reader/system_styling.h"
+#include "reader/views/token_view/token_view_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "util/sdl_font_cache.h"
@@ -14,12 +16,14 @@
 
 SettingsView::SettingsView(
     SystemStyling &sys_styling,
+    TokenViewStyling &token_view_styling,
     std::string font_name
 ) : font_name(font_name),
     sys_styling(sys_styling),
     styling_sub_id(sys_styling.subscribe_to_changes([this]() {
         needs_render = true;
-    }))
+    })),
+    token_view_styling(token_view_styling)
 {
 }
 
@@ -95,16 +99,38 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             );
         };
 
+        auto shoulder_keymap_label_surf = surface_unique_ptr {
+            TTF_RenderUTF8_Shaded(font, "Shoulder keymap:", theme.secondary_text, bg_color)
+        };
+        auto shoulder_keymap_value_surf = [&](bool selected = true) {
+            const auto &text = get_shoulder_keymap_display_name(
+                token_view_styling.get_shoulder_keymap()
+            );
+            return render_text(
+                arrowify(
+                    text,
+                    selected
+                ).c_str(),
+                selected
+            );
+        };
+
         Uint16 text_padding = 5;
 
         Uint16 content_w = std::max(
             std::max(
-                font_size_value_surf().get()->w,
-                theme_value_surf()->w
+                std::max(
+                    font_size_value_surf().get()->w,
+                    theme_value_surf()->w
+                ),
+                std::max(
+                    font_name_value_surf().get()->w,
+                    font_size_label_surf->w
+                )
             ),
             std::max(
-                font_name_value_surf().get()->w,
-                font_size_label_surf->w
+                shoulder_keymap_label_surf->w,
+                shoulder_keymap_value_surf().get()->w
             )
         );
         Uint16 content_h = (
@@ -115,7 +141,10 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             font_size_value_surf()->h +
             text_padding +
             font_name_label_surf->h +
-            font_name_value_surf().get()->h
+            font_name_value_surf().get()->h +
+            text_padding +
+            shoulder_keymap_label_surf->h +
+            shoulder_keymap_value_surf().get()->h
         );
         Sint16 content_y = SCREEN_HEIGHT / 2 - content_h / 2;
 
@@ -145,7 +174,10 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
 
             push_text(font_name_label_surf.get());
             push_text(font_name_value_surf(line_selected == 2).get());
+            rect.y += text_padding;
 
+            push_text(shoulder_keymap_label_surf.get());
+            push_text(shoulder_keymap_value_surf(line_selected == 3).get());
         }
 
         needs_render = false;
@@ -175,6 +207,15 @@ void SettingsView::on_change_theme(int dir)
     );
 }
 
+void SettingsView::on_change_font_size(int dir)
+{
+    sys_styling.set_font_size(
+        (dir < 0) ?
+            sys_styling.get_prev_font_size() :
+            sys_styling.get_next_font_size()
+    );
+}
+
 void SettingsView::on_change_font_name(int dir)
 {
     std::string font_name = sys_styling.get_font_name();
@@ -185,24 +226,26 @@ void SettingsView::on_change_font_name(int dir)
     );
 }
 
-void SettingsView::on_change_font_size(int dir)
+void SettingsView::on_change_shoulder_keymap(int dir)
 {
-    sys_styling.set_font_size(
+    const auto &keymap = token_view_styling.get_shoulder_keymap();
+    token_view_styling.set_shoulder_keymap(
         (dir < 0) ?
-            sys_styling.get_prev_font_size() :
-            sys_styling.get_next_font_size()
+            get_prev_shoulder_keymap(keymap) :
+            get_next_shoulder_keymap(keymap)
     );
 }
 
 void SettingsView::on_keypress(SDLKey key)
 {
+    static const uint32_t n = 4;
     switch (key) {
         case SW_BTN_UP:
-            line_selected = (line_selected + 2) % 3;
+            line_selected = (line_selected + n - 1) % n;
             needs_render = true;
             break;
         case SW_BTN_DOWN:
-            line_selected = (line_selected + 1) % 3;
+            line_selected = (line_selected + 1) % n;
             needs_render = true;
             break;
         case SW_BTN_LEFT:
@@ -217,9 +260,13 @@ void SettingsView::on_keypress(SDLKey key)
                 {
                     on_change_font_size(dir);
                 }
-                else
+                else if (line_selected == 2)
                 {
                     on_change_font_name(dir);
+                }
+                else
+                {
+                    on_change_shoulder_keymap(dir);
                 }
                 needs_render = true;
             }

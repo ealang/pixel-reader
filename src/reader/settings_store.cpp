@@ -8,6 +8,7 @@ namespace
 {
 
 constexpr const char *SETTINGS_KEY_SHOW_TITLE_BAR = "show_title_bar";
+constexpr const char *SETTINGS_SHOULDER_KEYMAP = "shoulder_keymap";
 constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
 constexpr const char *SETTINGS_KEY_FONT_NAME = "font_name";
 constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
@@ -27,6 +28,16 @@ std::optional<bool> settings_get_show_title_bar(const StateStore &state_store)
 void settings_set_show_title_bar(StateStore &state_store, bool show_title_bar)
 {
     state_store.set_setting(SETTINGS_KEY_SHOW_TITLE_BAR, show_title_bar ? "true" : "false");
+}
+
+std::optional<std::string> settings_get_shoulder_keymap(const StateStore &state_store)
+{
+    return state_store.get_setting(SETTINGS_SHOULDER_KEYMAP);
+}
+
+void settings_set_shoulder_keymap(StateStore &state_store, std::string keymap)
+{
+    state_store.set_setting(SETTINGS_SHOULDER_KEYMAP, keymap);
 }
 
 std::optional<std::string> settings_get_color_theme(const StateStore &state_store)

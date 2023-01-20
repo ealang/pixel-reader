@@ -27,5 +27,6 @@
 #endif
 
 #define DEFAULT_SHOW_PROGRESS true
+#define DEFAULT_SHOULDER_KEYMAP "LR"
 
 #endif

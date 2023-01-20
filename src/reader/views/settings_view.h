@@ -6,6 +6,7 @@
 #include <string>
 
 struct SystemStyling;
+struct TokenViewStyling;
 
 class SettingsView: public View
 {
@@ -17,13 +18,17 @@ class SettingsView: public View
     SystemStyling &sys_styling;
     uint32_t styling_sub_id;
 
+    TokenViewStyling &token_view_styling;
+
     void on_change_theme(int dir);
-    void on_change_font_name(int dir);
     void on_change_font_size(int dir);
+    void on_change_font_name(int dir);
+    void on_change_shoulder_keymap(int dir);
 
 public:
     SettingsView(
         SystemStyling &sys_styling,
+        TokenViewStyling &token_view_styling,
         std::string font_name
     );
     virtual ~SettingsView();

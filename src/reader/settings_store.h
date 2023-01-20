@@ -10,6 +10,10 @@ struct StateStore;
 std::optional<bool> settings_get_show_title_bar(const StateStore &state_store);
 void settings_set_show_title_bar(StateStore &state_store, bool show_title_bar);
 
+// Shoulder keymap
+std::optional<std::string> settings_get_shoulder_keymap(const StateStore &state_store);
+void settings_set_shoulder_keymap(StateStore &state_store, std::string keymap);
+
 // Color theme
 std::optional<std::string> settings_get_color_theme(const StateStore &state_store);
 void settings_set_color_theme(StateStore &state_store, const std::string &color_theme);

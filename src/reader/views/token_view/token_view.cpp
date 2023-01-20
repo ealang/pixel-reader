@@ -5,13 +5,13 @@
 
 #include "doc_api/doc_reader.h"
 #include "reader/system_styling.h"
+#include "reader/shoulder_keymap.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "util/sdl_utils.h"
 #include "util/throttled.h"
 
 #include <stdexcept>
-#include <iostream>
 namespace {
 
 bool line_fits_on_screen(TTF_Font *font, int avail_width, const char *s, uint32_t len)
@@ -348,13 +348,35 @@ void TokenView::on_keypress(SDLKey key)
         case SW_BTN_DOWN:
             scroll(1);
             break;
-        case SW_BTN_LEFT:
         case SW_BTN_L1:
-            scroll(-state->num_text_display_lines());
-            break;
-        case SW_BTN_RIGHT:
         case SW_BTN_R1:
-            scroll(state->num_text_display_lines());
+        case SW_BTN_L2:
+        case SW_BTN_R2:
+            {
+                auto [l_key, r_key] = get_shoulder_keymap_lr(
+                    state->token_view_styling.get_shoulder_keymap()
+                );
+
+                if (key == l_key)
+                {
+                    key = SW_BTN_LEFT;
+                }
+                else if (key == r_key)
+                {
+                    key = SW_BTN_RIGHT;
+                }
+            }
+            // fallthrough
+        case SW_BTN_LEFT:
+        case SW_BTN_RIGHT:
+            if (key == SW_BTN_LEFT)
+            {
+                scroll(-state->num_text_display_lines());
+            }
+            else if (key == SW_BTN_RIGHT)
+            {
+                scroll(state->num_text_display_lines());
+            }
             break;
         default:
             break;
@@ -375,6 +397,8 @@ void TokenView::on_keyheld(SDLKey key, uint32_t held_time_ms)
         case SW_BTN_RIGHT:
         case SW_BTN_L1:
         case SW_BTN_R1:
+        case SW_BTN_L2:
+        case SW_BTN_R2:
             if (state->page_scroll_throttle(held_time_ms))
             {
                 on_keypress(key);

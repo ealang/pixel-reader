@@ -1,6 +1,7 @@
 #include "./config.h"
 #include "./font_catalog.h"
 #include "./settings_store.h"
+#include "./shoulder_keymap.h"
 #include "./state_store.h"
 #include "./system_styling.h"
 #include "./color_theme_def.h"
@@ -142,10 +143,14 @@ int main(int, char *[])
     });
 
     // Text Styling
-    TokenViewStyling token_view_styling(settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS));
+    TokenViewStyling token_view_styling(
+        settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS),
+        get_valid_shoulder_keymap(settings_get_shoulder_keymap(state_store).value_or(DEFAULT_SHOULDER_KEYMAP))
+    );
     token_view_styling.subscribe_to_changes([&token_view_styling, &state_store]() {
         // Persist changes
         settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
+        settings_set_shoulder_keymap(state_store, token_view_styling.get_shoulder_keymap());
     });
 
     // Setup views
@@ -154,6 +159,7 @@ int main(int, char *[])
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
+        token_view_styling,
         SYSTEM_FONT
     );
 
@@ -165,7 +171,9 @@ int main(int, char *[])
             SW_BTN_LEFT,
             SW_BTN_RIGHT,
             SW_BTN_L1,
-            SW_BTN_R1
+            SW_BTN_R1,
+            SW_BTN_L2,
+            SW_BTN_R2
         }
     );
 

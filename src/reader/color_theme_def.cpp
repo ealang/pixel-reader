@@ -5,7 +5,10 @@
 #include <utility>
 #include <vector>
 
-static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
+namespace
+{
+
+const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
     {
         "night_contrast",
         {
@@ -48,7 +51,7 @@ static const std::vector<std::pair<std::string, ColorTheme>> theme_defs = {
     },
 };
 
-static int get_theme_index(const std::string &name)
+int get_theme_index(const std::string &name)
 {
     for (uint32_t i = 0; i < theme_defs.size(); i++)
     {
@@ -60,6 +63,8 @@ static int get_theme_index(const std::string &name)
 
     return -1;
 }
+
+} // namespace
 
 const ColorTheme& get_color_theme(const std::string &name)
 {
