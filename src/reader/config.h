@@ -16,12 +16,12 @@
 
 #define DEFAULT_COLOR_THEME "night_contrast"
 
+#define FALLBACK_STORE_PATH ".pixel_reader_store"
+
 #if PLATFORM_MIYOO_MINI
-    #define STATE_PATH          "/mnt/SDCARD/.pixel_reader"
     #define DEFAULT_BROWSE_PATH "/mnt/SDCARD/Media/Books/"
     #define EXTRA_FONTS_LIST    {"/customer/app/wqy-microhei.ttc"}
 #else
-    #define STATE_PATH          std::filesystem::current_path() / ".state"
     #define DEFAULT_BROWSE_PATH std::filesystem::current_path() / ""
     #define EXTRA_FONTS_LIST    {}
 #endif

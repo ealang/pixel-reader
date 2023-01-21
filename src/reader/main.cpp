@@ -16,6 +16,7 @@
 #include "sys/screen.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
+#include "util/key_value_file.h"
 #include "util/sdl_font_cache.h"
 #include "util/timer.h"
 
@@ -97,6 +98,15 @@ uint32_t bound(uint32_t val, uint32_t min, uint32_t max)
     return std::max(std::min(val, max), min);
 }
 
+StateStore load_store()
+{
+    const char *store_path_key = "store_path";
+    auto config = load_key_value("reader.cfg");
+    config.try_emplace(store_path_key, FALLBACK_STORE_PATH);
+
+    return { config[store_path_key] };
+}
+
 } // namespace
 
 int main(int, char *[])
@@ -114,8 +124,7 @@ int main(int, char *[])
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
     set_render_surface_format(screen->format);
 
-    // Store
-    StateStore state_store(STATE_PATH);
+    StateStore state_store = load_store();
 
     // Preload & check fonts
     auto init_font_name = get_valid_font_name(settings_get_font_name(state_store).value_or(DEFAULT_FONT_NAME));

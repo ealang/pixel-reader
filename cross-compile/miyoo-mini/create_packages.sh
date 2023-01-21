@@ -55,6 +55,7 @@ create_onion_pkg() {
     stage_common $STAGE_ROOT $STAGE_APP
 
     cp -v resources/icon/icon.png $STAGE_APP/icon.png
+    cp -v cross-compile/miyoo-mini/onion_reader.cfg $STAGE_APP/reader.cfg
     cat cross-compile/miyoo-mini/config.json | sed "s/VERSION/${VERSION}/" | tee $STAGE_APP/config.json
 
     local FILENAME="pixel_reader_onion_v${VERSION}.zip"
@@ -73,6 +74,7 @@ create_miniui_pkg() {
     stage_common $STAGE_ROOT $STAGE_APP
 
     echo $VERSION > $STAGE_APP/version
+    cp -v cross-compile/miyoo-mini/miniui_reader.cfg $STAGE_APP/reader.cfg
 
     local FILENAME="pixel_reader_miniui_v${VERSION}.zip"
     (cd $STAGE_ROOT && zip -r $FILENAME .)
