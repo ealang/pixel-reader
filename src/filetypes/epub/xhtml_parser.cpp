@@ -418,7 +418,7 @@ void generate_doc_tokens(
     uint32_t n = nodes.size();
     tokens_out.reserve(n);
 
-    bool separator_allowed = false;
+    bool separator_allowed = true;
     uint32_t i = 0;
     while (i < n)
     {
