@@ -110,6 +110,7 @@ TEST(XHTML_PARSER, section_compaction)
     );
   
     std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<TextDocToken>(0,  ""          ));
     expected_tokens.push_back(std::make_unique<TextDocToken>(0,  "Some text."));
     expected_tokens.push_back(std::make_unique<TextDocToken>(9,  ""          ));
     expected_tokens.push_back(std::make_unique<TextDocToken>(9,  "Some more."));
@@ -135,6 +136,7 @@ TEST(XHTML_PARSER, header_elems)
     );
 
     std::vector<std::unique_ptr<DocToken>> expected_tokens;
+    expected_tokens.push_back(std::make_unique<TextDocToken>(0, ""));
     expected_tokens.push_back(std::make_unique<HeaderDocToken>(0, "heading 1"));
     expected_tokens.push_back(std::make_unique<TextDocToken>(8, ""));
     expected_tokens.push_back(std::make_unique<HeaderDocToken>(8, "heading 2"));
