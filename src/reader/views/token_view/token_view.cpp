@@ -348,10 +348,21 @@ void TokenView::on_keypress(SDLKey key)
         case SW_BTN_DOWN:
             scroll(1);
             break;
-        case SW_BTN_L1:
-        case SW_BTN_R1:
         case SW_BTN_L2:
         case SW_BTN_R2:
+            {
+                if (key == SW_BTN_L2)
+                {
+                    key = SW_BTN_L1;
+                }
+                else
+                {
+                    key = SW_BTN_R1;
+                }
+            }
+            // fallthrough
+        case SW_BTN_L1:
+        case SW_BTN_R1:
             {
                 auto [l_key, r_key] = get_shoulder_keymap_lr(
                     state->token_view_styling.get_shoulder_keymap()

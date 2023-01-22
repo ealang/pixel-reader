@@ -16,7 +16,6 @@ struct KeyMap
 const std::vector<std::pair<std::string, KeyMap>> keymaps = {
     {"LR", { "LR (default)", {SW_BTN_L1, SW_BTN_R1} }},
     {"RL", { "RL (swapped)", {SW_BTN_R1, SW_BTN_L1} }},
-    {"disabled", { "disabled", {SDLK_LAST, SDLK_LAST} }}
 };
 
 int get_keymap_index(const std::string &name)

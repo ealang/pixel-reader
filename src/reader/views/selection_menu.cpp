@@ -257,10 +257,12 @@ void SelectionMenu::on_keypress(SDLKey key)
             break;
         case SW_BTN_LEFT:
         case SW_BTN_L1:
+        case SW_BTN_L2:
             on_move_up(num_display_lines() / 2);
             break;
         case SW_BTN_RIGHT:
         case SW_BTN_R1:
+        case SW_BTN_R2:
             on_move_down(num_display_lines() / 2);
             break;
         case SW_BTN_A:
@@ -287,6 +289,8 @@ void SelectionMenu::on_keyheld(SDLKey key, uint32_t held_time_ms)
         case SW_BTN_RIGHT:
         case SW_BTN_L1:
         case SW_BTN_R1:
+        case SW_BTN_L2:
+        case SW_BTN_R2:
             if (scroll_throttle(held_time_ms))
             {
                 on_keypress(key);
