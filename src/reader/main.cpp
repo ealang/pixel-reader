@@ -98,13 +98,15 @@ uint32_t bound(uint32_t val, uint32_t min, uint32_t max)
     return std::max(std::min(val, max), min);
 }
 
-StateStore load_store()
-{
-    const char *store_path_key = "store_path";
-    auto config = load_key_value("reader.cfg");
-    config.try_emplace(store_path_key, FALLBACK_STORE_PATH);
+const char *CONFIG_KEY_STORE_PATH = "store_path";
+const char *CONFIG_KEY_ENABLE_SWAP_LR = "enable_swap_lr";
 
-    return { config[store_path_key] };
+std::unordered_map<std::string, std::string> load_config_with_defaults()
+{
+    auto config = load_key_value(CONFIG_FILE_PATH);
+    config.try_emplace(CONFIG_KEY_STORE_PATH, FALLBACK_STORE_PATH);
+    config.try_emplace(CONFIG_KEY_ENABLE_SWAP_LR, "false");
+    return config;
 }
 
 } // namespace
@@ -124,7 +126,8 @@ int main(int, char *[])
     SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
     set_render_surface_format(screen->format);
 
-    StateStore state_store = load_store();
+    auto config = load_config_with_defaults();
+    StateStore state_store(config[CONFIG_KEY_STORE_PATH]);
 
     // Preload & check fonts
     auto init_font_name = get_valid_font_name(settings_get_font_name(state_store).value_or(DEFAULT_FONT_NAME));
@@ -152,9 +155,12 @@ int main(int, char *[])
     });
 
     // Text Styling
+    bool enable_swap_lr = config[CONFIG_KEY_ENABLE_SWAP_LR] == "true";
     TokenViewStyling token_view_styling(
         settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS),
-        get_valid_shoulder_keymap(settings_get_shoulder_keymap(state_store).value_or(DEFAULT_SHOULDER_KEYMAP))
+        enable_swap_lr ?
+            get_valid_shoulder_keymap(settings_get_shoulder_keymap(state_store).value_or(DEFAULT_SHOULDER_KEYMAP)) :
+            DEFAULT_SHOULDER_KEYMAP
     );
     token_view_styling.subscribe_to_changes([&token_view_styling, &state_store]() {
         // Persist changes
@@ -169,7 +175,8 @@ int main(int, char *[])
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
         token_view_styling,
-        SYSTEM_FONT
+        SYSTEM_FONT,
+        enable_swap_lr
     );
 
     // Track held keys

@@ -20,6 +20,9 @@ class SettingsView: public View
 
     TokenViewStyling &token_view_styling;
 
+    bool enable_swap_lr;
+    int num_menu_items;
+
     void on_change_theme(int dir);
     void on_change_font_size(int dir);
     void on_change_font_name(int dir);
@@ -29,7 +32,8 @@ public:
     SettingsView(
         SystemStyling &sys_styling,
         TokenViewStyling &token_view_styling,
-        std::string font_name
+        std::string font_name,
+        bool enable_swap_lr
     );
     virtual ~SettingsView();
 

@@ -17,13 +17,16 @@
 SettingsView::SettingsView(
     SystemStyling &sys_styling,
     TokenViewStyling &token_view_styling,
-    std::string font_name
+    std::string font_name,
+    bool enable_swap_lr
 ) : font_name(font_name),
     sys_styling(sys_styling),
     styling_sub_id(sys_styling.subscribe_to_changes([this]() {
         needs_render = true;
     })),
-    token_view_styling(token_view_styling)
+    token_view_styling(token_view_styling),
+    enable_swap_lr(enable_swap_lr),
+    num_menu_items(enable_swap_lr ? 4 : 3)
 {
 }
 
@@ -97,8 +100,8 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
                 font_size_value->w + arrow_w,
                 font_name_label->w,
                 font_name_value->w + arrow_w,
-                shoulder_keymap_label->w,
-                shoulder_keymap_value->w + arrow_w
+                (enable_swap_lr ? shoulder_keymap_label->w : 0),
+                (enable_swap_lr ? shoulder_keymap_value->w + arrow_w : 0)
             };
             content_w = *std::max_element(widths.begin(), widths.end());
         }
@@ -113,9 +116,13 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             text_padding +
             font_name_label->h +
             font_name_value->h +
-            text_padding +
-            shoulder_keymap_label->h +
-            shoulder_keymap_value->h
+            (
+                enable_swap_lr ? (
+                    text_padding +
+                    shoulder_keymap_label->h +
+                    shoulder_keymap_value->h
+                ) : 0
+            )
         );
         Sint16 content_y = SCREEN_HEIGHT / 2 - content_h / 2;
 
@@ -162,8 +169,11 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             push_text(font_name_value.get(), line_selected == 2);
             rect.y += text_padding;
 
-            push_text(shoulder_keymap_label.get());
-            push_text(shoulder_keymap_value.get(), line_selected == 3);
+            if (enable_swap_lr)
+            {
+                push_text(shoulder_keymap_label.get());
+                push_text(shoulder_keymap_value.get(), line_selected == 3);
+            }
         }
 
         needs_render = false;
@@ -224,14 +234,13 @@ void SettingsView::on_change_shoulder_keymap(int dir)
 
 void SettingsView::on_keypress(SDLKey key)
 {
-    static const uint32_t n = 4;
     switch (key) {
         case SW_BTN_UP:
-            line_selected = (line_selected + n - 1) % n;
+            line_selected = (line_selected + num_menu_items - 1) % num_menu_items;
             needs_render = true;
             break;
         case SW_BTN_DOWN:
-            line_selected = (line_selected + 1) % n;
+            line_selected = (line_selected + 1) % num_menu_items;
             needs_render = true;
             break;
         case SW_BTN_LEFT:

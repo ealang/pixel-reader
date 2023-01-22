@@ -16,6 +16,7 @@
 
 #define DEFAULT_COLOR_THEME "night_contrast"
 
+#define CONFIG_FILE_PATH "reader.cfg"
 #define FALLBACK_STORE_PATH ".pixel_reader_store"
 
 #if PLATFORM_MIYOO_MINI
