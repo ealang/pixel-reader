@@ -1,5 +1,7 @@
 #include "./key_value_file.h"
 
+#include "util/str_utils.h"
+
 #include <fstream>
 
 void write_key_value(const std::filesystem::path &path, const std::unordered_map<std::string, std::string> &settings)
@@ -25,8 +27,8 @@ std::unordered_map<std::string, std::string> load_key_value(const std::filesyste
         {
             continue;
         }
-        auto key = line.substr(0, pos);
-        auto value = line.substr(pos + 1);
+        auto key = strip_whitespace(line.substr(0, pos));
+        auto value = strip_whitespace(line.substr(pos + 1));
         settings[key] = value;
     }
     fp.close();
