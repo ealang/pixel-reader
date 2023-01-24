@@ -83,12 +83,14 @@ struct TokenViewState
     TokenViewState(std::shared_ptr<DocReader> reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
         : sys_styling(sys_styling),
           token_view_styling(token_view_styling),
-          sys_styling_sub_id(sys_styling.subscribe_to_changes([this]() {
-              // Color theme and font size
-              current_font = this->sys_styling.get_loaded_font();
-              line_height = detect_line_height(current_font) + line_padding;
-              line_scroller.set_line_height_pixels(line_height);
-              line_scroller.reset_buffer();  // need to re-wrap lines if font-size changed
+          sys_styling_sub_id(sys_styling.subscribe_to_changes([this](SystemStyling::ChangeId change_id) {
+              if (change_id == SystemStyling::ChangeId::FONT_SIZE || change_id == SystemStyling::ChangeId::FONT_NAME)
+              {
+                  current_font = this->sys_styling.get_loaded_font();
+                  line_height = detect_line_height(current_font) + line_padding;
+                  line_scroller.set_line_height_pixels(line_height);
+                  line_scroller.reset_buffer();  // need to re-wrap lines if font-size changed
+              }
               needs_render = true;
           })),
           token_view_styling_sub_id(token_view_styling.subscribe_to_changes([this]() {

@@ -16,7 +16,7 @@ struct SystemStylingState {
     std::string shoulder_keymap;
 
     uint32_t next_subscriber_id = 1;
-    std::unordered_map<uint32_t, std::function<void()>> subscribers;
+    std::unordered_map<uint32_t, std::function<void(SystemStyling::ChangeId)>> subscribers;
 
     SystemStylingState(
         const std::string &font_name,
@@ -40,11 +40,19 @@ SystemStyling::~SystemStyling()
 {
 }
 
+void SystemStyling::notify_subscribers(ChangeId id) const
+{
+    for (auto &sub: state->subscribers)
+    {
+        sub.second(id);
+    }
+}
+
 void SystemStyling::set_font_name(std::string font_name)
 {
     if (state->font_name != font_name) {
         state->font_name = font_name;
-        notify_subscribers();
+        notify_subscribers(ChangeId::FONT_NAME);
     }
 }
 
@@ -63,7 +71,7 @@ void SystemStyling::set_font_size(uint32_t font_size)
     if (state->font_size != font_size)
     {
         state->font_size = font_size;
-        notify_subscribers();
+        notify_subscribers(ChangeId::FONT_SIZE);
     }
 }
 
@@ -84,21 +92,13 @@ uint32_t SystemStyling::get_next_font_size() const
     return (state->font_size - MIN_FONT_SIZE + FONT_SIZE_STEP) % range + MIN_FONT_SIZE;
 }
 
-void SystemStyling::notify_subscribers() const
-{
-    for (auto &sub: state->subscribers)
-    {
-        sub.second();
-    }
-}
-
 void SystemStyling::set_color_theme(const std::string &color_theme)
 {
     if (state->color_theme != color_theme)
     {
         state->color_theme = color_theme;
         state->loaded_color_theme = ::get_color_theme(color_theme);
-        notify_subscribers();
+        notify_subscribers(ChangeId::COLOR_THEME);
     }
 }
 
@@ -122,12 +122,12 @@ void SystemStyling::set_shoulder_keymap(const std::string &keymap)
     if (state->shoulder_keymap != keymap)
     {
         state->shoulder_keymap = keymap;
-        notify_subscribers();
+        notify_subscribers(ChangeId::SHOULDER_KEYMAP);
     }
 }
 
 
-uint32_t SystemStyling::subscribe_to_changes(std::function<void()> callback)
+uint32_t SystemStyling::subscribe_to_changes(std::function<void(ChangeId)> callback)
 {
     uint32_t sub_id = state->next_subscriber_id++;
     state->subscribers[sub_id] = callback;

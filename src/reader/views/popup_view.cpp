@@ -10,7 +10,7 @@ PopupView::PopupView(const std::string &message, std::string font_name, SystemSt
     : message(message)
     , font_name(font_name)
     , styling(styling)
-    , styling_sub_id(styling.subscribe_to_changes([this]() {
+    , styling_sub_id(styling.subscribe_to_changes([this](SystemStyling::ChangeId) {
           _needs_render = true;
       }))
 {

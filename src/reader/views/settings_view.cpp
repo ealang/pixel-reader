@@ -18,7 +18,7 @@ SettingsView::SettingsView(
     std::string font_name
 ) : font_name(font_name),
     sys_styling(sys_styling),
-    styling_sub_id(sys_styling.subscribe_to_changes([this]() {
+    styling_sub_id(sys_styling.subscribe_to_changes([this](SystemStyling::ChangeId) {
         needs_render = true;
     })),
     num_menu_items(4)

@@ -12,8 +12,17 @@
 struct SystemStylingState;
 
 class SystemStyling {
+public:
+    enum class ChangeId {
+        FONT_NAME,
+        FONT_SIZE,
+        COLOR_THEME,
+        SHOULDER_KEYMAP,
+    };
+
+private:
     std::unique_ptr<SystemStylingState> state;
-    void notify_subscribers() const;
+    void notify_subscribers(ChangeId) const;
 
 public:
     SystemStyling(
@@ -45,7 +54,7 @@ public:
     void set_shoulder_keymap(const std::string &keymap);
 
     // Subscribe to any changes
-    uint32_t subscribe_to_changes(std::function<void()> callback);
+    uint32_t subscribe_to_changes(std::function<void(ChangeId)> callback);
     void unsubscribe_from_changes(uint32_t sub_id);
 };
 

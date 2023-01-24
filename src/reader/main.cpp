@@ -146,7 +146,7 @@ int main(int, char *[])
         get_valid_theme(settings_get_color_theme(state_store).value_or(DEFAULT_COLOR_THEME)),
         get_valid_shoulder_keymap(settings_get_shoulder_keymap(state_store).value_or(DEFAULT_SHOULDER_KEYMAP))
     );
-    sys_styling.subscribe_to_changes([&state_store, &sys_styling]() {
+    sys_styling.subscribe_to_changes([&state_store, &sys_styling](SystemStyling::ChangeId) {
         // Persist changes
         settings_set_color_theme(state_store, sys_styling.get_color_theme());
         settings_set_font_name(state_store, sys_styling.get_font_name());

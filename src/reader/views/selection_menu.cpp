@@ -25,7 +25,7 @@ SelectionMenu::SelectionMenu(SystemStyling &styling)
 SelectionMenu::SelectionMenu(std::vector<std::string> entries, SystemStyling &styling)
     : entries(entries),
       styling(styling),
-      styling_sub_id(styling.subscribe_to_changes([this]() {
+      styling_sub_id(styling.subscribe_to_changes([this](SystemStyling::ChangeId) {
           needs_render = true;
           int new_line_height = detect_line_height(
               this->styling.get_font_name(),
