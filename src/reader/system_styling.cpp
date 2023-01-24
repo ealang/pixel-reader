@@ -13,22 +13,26 @@ struct SystemStylingState {
     std::string color_theme;
     ColorTheme loaded_color_theme;
 
+    std::string shoulder_keymap;
+
     uint32_t next_subscriber_id = 1;
     std::unordered_map<uint32_t, std::function<void()>> subscribers;
 
     SystemStylingState(
         const std::string &font_name,
         uint32_t font_size,
-        const std::string &color_theme
+        const std::string &color_theme,
+        const std::string &shoulder_keymap
     ) : font_name(font_name),
         font_size(font_size),
         color_theme(color_theme),
-        loaded_color_theme(get_color_theme(color_theme))
+        loaded_color_theme(get_color_theme(color_theme)),
+        shoulder_keymap(shoulder_keymap)
     {}
 };
 
-SystemStyling::SystemStyling(const std::string &font_name, uint32_t font_size, const std::string &color_theme)
-    : state(std::make_unique<SystemStylingState>(font_name, font_size, color_theme))
+SystemStyling::SystemStyling(const std::string &font_name, uint32_t font_size, const std::string &color_theme, const std::string &shoulder_keymap)
+    : state(std::make_unique<SystemStylingState>(font_name, font_size, color_theme, shoulder_keymap))
 {
 }
 
@@ -107,6 +111,21 @@ const ColorTheme &SystemStyling::get_loaded_color_theme() const
 {
     return state->loaded_color_theme;
 }
+
+const std::string &SystemStyling::get_shoulder_keymap() const
+{
+    return state->shoulder_keymap;
+}
+
+void SystemStyling::set_shoulder_keymap(const std::string &keymap)
+{
+    if (state->shoulder_keymap != keymap)
+    {
+        state->shoulder_keymap = keymap;
+        notify_subscribers();
+    }
+}
+
 
 uint32_t SystemStyling::subscribe_to_changes(std::function<void()> callback)
 {

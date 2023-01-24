@@ -99,13 +99,11 @@ uint32_t bound(uint32_t val, uint32_t min, uint32_t max)
 }
 
 const char *CONFIG_KEY_STORE_PATH = "store_path";
-const char *CONFIG_KEY_ENABLE_SWAP_LR = "enable_swap_lr";
 
 std::unordered_map<std::string, std::string> load_config_with_defaults()
 {
     auto config = load_key_value(CONFIG_FILE_PATH);
     config.try_emplace(CONFIG_KEY_STORE_PATH, FALLBACK_STORE_PATH);
-    config.try_emplace(CONFIG_KEY_ENABLE_SWAP_LR, "false");
     return config;
 }
 
@@ -145,27 +143,22 @@ int main(int, char *[])
     SystemStyling sys_styling(
         init_font_name,
         init_font_size,
-        get_valid_theme(settings_get_color_theme(state_store).value_or(DEFAULT_COLOR_THEME))
+        get_valid_theme(settings_get_color_theme(state_store).value_or(DEFAULT_COLOR_THEME)),
+        get_valid_shoulder_keymap(settings_get_shoulder_keymap(state_store).value_or(DEFAULT_SHOULDER_KEYMAP))
     );
     sys_styling.subscribe_to_changes([&state_store, &sys_styling]() {
         // Persist changes
         settings_set_color_theme(state_store, sys_styling.get_color_theme());
         settings_set_font_name(state_store, sys_styling.get_font_name());
         settings_set_font_size(state_store, sys_styling.get_font_size());
+        settings_set_shoulder_keymap(state_store, sys_styling.get_shoulder_keymap());
     });
 
     // Text Styling
-    bool enable_swap_lr = config[CONFIG_KEY_ENABLE_SWAP_LR] == "true";
-    TokenViewStyling token_view_styling(
-        settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS),
-        enable_swap_lr ?
-            get_valid_shoulder_keymap(settings_get_shoulder_keymap(state_store).value_or(DEFAULT_SHOULDER_KEYMAP)) :
-            DEFAULT_SHOULDER_KEYMAP
-    );
+    TokenViewStyling token_view_styling(settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS));
     token_view_styling.subscribe_to_changes([&token_view_styling, &state_store]() {
         // Persist changes
         settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
-        settings_set_shoulder_keymap(state_store, token_view_styling.get_shoulder_keymap());
     });
 
     // Setup views
@@ -174,9 +167,7 @@ int main(int, char *[])
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
-        token_view_styling,
-        SYSTEM_FONT,
-        enable_swap_lr
+        SYSTEM_FONT
     );
 
     // Track held keys

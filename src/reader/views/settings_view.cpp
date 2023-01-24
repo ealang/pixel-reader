@@ -6,7 +6,6 @@
 #include "reader/settings_store.h"
 #include "reader/shoulder_keymap.h"
 #include "reader/system_styling.h"
-#include "reader/views/token_view/token_view_styling.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
 #include "util/sdl_font_cache.h"
@@ -16,17 +15,13 @@
 
 SettingsView::SettingsView(
     SystemStyling &sys_styling,
-    TokenViewStyling &token_view_styling,
-    std::string font_name,
-    bool enable_swap_lr
+    std::string font_name
 ) : font_name(font_name),
     sys_styling(sys_styling),
     styling_sub_id(sys_styling.subscribe_to_changes([this]() {
         needs_render = true;
     })),
-    token_view_styling(token_view_styling),
-    enable_swap_lr(enable_swap_lr),
-    num_menu_items(enable_swap_lr ? 4 : 3)
+    num_menu_items(4)
 {
 }
 
@@ -85,7 +80,7 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
         auto shoulder_keymap_label = render_text("Shoulder keymap:", style_label);
         auto shoulder_keymap_value = render_text(
             get_shoulder_keymap_display_name(
-                token_view_styling.get_shoulder_keymap()
+                sys_styling.get_shoulder_keymap()
             ).c_str(),
             line_selected == 3 ? style_hl : style_normal
         );
@@ -100,8 +95,8 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
                 font_size_value->w + arrow_w,
                 font_name_label->w,
                 font_name_value->w + arrow_w,
-                (enable_swap_lr ? shoulder_keymap_label->w : 0),
-                (enable_swap_lr ? shoulder_keymap_value->w + arrow_w : 0)
+                shoulder_keymap_label->w,
+                shoulder_keymap_value->w + arrow_w
             };
             content_w = *std::max_element(widths.begin(), widths.end());
         }
@@ -116,13 +111,9 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             text_padding +
             font_name_label->h +
             font_name_value->h +
-            (
-                enable_swap_lr ? (
-                    text_padding +
-                    shoulder_keymap_label->h +
-                    shoulder_keymap_value->h
-                ) : 0
-            )
+            text_padding +
+            shoulder_keymap_label->h +
+            shoulder_keymap_value->h
         );
         Sint16 content_y = SCREEN_HEIGHT / 2 - content_h / 2;
 
@@ -169,11 +160,8 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             push_text(font_name_value.get(), line_selected == 2);
             rect.y += text_padding;
 
-            if (enable_swap_lr)
-            {
-                push_text(shoulder_keymap_label.get());
-                push_text(shoulder_keymap_value.get(), line_selected == 3);
-            }
+            push_text(shoulder_keymap_label.get());
+            push_text(shoulder_keymap_value.get(), line_selected == 3);
         }
 
         needs_render = false;
@@ -224,8 +212,8 @@ void SettingsView::on_change_font_name(int dir)
 
 void SettingsView::on_change_shoulder_keymap(int dir)
 {
-    const auto &keymap = token_view_styling.get_shoulder_keymap();
-    token_view_styling.set_shoulder_keymap(
+    const auto &keymap = sys_styling.get_shoulder_keymap();
+    sys_styling.set_shoulder_keymap(
         (dir < 0) ?
             get_prev_shoulder_keymap(keymap) :
             get_next_shoulder_keymap(keymap)

@@ -3,6 +3,7 @@
 
 #include "sys/screen.h"
 #include "sys/keymap.h"
+#include "reader/shoulder_keymap.h"
 #include "reader/system_styling.h"
 #include "util/sdl_utils.h"
 
@@ -255,15 +256,35 @@ void SelectionMenu::on_keypress(SDLKey key)
         case SW_BTN_DOWN:
             on_move_down(1);
             break;
-        case SW_BTN_LEFT:
         case SW_BTN_L1:
-        case SW_BTN_L2:
-            on_move_up(num_display_lines() / 2);
-            break;
-        case SW_BTN_RIGHT:
         case SW_BTN_R1:
+        case SW_BTN_L2:
         case SW_BTN_R2:
-            on_move_down(num_display_lines() / 2);
+            {
+                auto [l_key, r_key] = get_shoulder_keymap_lr(
+                    styling.get_shoulder_keymap()
+                );
+
+                if (key == l_key)
+                {
+                    key = SW_BTN_LEFT;
+                }
+                else if (key == r_key)
+                {
+                    key = SW_BTN_RIGHT;
+                }
+            }
+            // fallthrough
+        case SW_BTN_LEFT:
+        case SW_BTN_RIGHT:
+            if (key == SW_BTN_LEFT)
+            {
+                on_move_up(num_display_lines() / 2);
+            }
+            else if (key == SW_BTN_RIGHT)
+            {
+                on_move_down(num_display_lines() / 2);
+            }
             break;
         case SW_BTN_A:
             on_select_entry();

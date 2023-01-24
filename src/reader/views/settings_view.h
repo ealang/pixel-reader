@@ -6,7 +6,6 @@
 #include <string>
 
 struct SystemStyling;
-struct TokenViewStyling;
 
 class SettingsView: public View
 {
@@ -18,9 +17,6 @@ class SettingsView: public View
     SystemStyling &sys_styling;
     uint32_t styling_sub_id;
 
-    TokenViewStyling &token_view_styling;
-
-    bool enable_swap_lr;
     int num_menu_items;
 
     void on_change_theme(int dir);
@@ -31,9 +27,7 @@ class SettingsView: public View
 public:
     SettingsView(
         SystemStyling &sys_styling,
-        TokenViewStyling &token_view_styling,
-        std::string font_name,
-        bool enable_swap_lr
+        std::string font_name
     );
     virtual ~SettingsView();
 

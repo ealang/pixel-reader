@@ -19,7 +19,8 @@ public:
     SystemStyling(
         const std::string &font_name,
         uint32_t font_size,
-        const std::string &color_theme
+        const std::string &color_theme,
+        const std::string &shoulder_keymap
     );
     virtual ~SystemStyling();
 
@@ -38,6 +39,10 @@ public:
     void set_color_theme(const std::string &color_theme);
     const std::string &get_color_theme() const;
     const ColorTheme &get_loaded_color_theme() const;
+
+    // shoulder keymap
+    const std::string &get_shoulder_keymap() const;
+    void set_shoulder_keymap(const std::string &keymap);
 
     // Subscribe to any changes
     uint32_t subscribe_to_changes(std::function<void()> callback);
