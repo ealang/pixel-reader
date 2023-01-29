@@ -2,6 +2,7 @@
 #define READER_VIEW_H_
 
 #include "doc_api/doc_addr.h"
+#include "reader/range_db.h"
 #include "reader/view.h"
 
 #include <filesystem>
@@ -25,6 +26,7 @@ public:
         std::filesystem::path path,
         std::shared_ptr<DocReader> reader,
         DocAddr seek_address,
+        RangeDB highlights,
         SystemStyling &sys_styling,
         TokenViewStyling &token_view_styling,
         ViewStack &view_stack
@@ -39,6 +41,7 @@ public:
 
     void set_on_quit_requested(std::function<void()> callback);
     void set_on_change_address(std::function<void(DocAddr)> callback);
+    void set_on_highlight(std::function<void(const RangeDB &)> callback);
 
     void seek_to_toc_index(uint32_t toc_index);
     void seek_to_address(DocAddr address);

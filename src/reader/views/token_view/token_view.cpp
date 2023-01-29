@@ -4,6 +4,8 @@
 #include "./token_view_styling.h"
 
 #include "doc_api/doc_reader.h"
+#include "doc_api/token_addressing.h"
+#include "reader/range_db.h"
 #include "reader/system_styling.h"
 #include "reader/shoulder_keymap.h"
 #include "sys/keymap.h"
@@ -12,6 +14,7 @@
 #include "util/throttled.h"
 
 #include <stdexcept>
+
 namespace {
 
 bool line_fits_on_screen(TTF_Font *font, int avail_width, const char *s, uint32_t len)
@@ -32,6 +35,8 @@ bool line_fits_on_screen(TTF_Font *font, int avail_width, const char *s, uint32_
 
 struct TokenViewState
 {
+    RangeDB &highlights;
+
     SystemStyling &sys_styling;
     TokenViewStyling &token_view_styling;
     const uint32_t sys_styling_sub_id;
@@ -80,8 +85,9 @@ struct TokenViewState
         return SCREEN_HEIGHT - line_height - excess_pxl_y() / 2;
     }
 
-    TokenViewState(std::shared_ptr<DocReader> reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
-        : sys_styling(sys_styling),
+    TokenViewState(std::shared_ptr<DocReader> reader, DocAddr address, RangeDB &highlights, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
+        : highlights(highlights),
+          sys_styling(sys_styling),
           token_view_styling(token_view_styling),
           sys_styling_sub_id(sys_styling.subscribe_to_changes([this](SystemStyling::ChangeId change_id) {
               if (change_id == SystemStyling::ChangeId::FONT_SIZE || change_id == SystemStyling::ChangeId::FONT_NAME)
@@ -123,8 +129,8 @@ struct TokenViewState
     }
 };
 
-TokenView::TokenView(std::shared_ptr<DocReader> reader, DocAddr address, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
-    : state(std::make_unique<TokenViewState>(reader, address, sys_styling, token_view_styling))
+TokenView::TokenView(std::shared_ptr<DocReader> reader, DocAddr address, RangeDB &highlights, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
+    : state(std::make_unique<TokenViewState>(reader, address, highlights, sys_styling, token_view_styling))
 {
 }
 
@@ -171,8 +177,23 @@ bool TokenView::render(SDL_Surface *dest_surface, bool force_render)
             if (line->type == DisplayLine::Type::Text)
             {
                 const auto *text_line = static_cast<const TextLine *>(line);
+
+                bool should_highlight = false;
+                {
+                    DocAddr start_addr = text_line->address;
+                    DocAddr end_addr = start_addr + get_address_width(text_line->text);
+
+                    should_highlight = (
+                        state->highlights.contains_address(start_addr) &&
+                        state->highlights.contains_address(end_addr - 1)
+                    );
+                }
+
+                const auto &text = should_highlight ? theme.highlight_text : theme.main_text;
+                const auto &background = should_highlight ? theme.highlight_background : theme.background;
+
                 const char *s = text_line->text.c_str();
-                auto surface = surface_unique_ptr { TTF_RenderUTF8_Shaded(font, s, theme.main_text, theme.background) };
+                auto surface = surface_unique_ptr { TTF_RenderUTF8_Shaded(font, s, text, background) };
                 SDL_Rect dest_rect = {
                     static_cast<Sint16>(line_padding + (text_line->centered ? (SCREEN_WIDTH - 2 * line_padding - surface->w) /2 : 0)),
                     static_cast<Sint16>(line_y + line_padding / 2),
@@ -416,9 +437,9 @@ bool TokenView::is_done()
     return false;
 }
 
-DocAddr TokenView::get_address() const
+DocAddr TokenView::get_address(int line_offset) const
 {
-    const DisplayLine *line = state->line_scroller.get_line_relative(0);
+    const DisplayLine *line = state->line_scroller.get_line_relative(line_offset);
     if (line)
     {
         return line->address;

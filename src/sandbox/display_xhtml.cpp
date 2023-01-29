@@ -1,5 +1,5 @@
 #include "filetypes/epub/xhtml_parser.h"
-#include "./cli_render_lines.h"
+#include "util/cli_render_lines.h"
 
 #include <fstream>
 #include <iostream>

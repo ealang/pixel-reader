@@ -17,12 +17,16 @@
 struct ReaderViewState
 {
     bool is_done = false;
+    bool _needs_render = false;
 
     std::function<void()> on_quit;
     std::function<void(DocAddr)> on_change_address;
+    std::function<void(const RangeDB &)> on_highlight;
 
     std::string filename;
     std::shared_ptr<DocReader> reader;
+    RangeDB highlights;
+
     SystemStyling &sys_styling;
     TokenViewStyling &token_view_styling;
 
@@ -30,18 +34,27 @@ struct ReaderViewState
 
     std::unique_ptr<TokenView> token_view;
     
-    ReaderViewState(std::filesystem::path path, DocAddr seek_address, std::shared_ptr<DocReader> reader, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, ViewStack &view_stack)
-        : filename(path.filename()),
-          reader(reader),
-          sys_styling(sys_styling),
-          token_view_styling(token_view_styling),
-          view_stack(view_stack),
-          token_view(std::make_unique<TokenView>(
-              reader,
-              seek_address,
-              sys_styling,
-              token_view_styling
-          ))
+    ReaderViewState(
+        std::filesystem::path path,
+        DocAddr seek_address,
+        std::shared_ptr<DocReader> reader,
+        RangeDB _highlights,
+        SystemStyling &sys_styling,
+        TokenViewStyling &token_view_styling,
+        ViewStack &view_stack
+    ) : filename(path.filename()),
+        reader(reader),
+        highlights(std::move(_highlights)),
+        sys_styling(sys_styling),
+        token_view_styling(token_view_styling),
+        view_stack(view_stack),
+        token_view(std::make_unique<TokenView>(
+            reader,
+            seek_address,
+            highlights,
+            sys_styling,
+            token_view_styling
+        ))
     {
     }
 
@@ -114,10 +127,19 @@ ReaderView::ReaderView(
     std::filesystem::path path,
     std::shared_ptr<DocReader> reader,
     DocAddr seek_address,
+    RangeDB highlights,
     SystemStyling &sys_styling,
     TokenViewStyling &token_view_styling,
     ViewStack &view_stack
-) : state(std::make_unique<ReaderViewState>(path, seek_address, reader, sys_styling, token_view_styling, view_stack))
+) : state(std::make_unique<ReaderViewState>(
+        path,
+        seek_address,
+        reader,
+        std::move(highlights),
+        sys_styling,
+        token_view_styling,
+        view_stack
+    ))
 {
     update_token_view_title(seek_address);
 
@@ -153,7 +175,9 @@ void ReaderView::update_token_view_title(DocAddr address)
 
 bool ReaderView::render(SDL_Surface *dest_surface, bool force_render)
 {
-    return state->token_view->render(dest_surface, force_render);
+    bool result = state->token_view->render(dest_surface, force_render || state->_needs_render);
+    state->_needs_render = false;
+    return result;
 }
 
 bool ReaderView::is_done()
@@ -182,6 +206,31 @@ void ReaderView::on_keypress(SDLKey key)
         case SW_BTN_SELECT:
             open_toc_menu(*this, *state);
             break;
+        case SW_BTN_Y:
+            {
+                DocAddr start_addr = state->token_view->get_address(0);
+                DocAddr end_addr = state->token_view->get_address(3);
+                if (start_addr < end_addr)
+                {
+                    if (state->highlights.contains_address(start_addr) && state->highlights.contains_address(end_addr - 1))
+                    {
+                        state->highlights.remove_range(start_addr, end_addr);
+                    }
+                    else
+                    {
+                        state->highlights.add_range(start_addr, end_addr);
+                    }
+                    state->highlights.sort();
+
+                    if (state->on_highlight)
+                    {
+                        state->on_highlight(state->highlights);
+                    }
+
+                    state->_needs_render = true;
+                }
+            }
+            break;
         default:
             state->token_view->on_keypress(key);
             break;
@@ -201,6 +250,11 @@ void ReaderView::set_on_quit_requested(std::function<void()> callback)
 void ReaderView::set_on_change_address(std::function<void(DocAddr)> callback)
 {
     state->on_change_address = callback;
+}
+
+void ReaderView::set_on_highlight(std::function<void(const RangeDB &)> callback)
+{
+    state->on_highlight = callback;
 }
 
 void ReaderView::seek_to_toc_index(uint32_t toc_index)

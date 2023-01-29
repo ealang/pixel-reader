@@ -1,15 +1,13 @@
 #include "./state_store.h"
 #include "util/key_value_file.h"
 
-#include <fstream>
-#include <unordered_map>
-
 namespace
 {
 
 constexpr const char *ACTIVITY_KEY_BROWSER_PATH = "browser_path";
 constexpr const char *ACTIVITY_KEY_BOOK_PATH = "book_path";
 constexpr const char *ADDRESS_KEY = "address";
+constexpr const char *HIGHLIGHTS_KEY = "highlights";
 
 void write_activity_store(const std::filesystem::path &path, const StateStore &store)
 {
@@ -79,6 +77,58 @@ std::optional<DocAddr> load_book_address(const std::filesystem::path &path)
 std::filesystem::path cache_path_for_book(const std::filesystem::path &base_path, const std::string &book_id)
 {
     return base_path / (book_id + ".cache");
+}
+
+std::filesystem::path highlights_store_path_for_book(const std::filesystem::path &base_path, const std::string &book_id)
+{
+    return base_path / (book_id + ".highlights");
+}
+
+void write_highlights(const std::filesystem::path &path, const std::list<std::tuple<DocAddr, DocAddr>> &highlights)
+{
+    std::string encoded;
+    for (const auto &[start, end] : highlights)
+    {
+        encoded += encode_address(start) + "," + encode_address(end) + ";";
+    }
+
+    std::unordered_map<std::string, std::string> kv = {
+        {HIGHLIGHTS_KEY, encoded}
+    };
+
+    write_key_value(path, kv);
+}
+
+std::list<std::tuple<DocAddr, DocAddr>> load_highlights(const std::filesystem::path &path)
+{
+    auto kv = load_key_value(path);
+    auto it = kv.find(HIGHLIGHTS_KEY);
+    if (it == kv.end())
+    {
+        return {};
+    }
+
+    std::list<std::tuple<DocAddr, DocAddr>> ranges;
+
+    std::istringstream fp(it->second);
+    std::string str_pair;
+    while (getline(fp, str_pair, ';'))
+    {
+        auto pos = str_pair.find(',');
+        if (pos == std::string::npos)
+        {
+            continue;
+        }
+        auto start_str = str_pair.substr(0, pos);
+        auto end_str = str_pair.substr(pos + 1);
+
+        ranges.push_back(std::make_tuple(
+            decode_address(start_str),
+            decode_address(end_str)
+        ));
+    }
+
+    return ranges;
 }
 
 } // namespace
@@ -199,6 +249,28 @@ void StateStore::set_book_cache(const std::string &book_id, const std::unordered
     }
 }
 
+const std::list<std::tuple<DocAddr, DocAddr>> &StateStore::get_book_highlights(const std::string &book_id) const
+{
+    auto it = book_highlights.find(book_id);
+    if (it == book_highlights.end())
+    {
+        book_highlights[book_id] = load_highlights(
+            highlights_store_path_for_book(book_data_root_path, book_id)
+        );
+    }
+
+    return book_highlights[book_id];
+}
+
+void StateStore::set_book_highlights(const std::string &book_id, const std::list<std::tuple<DocAddr, DocAddr>> &highlights)
+{
+    if (book_highlights[book_id] != highlights)
+    {
+        book_highlights[book_id] = highlights;
+        highlights_dirty = true;
+    }
+}
+
 void StateStore::flush() const
 {
     if (activity_dirty)
@@ -237,6 +309,19 @@ void StateStore::flush() const
     {
         write_key_value(settings_store_path, settings);
         settings_dirty = false;
+    }
+
+    if (highlights_dirty)
+    {
+        for (const auto &[book_id, highlights] : book_highlights)
+        {
+            write_highlights(
+                highlights_store_path_for_book(book_data_root_path, book_id),
+                highlights
+            );
+        }
+        book_highlights.clear();
+        highlights_dirty = false;
     }
 }
 
