@@ -2,6 +2,7 @@
 #include "./txt_token_iter.h"
 #include "doc_api/token_addressing.h"
 #include "util/str_utils.h"
+#include "util/text_encoding.h"
 
 #include "extern/hash-library/md5.h"
 
@@ -13,33 +14,74 @@ namespace
 
 constexpr uint32_t SPACES_PER_TAB = 4;
 
+std::unique_ptr<std::vector<char>> load_utf8_text(const std::filesystem::path &path)
+{
+    // Load file
+    auto original_data = std::make_unique<std::vector<char>>();
+    if (!load_binary_file(path, *original_data))
+    {
+        return {};
+    }
+
+    auto encoding = detect_text_encoding(original_data->data(), original_data->size());
+    if (!encoding)
+    {
+        std::cerr << "Unable to detect encoding for " << path << std::endl;
+    }
+    else if (encoding && *encoding != "UTF-8" && *encoding != "ASCII")
+    {
+        std::cerr << "Encoding for " << path << " detected as " << *encoding << std::endl;
+
+        auto utf8_data = std::make_unique<std::vector<char>>();
+        if (re_encode_text(
+            original_data->data(),
+            original_data->size(),
+            *encoding, "UTF-8",
+            *utf8_data
+        ))
+        {
+            return utf8_data;
+        }
+        else
+        {
+            std::cerr << "Failed to re-encode as UTF-8" << std::endl;
+        }
+    }
+
+    original_data->push_back(0); // null-terminate
+
+    return original_data;
+}
+
 bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::unique_ptr<DocToken>> &tokens_out, std::string &md5_out)
 {
-    std::ifstream file(path);
-    if (!file.is_open())
+    auto text = load_utf8_text(path);
+    if (!text)
     {
         return false;
     }
 
-    DocAddr cur_address = make_address();
-
-    std::string line;
     MD5 md5;
-    while (std::getline(file, line))
+    DocAddr cur_address = make_address();
+    if (text->size())
     {
-        md5.add(line.c_str(), line.size());
-        md5.add("\n", 1);
+        std::istringstream iss(text->data());
+        std::string line;
+        while (std::getline(iss, line))
+        {
+            md5.add(line.c_str(), line.size());
+            md5.add("\n", 1);
 
-        line = strip_whitespace_right(
-            convert_tabs_to_space(
-                remove_carriage_returns(line),
-                SPACES_PER_TAB 
-            )
-        );
+            line = strip_whitespace_right(
+                convert_tabs_to_space(
+                    remove_carriage_returns(line),
+                    SPACES_PER_TAB 
+                )
+            );
 
-        tokens_out.emplace_back(std::make_unique<TextDocToken>(cur_address, line));
-
-        cur_address += get_address_width(*tokens_out.back().get());
+            tokens_out.emplace_back(std::make_unique<TextDocToken>(cur_address, line));
+            cur_address += get_address_width(*tokens_out.back().get());
+        }
     }
 
     md5_out = md5.getHash();

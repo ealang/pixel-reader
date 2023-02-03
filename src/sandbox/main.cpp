@@ -3,8 +3,12 @@
 #include <unistd.h>
 
 #include "sys/filesystem.h"
+#include "util/text_encoding.h"
 
-void ls(std::string path)
+void display_epub(std::string path);
+void display_xhtml(std::string path);
+
+static void ls(std::string path)
 {
     for (auto entry: directory_listing(path))
     {
@@ -12,8 +16,44 @@ void ls(std::string path)
     }
 }
 
-void display_epub(std::string path);
-void display_xhtml(std::string path);
+static void detect_encoding(std::string path)
+{
+    std::vector<char> data;
+    if (!load_binary_file(path, data))
+    {
+        std::cout << "Unable to open file" << std::endl;
+        return;
+    }
+
+    auto encoding = detect_text_encoding(data.data(), data.size());
+    std::cout << encoding.value_or("Unknown") << std::endl;
+}
+
+static void utf8_cat(std::string path)
+{
+    std::vector<char> data;
+    if (!load_binary_file(path, data))
+    {
+        std::cerr << "Unable to open file" << std::endl;
+        return;
+    }
+
+    auto encoding = detect_text_encoding(data.data(), data.size());
+    if (!encoding)
+    {
+        std::cerr << "Unable to detect encoding" << std::endl;
+        return;
+    }
+
+    std::vector<char> data_out;
+    if (!re_encode_text(data.data(), data.size(), *encoding, "UTF-8", data_out))
+    {
+        std::cerr << "Failed to re-encode" << std::endl;
+        return;
+    }
+
+    std::cout << data_out.data() << std::endl;
+}
 
 int main(int argc, char** argv)
 {
@@ -32,9 +72,22 @@ int main(int argc, char** argv)
         {
             display_xhtml(argv[2]);
         }
+        else if (mode == "detect" && argc > 2)
+        {
+            detect_encoding(argv[2]);
+        }
+        else if (mode == "utf8-cat" && argc > 2)
+        {
+            utf8_cat(argv[2]);
+        }
+        else
+        {
+            std::cout << "Unknown args" << std::endl;
+        }
     }
     else
     {
+        std::cout << "Unknown args" << std::endl;
     }
 
     xmlCleanupParser();

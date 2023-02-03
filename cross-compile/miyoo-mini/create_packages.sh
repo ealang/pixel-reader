@@ -26,20 +26,23 @@ stage_common() {
     mkdir -p $STAGE_APP/lib
     mkdir -p $STAGE_APP/resources/fonts
 
-    cp -v resources/fonts/*.ttf $STAGE_APP/resources/fonts
-    cp -v resources/fonts/*.txt $STAGE_APP/resources/fonts
-
+    cp -v resources/fonts/DejaVu_License.txt $STAGE_APP/resources/fonts
+    cp -v resources/fonts/DejaVuSansMono.ttf $STAGE_APP/resources/fonts
+    cp -v resources/fonts/DejaVuSans.ttf     $STAGE_APP/resources/fonts
+    cp -v resources/fonts/DejaVuSerif.ttf    $STAGE_APP/resources/fonts
     cp -v README.md           $STAGE_APP
     cp -v README.md           $STAGE_ROOT/Media/Books/
     cp -v cross-compile/miyoo-mini/launch.sh $STAGE_APP/
 
     local LIB_SRC=cross-compile/miyoo-mini/lib
+    cp -v $LIB_SRC/libiconv.so.2    $STAGE_APP/lib
+    cp -v $LIB_SRC/libjpeg.so.8     $STAGE_APP/lib
+    cp -v $LIB_SRC/liblzma.so.5     $STAGE_APP/lib
     cp -v $LIB_SRC/libSDL_image-1.2.so.0 $STAGE_APP/lib
-    cp -v $LIB_SRC/libjpeg.so.8 $STAGE_APP/lib
-    cp -v $LIB_SRC/liblzma.so.5 $STAGE_APP/lib
-    cp -v $LIB_SRC/libxml2.so.2 $STAGE_APP/lib
-    cp -v $LIB_SRC/libz.so.1    $STAGE_APP/lib
-    cp -v $LIB_SRC/libzip.so.5  $STAGE_APP/lib
+    cp -v $LIB_SRC/libuchardet.so.0 $STAGE_APP/lib
+    cp -v $LIB_SRC/libxml2.so.2     $STAGE_APP/lib
+    cp -v $LIB_SRC/libzip.so.5      $STAGE_APP/lib
+    cp -v $LIB_SRC/libz.so.1        $STAGE_APP/lib
 
     cp -v build/reader $STAGE_APP/
 }

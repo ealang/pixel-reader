@@ -7,7 +7,7 @@ PREFIX ?= /usr
 
 WARNFLAGS := -pedantic-errors -Wall -Wextra
 CXXFLAGS := -std=c++17 -O2
-LDFLAGS  := -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2 -lstdc++fs
+LDFLAGS  := -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2 -lstdc++fs -luchardet
 
 ifeq ($(PLATFORM),miyoomini)
 CXXFLAGS := $(CXXFLAGS) \
@@ -17,6 +17,7 @@ CXXFLAGS := $(CXXFLAGS) \
 	    -Icross-compile/miyoo-mini/include \
 	    -Wno-psabi  # silence "parameter passing for argument of type '...' changed in GCC 7.1" warnings
 LDFLAGS := $(LDFLAGS) \
+	-liconv \
 	-Lcross-compile/miyoo-mini/lib \
 	-L$(PREFIX)/lib \
 	-Wl,-rpath-link,cross-compile/miyoo-mini/lib

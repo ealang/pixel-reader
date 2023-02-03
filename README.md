@@ -20,7 +20,7 @@ The default location for book files is `Media/Books`.
 
 Install dependencies (Ubuntu):
 ```
-apt install make g++ libxml2-dev libzip-dev libsdl1.2-dev libsdl-ttf2.0-dev libsdl-image1.2-dev
+apt install make g++ libxml2-dev libzip-dev libsdl1.2-dev libsdl-ttf2.0-dev libsdl-image1.2-dev libuchardet-dev
 ```
 
 Build:
