@@ -18,7 +18,7 @@ public:
 
     virtual ~TxtReader();
 
-    bool open() override;
+    bool open(std::shared_ptr<ReaderDataCache>) override;
     bool is_open() const override;
 
     std::string get_id() const override;

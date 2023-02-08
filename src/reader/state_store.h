@@ -10,6 +10,8 @@
 class StateStore {
     mutable bool activity_dirty = false;
     mutable bool settings_dirty = false;
+    mutable bool addresses_dirty = false;
+    mutable bool book_cache_dirty = false;
 
     // activity
     std::filesystem::path activity_store_path;
@@ -18,7 +20,10 @@ class StateStore {
     std::optional<std::filesystem::path> current_book_path;
 
     // book addresses
-    std::filesystem::path addresses_root_path;
+    std::filesystem::path book_data_root_path;
+
+    // book data cache
+    mutable std::unordered_map<std::string, std::unordered_map<std::string, std::string>> book_cache;
 
     // settings
     std::filesystem::path settings_store_path;
@@ -40,6 +45,10 @@ public:
     // book addresses
     std::optional<DocAddr> get_book_address(const std::string &book_id) const;
     void set_book_address(const std::string &book_id, DocAddr address);
+
+    // generic book data cache
+    const std::unordered_map<std::string, std::string> &get_book_cache(const std::string &book_id) const;
+    void set_book_cache(const std::string &book_id, const std::unordered_map<std::string, std::string> &data);
 
     // generic settings
     std::optional<std::string> get_setting(const std::string &name) const;

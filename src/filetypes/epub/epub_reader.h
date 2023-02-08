@@ -16,7 +16,7 @@ public:
 
     virtual ~EPubReader();
 
-    bool open() override;
+    bool open(std::shared_ptr<ReaderDataCache> load_system = {}) override;
     bool is_open() const override;
 
     std::string get_id() const override;

@@ -2,6 +2,7 @@
 #define DOC_READER_H_
 
 #include "./token_iter.h"
+#include "./reader_data_cache.h"
 
 #include <filesystem>
 #include <memory>
@@ -26,7 +27,7 @@ class DocReader
 public:
     virtual ~DocReader() = default;
 
-    virtual bool open() = 0;
+    virtual bool open(std::shared_ptr<ReaderDataCache> load_system = {}) = 0;
     virtual bool is_open() const = 0;
 
     virtual std::string get_id() const = 0;

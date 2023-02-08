@@ -1,5 +1,4 @@
 #include "./text_encoding.h"
-#include "./utf8.h"
 
 #include <cstring>
 #include <fstream>
@@ -32,12 +31,6 @@ bool load_binary_file(const std::filesystem::path &file_path, std::vector<char> 
 
 std::optional<std::string> detect_text_encoding(const char *data, uint32_t size)
 {
-    if (is_valid_utf8(data, size))
-    {
-        // Short circuit for common case. uchardet is expensive on miyoo mini.
-        return "UTF-8";
-    }
-
     std::optional<std::string> result;
 
     uchardet_t detector = uchardet_new();

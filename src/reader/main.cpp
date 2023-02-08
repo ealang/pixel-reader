@@ -29,7 +29,64 @@
 namespace
 {
 
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
+class StoreBackedReaderCache: public ReaderDataCache
+{
+    StateStore &store;
+    ViewStack &view_stack;
+    SystemStyling &sys_styling;
+    std::function<void()> request_render;
+    std::shared_ptr<PopupView> message_view = nullptr;
+
+public:
+    StoreBackedReaderCache(
+        StateStore &store,
+        ViewStack &view_stack,
+        SystemStyling &sys_styling,
+        std::function<void()> request_render
+    )
+        : store(store), view_stack(view_stack), sys_styling(sys_styling), request_render(request_render)
+    {
+    }
+
+    std::unordered_map<std::string, std::string> load_book_cache(const std::string &book_id) override
+    {
+        return store.get_book_cache(book_id);
+    }
+
+    void set_book_cache(const std::string &book_id, std::unordered_map<std::string, std::string> &data) override
+    {
+        store.set_book_cache(book_id, data);
+    }
+
+    void report_load_status(const std::string &message) override
+    {
+        if (message_view)
+        {
+            message_view->close();
+        }
+
+        message_view = std::make_shared<PopupView>(message, true, SYSTEM_FONT, sys_styling);
+        view_stack.push(message_view);
+        request_render();
+    }
+
+    void report_load_complete()
+    {
+        if (message_view)
+        {
+            message_view->close();
+            message_view = nullptr;
+        }
+    }
+};
+
+void initialize_views(
+    ViewStack &view_stack,
+    StateStore &state_store,
+    SystemStyling &sys_styling,
+    TokenViewStyling &token_view_styling,
+    std::shared_ptr<StoreBackedReaderCache> reader_cache
+)
 {
     auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
@@ -37,19 +94,21 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         sys_styling
     );
 
-    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling](std::filesystem::path path) {
+    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, reader_cache](std::filesystem::path path) {
         if (!std::filesystem::exists(path) || !file_type_is_supported(path))
         {
             return;
         }
 
         std::shared_ptr<DocReader> reader = create_doc_reader(path);
-        if (!reader || !reader->open())
+        if (!reader || !reader->open(reader_cache))
         {
             std::cerr << "Failed to open " << path << std::endl;
-            view_stack.push(std::make_shared<PopupView>("Error opening", SYSTEM_FONT, sys_styling));
+            reader_cache->report_load_complete();
+            view_stack.push(std::make_shared<PopupView>("Error opening", true, SYSTEM_FONT, sys_styling));
             return;
         }
+        reader_cache->report_load_complete();
 
         state_store.set_current_book_path(path);
 
@@ -105,6 +164,15 @@ std::unordered_map<std::string, std::string> load_config_with_defaults()
     auto config = load_key_value(CONFIG_FILE_PATH);
     config.try_emplace(CONFIG_KEY_STORE_PATH, FALLBACK_STORE_PATH);
     return config;
+}
+
+void render_views(ViewStack &view_stack, SDL_Surface *screen, SDL_Surface *video, bool force_render)
+{
+    if (view_stack.render(screen, force_render))
+    {
+        SDL_BlitSurface(screen, NULL, video, NULL);
+        SDL_Flip(video);
+    }
 }
 
 } // namespace
@@ -163,7 +231,21 @@ int main(int, char *[])
 
     // Setup views
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, sys_styling, token_view_styling);
+    auto reader_cache = std::make_shared<StoreBackedReaderCache>(
+        state_store,
+        view_stack,
+        sys_styling,
+        [&]() {
+            render_views(view_stack, screen, video, false);
+        }
+    );
+    initialize_views(
+        view_stack,
+        state_store,
+        sys_styling,
+        token_view_styling,
+        reader_cache
+    );
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
@@ -194,8 +276,7 @@ int main(int, char *[])
     const uint32_t avg_loop_time = 1000 / TARGET_FPS;
 
     // Initial render
-    view_stack.render(screen, true);
-    SDL_BlitSurface(screen, NULL, video, NULL);
+    render_views(view_stack, screen, video, true);
     SDL_Flip(video);
 
     while (!quit)
@@ -261,11 +342,7 @@ int main(int, char *[])
                 quit = true;
             }
 
-            if (view_stack.render(screen, force_render))
-            {
-                SDL_BlitSurface(screen, NULL, video, NULL);
-                SDL_Flip(video);
-            }
+            render_views(view_stack, screen, video, force_render);
         }
 
         if (!quit)

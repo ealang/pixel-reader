@@ -76,16 +76,21 @@ std::optional<DocAddr> load_book_address(const std::filesystem::path &path)
     return decode_address(it->second);
 }
 
+std::filesystem::path cache_path_for_book(const std::filesystem::path &base_path, const std::string &book_id)
+{
+    return base_path / (book_id + ".cache");
+}
+
 } // namespace
 
 StateStore::StateStore(std::filesystem::path base_dir)
     : activity_store_path(base_dir / "activity"),
-      addresses_root_path(base_dir / "books"),
+      book_data_root_path(base_dir / "books"),
       settings_store_path(base_dir / "settings"),
       settings(load_key_value(settings_store_path))
 {
     std::filesystem::create_directories(base_dir);
-    std::filesystem::create_directories(addresses_root_path);
+    std::filesystem::create_directories(book_data_root_path);
 
     auto [browse_path, book_path] = load_activity_store(activity_store_path);
     current_browse_path = browse_path;
@@ -151,7 +156,7 @@ std::optional<DocAddr> StateStore::get_book_address(const std::string &book_id) 
     }
 
     auto cache = load_book_address(
-        address_store_path_for_book(addresses_root_path, book_id)
+        address_store_path_for_book(book_data_root_path, book_id)
     );
     if (cache)
     {
@@ -167,6 +172,30 @@ void StateStore::set_book_address(const std::string &book_id, DocAddr address)
     if (it == book_addresses.end() || it->second != address)
     {
         book_addresses[book_id] = address;
+        addresses_dirty = true;
+    }
+}
+
+const std::unordered_map<std::string, std::string> &StateStore::get_book_cache(const std::string &book_id) const
+{
+    auto it = book_cache.find(book_id);
+    if (it == book_cache.end())
+    {
+        book_cache[book_id] = load_key_value(
+            cache_path_for_book(book_data_root_path, book_id)
+        );
+    }
+
+    return book_cache[book_id];
+}
+
+void StateStore::set_book_cache(const std::string &book_id, const std::unordered_map<std::string, std::string> &data)
+{
+    auto it = book_cache.find(book_id);
+    if (it == book_cache.end() || it->second != data)
+    {
+        book_cache[book_id] = data;
+        book_cache_dirty = true;
     }
 }
 
@@ -178,16 +207,30 @@ void StateStore::flush() const
         activity_dirty = false;
     }
 
-    // book addresses
+    if (addresses_dirty)
     {
         for (const auto &[book_id, address] : book_addresses)
         {
             write_book_address(
-                address_store_path_for_book(addresses_root_path, book_id),
+                address_store_path_for_book(book_data_root_path, book_id),
                 address
             );
         }
         book_addresses.clear();
+        addresses_dirty = false;
+    }
+    
+    if (book_cache_dirty)
+    {
+        for (const auto &[book_id, data] : book_cache)
+        {
+            write_key_value(
+                cache_path_for_book(book_data_root_path, book_id),
+                data
+            );
+        }
+        book_cache.clear();
+        book_cache_dirty = false;
     }
 
     if (settings_dirty)

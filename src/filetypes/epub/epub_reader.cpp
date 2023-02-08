@@ -39,7 +39,7 @@ EPubReader::~EPubReader()
     }
 }
 
-bool EPubReader::open()
+bool EPubReader::open(std::shared_ptr<ReaderDataCache>)
 {
     if (state->zip)
     {

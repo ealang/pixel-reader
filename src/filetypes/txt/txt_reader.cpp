@@ -3,6 +3,7 @@
 #include "doc_api/token_addressing.h"
 #include "util/str_utils.h"
 #include "util/text_encoding.h"
+#include "util/utf8.h"
 
 #include "extern/hash-library/md5.h"
 
@@ -13,8 +14,49 @@ namespace
 {
 
 constexpr uint32_t SPACES_PER_TAB = 4;
+constexpr const char *CACHED_ENCODING_KEY = "detected_encoding";
 
-std::unique_ptr<std::vector<char>> load_utf8_text(const std::filesystem::path &path)
+std::optional<std::string> get_cached_encoding(
+    std::shared_ptr<ReaderDataCache> reader_cache,
+    const std::string &book_id
+)
+{
+    if (!reader_cache)
+    {
+        return {};
+    }
+
+    auto kv = reader_cache->load_book_cache(book_id);
+    auto it = kv.find(CACHED_ENCODING_KEY);
+    if (it == kv.end())
+    {
+        return {};
+    }
+    return it->second;
+}
+
+void cache_encoding(
+    std::shared_ptr<ReaderDataCache> reader_cache,
+    const std::string &book_id,
+    std::string encoding
+)
+{
+    if (!reader_cache)
+    {
+        return;
+    }
+
+    auto kv = reader_cache->load_book_cache(book_id);
+    kv[CACHED_ENCODING_KEY] = encoding;
+
+    reader_cache->set_book_cache(book_id, kv);
+}
+
+std::unique_ptr<std::vector<char>> load_utf8_text(
+    const std::filesystem::path &path,
+    std::shared_ptr<ReaderDataCache> reader_cache,
+    std::string &book_id_out
+)
 {
     // Load file
     auto original_data = std::make_unique<std::vector<char>>();
@@ -23,15 +65,29 @@ std::unique_ptr<std::vector<char>> load_utf8_text(const std::filesystem::path &p
         return {};
     }
 
-    auto encoding = detect_text_encoding(original_data->data(), original_data->size());
+    // Compute book id
+    book_id_out = MD5()(original_data->data(), original_data->size());
+
+    // Detect encoding
+    auto encoding = get_cached_encoding(reader_cache, book_id_out);
+    if (!encoding && is_valid_utf8(original_data->data(), original_data->size()))
+    {
+        // Short circuit for common case. uchardet is expensive on miyoo mini.
+        encoding = "UTF-8";
+    }
+    if (!encoding)
+    {
+        reader_cache->report_load_status("Detecting file encoding");
+        encoding = detect_text_encoding(original_data->data(), original_data->size());
+        std::cerr << "Encoding for " << path << " detected as " << *encoding << std::endl;
+    }
+
     if (!encoding)
     {
         std::cerr << "Unable to detect encoding for " << path << std::endl;
     }
     else if (encoding && *encoding != "UTF-8" && *encoding != "ASCII")
     {
-        std::cerr << "Encoding for " << path << " detected as " << *encoding << std::endl;
-
         auto utf8_data = std::make_unique<std::vector<char>>();
         if (re_encode_text(
             original_data->data(),
@@ -40,11 +96,12 @@ std::unique_ptr<std::vector<char>> load_utf8_text(const std::filesystem::path &p
             *utf8_data
         ))
         {
+            cache_encoding(reader_cache, book_id_out, *encoding);
             return utf8_data;
         }
         else
         {
-            std::cerr << "Failed to re-encode as UTF-8" << std::endl;
+            std::cerr << "Failed to re-encode " << path << " from " << *encoding << std::endl;
         }
     }
 
@@ -53,15 +110,14 @@ std::unique_ptr<std::vector<char>> load_utf8_text(const std::filesystem::path &p
     return original_data;
 }
 
-bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::unique_ptr<DocToken>> &tokens_out, std::string &md5_out)
+bool tokenize_text_file(const std::filesystem::path &path, std::shared_ptr<ReaderDataCache> reader_cache, std::vector<std::unique_ptr<DocToken>> &tokens_out, std::string &book_id_out)
 {
-    auto text = load_utf8_text(path);
+    auto text = load_utf8_text(path, reader_cache, book_id_out);
     if (!text)
     {
         return false;
     }
 
-    MD5 md5;
     DocAddr cur_address = make_address();
     if (text->size())
     {
@@ -69,9 +125,6 @@ bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::uniq
         std::string line;
         while (std::getline(iss, line))
         {
-            md5.add(line.c_str(), line.size());
-            md5.add("\n", 1);
-
             line = strip_whitespace_right(
                 convert_tabs_to_space(
                     remove_carriage_returns(line),
@@ -84,8 +137,6 @@ bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::uniq
         }
     }
 
-    md5_out = md5.getHash();
-
     return true;
 }
 
@@ -96,7 +147,7 @@ struct TxtReaderState
     std::filesystem::path path;
     std::vector<TocItem> toc;
     std::vector<std::unique_ptr<DocToken>> tokens;
-    std::string md5;
+    std::string book_id;
     bool is_open = false;
     uint32_t total_address_width = 0;
 
@@ -115,13 +166,13 @@ TxtReader::~TxtReader()
 {
 }
 
-bool TxtReader::open()
+bool TxtReader::open(std::shared_ptr<ReaderDataCache> reader_cache)
 {
     if (state->is_open)
     {
         return true;
     }
-    state->is_open = tokenize_text_file(state->path, state->tokens, state->md5);
+    state->is_open = tokenize_text_file(state->path, reader_cache, state->tokens, state->book_id);
     if (state->is_open && state->tokens.size())
     {
         const auto *last_token = state->tokens.back().get();
@@ -138,7 +189,7 @@ bool TxtReader::is_open() const
 
 std::string TxtReader::get_id() const
 {
-    return state->md5;
+    return state->book_id;
 }
 
 const std::vector<TocItem> &TxtReader::get_table_of_contents() const

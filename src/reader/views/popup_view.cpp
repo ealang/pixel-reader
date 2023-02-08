@@ -6,8 +6,9 @@
 #include "util/sdl_font_cache.h"
 #include "util/sdl_utils.h"
 
-PopupView::PopupView(const std::string &message, std::string font_name, SystemStyling &styling)
+PopupView::PopupView(const std::string &message, bool can_close, std::string font_name, SystemStyling &styling)
     : message(message)
+    , can_close(can_close)
     , font_name(font_name)
     , styling(styling)
     , styling_sub_id(styling.subscribe_to_changes([this](SystemStyling::ChangeId) {
@@ -69,6 +70,14 @@ bool PopupView::is_modal()
 }
 
 void PopupView::on_keypress(SDLKey)
+{
+    if (can_close)
+    {
+        _is_done = true;
+    }
+}
+
+void PopupView::close()
 {
     _is_done = true;
 }
