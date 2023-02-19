@@ -77,7 +77,6 @@ std::unique_ptr<std::vector<char>> load_utf8_text(
     }
     if (!encoding)
     {
-        reader_cache->report_load_status("Detecting file encoding");
         encoding = detect_text_encoding(original_data->data(), original_data->size());
         std::cerr << "Encoding for " << path << " detected as " << *encoding << std::endl;
     }

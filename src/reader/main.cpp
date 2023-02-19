@@ -10,6 +10,7 @@
 #include "./views/file_selector.h"
 #include "./views/popup_view.h"
 #include "./views/reader_view.h"
+#include "./views/open_reader_tmp_view.h"
 #include "./views/settings_view.h"
 #include "./views/token_view/token_view_styling.h"
 #include "doc_api/token_addressing.h"
@@ -20,6 +21,7 @@
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
 #include "util/key_value_file.h"
+#include "util/message_broker.h"
 #include "util/sdl_font_cache.h"
 #include "util/timer.h"
 
@@ -132,19 +134,10 @@ public:
 class StoreBackedReaderCache: public ReaderDataCache
 {
     StateStore &store;
-    ViewStack &view_stack;
-    SystemStyling &sys_styling;
-    std::function<void()> request_render;
-    std::shared_ptr<PopupView> message_view = nullptr;
 
 public:
-    StoreBackedReaderCache(
-        StateStore &store,
-        ViewStack &view_stack,
-        SystemStyling &sys_styling,
-        std::function<void()> request_render
-    )
-        : store(store), view_stack(view_stack), sys_styling(sys_styling), request_render(request_render)
+    StoreBackedReaderCache(StateStore &store)
+        : store(store)
     {
     }
 
@@ -157,27 +150,6 @@ public:
     {
         store.set_book_cache(book_id, data);
     }
-
-    void report_load_status(const std::string &message) override
-    {
-        if (message_view)
-        {
-            message_view->close();
-        }
-
-        message_view = std::make_shared<PopupView>(message, true, SYSTEM_FONT, sys_styling);
-        view_stack.push(message_view);
-        request_render();
-    }
-
-    void report_load_complete()
-    {
-        if (message_view)
-        {
-            message_view->close();
-            message_view = nullptr;
-        }
-    }
 };
 
 void initialize_views(
@@ -186,7 +158,8 @@ void initialize_views(
     SystemStyling &sys_styling,
     TokenViewStyling &token_view_styling,
     std::shared_ptr<StoreBackedReaderCache> reader_cache,
-    NotesExportQueue &notes_export_queue
+    NotesExportQueue &notes_export_queue,
+    MessageBroker &message_broker
 )
 {
     auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
@@ -195,12 +168,19 @@ void initialize_views(
         sys_styling
     );
 
-    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, reader_cache, &notes_export_queue](std::filesystem::path path) {
+    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, reader_cache, &notes_export_queue, &message_broker](std::filesystem::path path) {
         if (!std::filesystem::exists(path) || !file_type_is_supported(path))
         {
             return;
         }
 
+        view_stack.push(std::make_shared<OpenReaderTmpView>(view_stack, message_broker, std::make_unique<ReaderArguments>(
+            path,
+            sys_styling,
+            reader_cache
+        )));
+
+        /*
         std::shared_ptr<DocReader> reader = create_doc_reader(path);
         if (!reader || !reader->open(reader_cache))
         {
@@ -239,6 +219,7 @@ void initialize_views(
         });
 
         view_stack.push(reader_view);
+        */
     };
 
     fs->set_on_file_selected(load_book);
@@ -338,16 +319,14 @@ int main(int, char *[])
         settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
     });
 
+    // Threading support
+    MessageBroker message_broker;
+ 
     // Setup views
     NotesExportQueue notes_export_queue;
     ViewStack view_stack;
     auto reader_cache = std::make_shared<StoreBackedReaderCache>(
-        state_store,
-        view_stack,
-        sys_styling,
-        [&]() {
-            render_views(view_stack, screen, video, false);
-        }
+        state_store
     );
     initialize_views(
         view_stack,
@@ -355,7 +334,8 @@ int main(int, char *[])
         sys_styling,
         token_view_styling,
         reader_cache,
-        notes_export_queue
+        notes_export_queue,
+        message_broker
     );
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
@@ -441,6 +421,8 @@ int main(int, char *[])
                     break;
             }
         }
+
+        ran_user_code = message_broker.distribute_messages() || ran_user_code;
 
         held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
         ran_user_code = held_key_tracker.for_longest_held(key_held_callback) || ran_user_code;
