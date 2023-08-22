@@ -17,6 +17,7 @@
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
 #include "util/key_value_file.h"
+#include "util/math.h"
 #include "util/sdl_font_cache.h"
 #include "util/timer.h"
 
@@ -86,16 +87,70 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
     }
 }
 
+class SystemKeyChordTracker
+{
+    bool _menu_held = false;
+    bool _select_held = false;
+
+    bool _exit_on_menu_release = false;
+    bool _exit_requested = false;
+
+public:
+
+    // Report keypress event. Return filtered key code.
+    SDLKey on_keypress(SDLKey key)
+    {
+        // Block any other keys while special key is held
+        SDLKey filtered_key = (_menu_held || _select_held) ? SDLK_UNKNOWN : key;
+
+        if (key == SW_BTN_SELECT)
+        {
+            _select_held = true;
+        }
+
+        if (key == SW_BTN_MENU)
+        {
+            _menu_held = true;
+            _exit_on_menu_release = true;
+        }
+        else
+        {
+            // Cancel app exit if a menu chord was used (e.g. change brightness)
+            _exit_on_menu_release = false;
+        }
+
+        return filtered_key;
+    }
+
+    // Report keyrelease event.
+    void on_keyrelease(SDLKey key)
+    {
+        if (key == SW_BTN_MENU)
+        {
+            _menu_held = false;
+
+            if (_exit_on_menu_release)
+            {
+                _exit_requested = true;
+            }
+        }
+        else if (key == SW_BTN_SELECT)
+        {
+            _select_held = false;
+        }
+    }
+
+    bool exit_requested() const
+    {
+        return _exit_requested;
+    }
+};
+
 bool quit = false;
 
 void signal_handler(int)
 {
     quit = true;
-}
-
-uint32_t bound(uint32_t val, uint32_t min, uint32_t max)
-{
-    return std::max(std::min(val, max), min);
 }
 
 const char *CONFIG_KEY_STORE_PATH = "store_path";
@@ -183,6 +238,7 @@ int main(int, char *[])
             SW_BTN_R2
         }
     );
+    SystemKeyChordTracker chord_tracker;
 
     auto key_held_callback = [&view_stack](SDLKey key, uint32_t held_ms) {
         view_stack.on_keyheld(key, held_ms);
@@ -214,12 +270,9 @@ int main(int, char *[])
                     {
                         idle_timer.reset();
 
-                        SDLKey key = event.key.keysym.sym;
-                        if (key == SW_BTN_MENU)
-                        {
-                            quit = true;
-                        }
-                        else if (key == SW_BTN_POWER)
+                        SDLKey key = chord_tracker.on_keypress(event.key.keysym.sym);
+
+                        if (key == SW_BTN_POWER)
                         {
                             state_store.flush();
                         }
@@ -242,6 +295,14 @@ int main(int, char *[])
 
                             ran_user_code = true;
                         }
+                    }
+                    break;
+                case SDL_KEYUP:
+                    {
+                        SDLKey key = event.key.keysym.sym;
+                        chord_tracker.on_keyrelease(key);
+
+                        quit = quit || chord_tracker.exit_requested();
                     }
                     break;
                 default:
