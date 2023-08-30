@@ -14,6 +14,7 @@ void ls(std::string path)
 
 void display_epub(std::string path);
 void display_xhtml(std::string path);
+void bulk_load_test(std::string path);
 
 int main(int argc, char** argv)
 {
@@ -32,9 +33,18 @@ int main(int argc, char** argv)
         {
             display_xhtml(argv[2]);
         }
+        else if (mode == "bulk" && argc > 2)
+        {
+            bulk_load_test(argv[2]);
+        }
+        else
+        {
+            std::cerr << "Invalid args" << std::endl;
+        }
     }
     else
     {
+        std::cerr << "Invalid args" << std::endl;
     }
 
     xmlCleanupParser();
