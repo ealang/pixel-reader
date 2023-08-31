@@ -7,8 +7,7 @@
 #include "./color_theme_def.h"
 #include "./view_stack.h"
 #include "./views/file_selector.h"
-#include "./views/popup_view.h"
-#include "./views/reader_view.h"
+#include "./views/reader_bootstrap_view.h"
 #include "./views/settings_view.h"
 #include "./views/token_view/token_view_styling.h"
 #include "filetypes/open_doc.h"
@@ -19,6 +18,7 @@
 #include "util/key_value_file.h"
 #include "util/math.h"
 #include "util/sdl_font_cache.h"
+#include "util/task_queue.h"
 #include "util/timer.h"
 
 #include <libxml/parser.h>
@@ -30,7 +30,7 @@
 namespace
 {
 
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling)
+void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, TaskQueue &task_queue)
 {
     auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
@@ -38,40 +38,22 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         sys_styling
     );
 
-    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling](std::filesystem::path path) {
+    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue](std::filesystem::path path) {
         if (!std::filesystem::exists(path) || !file_type_is_supported(path))
         {
             return;
         }
 
-        std::shared_ptr<DocReader> reader = create_doc_reader(path);
-        if (!reader || !reader->open())
-        {
-            std::cerr << "Failed to open " << path << std::endl;
-            view_stack.push(std::make_shared<PopupView>("Error opening", SYSTEM_FONT, sys_styling));
-            return;
-        }
-
-        state_store.set_current_book_path(path);
-
-        auto book_id = reader->get_id();
-        auto reader_view = std::make_shared<ReaderView>(
-            path,
-            reader,
-            state_store.get_book_address(book_id).value_or(make_address()),
-            sys_styling,
-            token_view_styling,
-            view_stack
+        view_stack.push(
+            std::make_shared<ReaderBootstrapView>(
+                path,
+                sys_styling,
+                token_view_styling,
+                view_stack,
+                state_store,
+                [&task_queue](task_func task){ task_queue.submit(task); }
+            )
         );
-
-        reader_view->set_on_change_address([&state_store, book_id](DocAddr addr) {
-            state_store.set_book_address(book_id, addr);
-        });
-        reader_view->set_on_quit_requested([&state_store]() {
-            state_store.remove_current_book_path();
-        });
-
-        view_stack.push(reader_view);
     };
 
     fs->set_on_file_selected(load_book);
@@ -217,8 +199,9 @@ int main(int, char *[])
     });
 
     // Setup views
+    TaskQueue task_queue;
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, sys_styling, token_view_styling);
+    initialize_views(view_stack, state_store, sys_styling, token_view_styling, task_queue);
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
@@ -256,7 +239,7 @@ int main(int, char *[])
 
     while (!quit)
     {
-        bool ran_user_code = false;
+        bool ran_user_code = task_queue.drain();
 
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -301,14 +284,14 @@ int main(int, char *[])
                     {
                         SDLKey key = event.key.keysym.sym;
                         chord_tracker.on_keyrelease(key);
-
-                        quit = quit || chord_tracker.exit_requested();
                     }
                     break;
                 default:
                     break;
             }
         }
+
+        quit = quit || chord_tracker.exit_requested();
 
         held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
         ran_user_code = held_key_tracker.for_longest_held(key_held_callback) || ran_user_code;
