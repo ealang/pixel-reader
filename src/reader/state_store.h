@@ -5,7 +5,10 @@
 
 #include <filesystem>
 #include <optional>
+#include <set>
 #include <unordered_map>
+
+using string_unordered_map = std::unordered_map<std::string, std::string>;
 
 class StateStore {
     mutable bool activity_dirty = false;
@@ -18,11 +21,15 @@ class StateStore {
     std::optional<std::filesystem::path> current_book_path;
 
     // book addresses
-    std::filesystem::path addresses_root_path;
+    std::filesystem::path book_data_root_path;
+
+    // reader cache
+    mutable std::unordered_map<std::string, string_unordered_map> book_reader_caches;
+    mutable std::set<std::string> reader_cache_dirty;
 
     // settings
     std::filesystem::path settings_store_path;
-    std::unordered_map<std::string, std::string> settings;
+    string_unordered_map settings;
 
 public:
     StateStore(std::filesystem::path base_dir);
@@ -40,6 +47,10 @@ public:
     // book addresses
     std::optional<DocAddr> get_book_address(const std::string &book_id) const;
     void set_book_address(const std::string &book_id, DocAddr address);
+
+    // book cache
+    const string_unordered_map &get_reader_cache(const std::string &book_id) const;
+    void set_reader_cache(const std::string &book_id, const string_unordered_map &cache);
 
     // generic settings
     std::optional<std::string> get_setting(const std::string &name) const;

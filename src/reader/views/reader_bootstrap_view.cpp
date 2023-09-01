@@ -2,6 +2,7 @@
 
 #include "filetypes/open_doc.h"
 #include "reader/config.h"
+#include "reader/ss_doc_reader_cache.h"
 #include "reader/state_store.h"
 #include "reader/view_stack.h"
 #include "./popup_view.h"
@@ -52,7 +53,8 @@ void ReaderBootstrapView::load_reader()
     auto &state_store = state->state_store;
 
     std::shared_ptr<DocReader> reader = create_doc_reader(book_path);
-    if (!reader || !reader->open())
+    SSDocReaderCache cache(state_store);
+    if (!reader || !reader->open(cache))
     {
         std::cerr << "Failed to open " << book_path << std::endl;
         view_stack.push(std::make_shared<PopupView>("Error opening", SYSTEM_FONT, sys_styling));

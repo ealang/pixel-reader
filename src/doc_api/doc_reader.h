@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,13 +21,22 @@ struct TocPosition
     uint32_t progress_percent;
 };
 
+// Allow readers to cache arbitrary data
+class DocReaderCache
+{
+public:
+    virtual std::optional<std::string> read(const std::string &book_id, const std::string &key) const = 0;
+    virtual void write(const std::string &book_id, const std::string &key, const std::string &value) = 0;
+};
+
 // Interface for interacting with a particular document format.
 class DocReader
 {
 public:
     virtual ~DocReader() = default;
 
-    virtual bool open() = 0;
+    bool open();
+    virtual bool open(DocReaderCache &cache) = 0;
     virtual bool is_open() const = 0;
 
     virtual std::string get_id() const = 0;

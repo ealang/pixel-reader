@@ -18,7 +18,8 @@ public:
 
     virtual ~TxtReader();
 
-    bool open() override;
+    using DocReader::open;
+    bool open(DocReaderCache &) override;
     bool is_open() const override;
 
     std::string get_id() const override;

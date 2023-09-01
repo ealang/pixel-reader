@@ -39,7 +39,7 @@ EPubReader::~EPubReader()
     }
 }
 
-bool EPubReader::open()
+bool EPubReader::open(DocReaderCache &)
 {
     if (state->zip)
     {

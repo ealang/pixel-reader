@@ -73,7 +73,7 @@ TxtReader::~TxtReader()
 {
 }
 
-bool TxtReader::open()
+bool TxtReader::open(DocReaderCache &)
 {
     if (state->is_open)
     {

@@ -11,9 +11,12 @@ constexpr const char *ACTIVITY_KEY_BROWSER_PATH = "browser_path";
 constexpr const char *ACTIVITY_KEY_BOOK_PATH = "book_path";
 constexpr const char *ADDRESS_KEY = "address";
 
+/////////////////////////////////////
+// Activity Store
+
 void write_activity_store(const std::filesystem::path &path, const StateStore &store)
 {
-    std::unordered_map<std::string, std::string> kv;
+    string_unordered_map kv;
 
     const auto &browse_path = store.get_current_browse_path();
     if (browse_path)
@@ -51,6 +54,9 @@ std::pair<std::optional<std::string>, std::optional<std::string>> load_activity_
     return {browse_path, book_path};
 }
 
+/////////////////////////////////////
+// Address Store
+
 std::filesystem::path address_store_path_for_book(const std::filesystem::path &base_path, const std::string &book_id)
 {
     return base_path / (book_id + ".address");
@@ -58,7 +64,7 @@ std::filesystem::path address_store_path_for_book(const std::filesystem::path &b
 
 void write_book_address(const std::filesystem::path &path, const DocAddr &address)
 {
-    std::unordered_map<std::string, std::string> kv = {
+    string_unordered_map kv = {
         {ADDRESS_KEY, encode_address(address)}
     };
 
@@ -76,16 +82,24 @@ std::optional<DocAddr> load_book_address(const std::filesystem::path &path)
     return decode_address(it->second);
 }
 
+/////////////////////////////////////
+// Reader Cache Store
+
+std::filesystem::path reader_cache_store_path_for_book(const std::filesystem::path &base_path, const std::string &book_id)
+{
+    return base_path / (book_id + ".cache");
+}
+
 } // namespace
 
 StateStore::StateStore(std::filesystem::path base_dir)
     : activity_store_path(base_dir / "activity"),
-      addresses_root_path(base_dir / "books"),
+      book_data_root_path(base_dir / "books"),
       settings_store_path(base_dir / "settings"),
       settings(load_key_value(settings_store_path))
 {
     std::filesystem::create_directories(base_dir);
-    std::filesystem::create_directories(addresses_root_path);
+    std::filesystem::create_directories(book_data_root_path);
 
     auto [browse_path, book_path] = load_activity_store(activity_store_path);
     current_browse_path = browse_path;
@@ -151,7 +165,7 @@ std::optional<DocAddr> StateStore::get_book_address(const std::string &book_id) 
     }
 
     auto cache = load_book_address(
-        address_store_path_for_book(addresses_root_path, book_id)
+        address_store_path_for_book(book_data_root_path, book_id)
     );
     if (cache)
     {
@@ -170,30 +184,29 @@ void StateStore::set_book_address(const std::string &book_id, DocAddr address)
     }
 }
 
-void StateStore::flush() const
+const string_unordered_map &StateStore::get_reader_cache(const std::string &book_id) const
 {
-    if (activity_dirty)
+    auto it = book_reader_caches.find(book_id);
+    if (it != book_reader_caches.end())
     {
-        write_activity_store(activity_store_path, *this);
-        activity_dirty = false;
+        return it->second;
     }
 
-    // book addresses
-    {
-        for (const auto &[book_id, address] : book_addresses)
-        {
-            write_book_address(
-                address_store_path_for_book(addresses_root_path, book_id),
-                address
-            );
-        }
-        book_addresses.clear();
-    }
+    book_reader_caches[book_id] = load_key_value(
+        reader_cache_store_path_for_book(book_data_root_path, book_id)
+    );
 
-    if (settings_dirty)
+    return book_reader_caches[book_id];
+}
+
+void StateStore::set_reader_cache(const std::string &book_id, const string_unordered_map &new_cache)
+{
+    const auto &cur_cache = get_reader_cache(book_id);
+
+    if (cur_cache != new_cache)
     {
-        write_key_value(settings_store_path, settings);
-        settings_dirty = false;
+        book_reader_caches[book_id] = new_cache;
+        reader_cache_dirty.emplace(book_id);
     }
 }
 
@@ -214,5 +227,45 @@ void StateStore::set_setting(const std::string &name, const std::string &value)
     {
         settings[name] = value;
         settings_dirty = true;
+    }
+}
+
+void StateStore::flush() const
+{
+    if (activity_dirty)
+    {
+        write_activity_store(activity_store_path, *this);
+        activity_dirty = false;
+    }
+
+    // book addresses
+    {
+        for (const auto &[book_id, address] : book_addresses)
+        {
+            write_book_address(
+                address_store_path_for_book(book_data_root_path, book_id),
+                address
+            );
+        }
+        book_addresses.clear();
+    }
+
+    // book cache
+    {
+        for (const auto &book_id : reader_cache_dirty)
+        {
+            const auto &cache = book_reader_caches[book_id];
+            write_key_value(
+                reader_cache_store_path_for_book(book_data_root_path, book_id),
+                cache
+            );
+        }
+        reader_cache_dirty.clear();
+    }
+
+    if (settings_dirty)
+    {
+        write_key_value(settings_store_path, settings);
+        settings_dirty = false;
     }
 }
