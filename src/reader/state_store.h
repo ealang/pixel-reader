@@ -48,7 +48,7 @@ public:
     std::optional<DocAddr> get_book_address(const std::string &book_id) const;
     void set_book_address(const std::string &book_id, DocAddr address);
 
-    // book cache
+    // reader cache
     const string_unordered_map &get_reader_cache(const std::string &book_id) const;
     void set_reader_cache(const std::string &book_id, const string_unordered_map &cache);
 

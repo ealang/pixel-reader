@@ -126,7 +126,6 @@ void SystemStyling::set_shoulder_keymap(const std::string &keymap)
     }
 }
 
-
 uint32_t SystemStyling::subscribe_to_changes(std::function<void(ChangeId)> callback)
 {
     uint32_t sub_id = state->next_subscriber_id++;

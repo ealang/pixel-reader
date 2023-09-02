@@ -1,4 +1,5 @@
 #include "./settings_view.h"
+#include "./token_view/token_view_styling.h"
 
 #include "reader/color_theme_def.h"
 #include "reader/draw_modal_border.h"
@@ -15,13 +16,15 @@
 
 SettingsView::SettingsView(
     SystemStyling &sys_styling,
+    TokenViewStyling &token_view_styling,
     std::string font_name
 ) : font_name(font_name),
     sys_styling(sys_styling),
+    token_view_styling(token_view_styling),
     styling_sub_id(sys_styling.subscribe_to_changes([this](SystemStyling::ChangeId) {
         needs_render = true;
     })),
-    num_menu_items(4)
+    num_menu_items(5)
 {
 }
 
@@ -85,6 +88,14 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             line_selected == 3 ? style_hl : style_normal
         );
 
+        auto progress_label = render_text("Progress:", style_label);
+        auto progress_value = render_text(
+            token_view_styling.get_progress_reporting() == ProgressReporting::CHAPTER_PERCENT ?
+            "Chapter %" :
+            "Global %",
+            line_selected == 4 ? style_hl : style_normal
+        );
+
         Uint16 content_w;
         {
             int arrow_w = left_arrow->w + right_arrow->w;
@@ -96,7 +107,9 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
                 font_name_label->w,
                 font_name_value->w + arrow_w,
                 shoulder_keymap_label->w,
-                shoulder_keymap_value->w + arrow_w
+                shoulder_keymap_value->w + arrow_w,
+                progress_label->w,
+                progress_value->w + arrow_w
             };
             content_w = *std::max_element(widths.begin(), widths.end());
         }
@@ -113,7 +126,9 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             font_name_value->h +
             text_padding +
             shoulder_keymap_label->h +
-            shoulder_keymap_value->h
+            shoulder_keymap_value->h +
+            progress_label->h +
+            progress_value->h
         );
         Sint16 content_y = SCREEN_HEIGHT / 2 - content_h / 2;
 
@@ -162,6 +177,10 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
 
             push_text(shoulder_keymap_label.get());
             push_text(shoulder_keymap_value.get(), line_selected == 3);
+            rect.y += text_padding;
+
+            push_text(progress_label.get());
+            push_text(progress_value.get(), line_selected == 4);
         }
 
         needs_render = false;
@@ -220,6 +239,13 @@ void SettingsView::on_change_shoulder_keymap(int dir)
     );
 }
 
+void SettingsView::on_change_progress()
+{
+    token_view_styling.set_progress_reporting(
+        get_next_progress_reporting(token_view_styling.get_progress_reporting())
+    );
+}
+
 void SettingsView::on_keypress(SDLKey key)
 {
     switch (key) {
@@ -247,9 +273,13 @@ void SettingsView::on_keypress(SDLKey key)
                 {
                     on_change_font_name(dir);
                 }
-                else
+                else if (line_selected == 3)
                 {
                     on_change_shoulder_keymap(dir);
+                }
+                else
+                {
+                    on_change_progress();
                 }
                 needs_render = true;
             }

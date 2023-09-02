@@ -12,6 +12,20 @@ constexpr const char *SETTINGS_SHOULDER_KEYMAP = "shoulder_keymap";
 constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
 constexpr const char *SETTINGS_KEY_FONT_NAME = "font_name";
 constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
+constexpr const char *SETTINGS_PROGRESS_REPORTING = "progress_reporting";
+
+std::optional<uint32_t> try_parse_uint(const std::string &str)
+{
+    try
+    {
+        return std::stoul(str);
+    }
+    catch (const std::invalid_argument &)
+    {
+        std::cerr << "Failed to parse int in store" << std::endl;
+    }
+    return std::nullopt;
+}
 
 } // namespace
 
@@ -38,6 +52,22 @@ std::optional<std::string> settings_get_shoulder_keymap(const StateStore &state_
 void settings_set_shoulder_keymap(StateStore &state_store, std::string keymap)
 {
     state_store.set_setting(SETTINGS_SHOULDER_KEYMAP, keymap);
+}
+
+std::optional<ProgressReporting> settings_get_progress_reporting(const StateStore &state_store)
+{
+    auto progress = state_store.get_setting(SETTINGS_PROGRESS_REPORTING);
+    if (!progress)
+    {
+        return std::nullopt;
+    }
+
+    return decode_progress_reporting(*progress);
+}
+
+void settings_set_progress_reporting(StateStore &state_store, ProgressReporting progress_reporting)
+{
+    state_store.set_setting(SETTINGS_PROGRESS_REPORTING, encode_progress_reporting(progress_reporting));
 }
 
 std::optional<std::string> settings_get_color_theme(const StateStore &state_store)
@@ -67,15 +97,7 @@ std::optional<uint32_t> settings_get_font_size(const StateStore &state_store)
     {
         return std::nullopt;
     }
-    try
-    {
-        return std::stoul(*font_size);
-    }
-    catch (const std::invalid_argument &)
-    {
-        std::cerr << "Unable to parse font size in store" << std::endl;
-    }
-    return std::nullopt;
+    return try_parse_uint(*font_size);
 }
 
 void settings_set_font_size(StateStore &state_store, uint32_t font_size)

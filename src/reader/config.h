@@ -30,4 +30,6 @@
 #define DEFAULT_SHOW_PROGRESS true
 #define DEFAULT_SHOULDER_KEYMAP "LR"
 
+#define DEFAULT_PROGRESS_REPORTING ProgressReporting::GLOBAL_PERCENT
+
 #endif

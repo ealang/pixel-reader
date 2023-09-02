@@ -192,10 +192,14 @@ int main(int, char *[])
     });
 
     // Text Styling
-    TokenViewStyling token_view_styling(settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS));
+    TokenViewStyling token_view_styling(
+        settings_get_show_title_bar(state_store).value_or(DEFAULT_SHOW_PROGRESS),
+        settings_get_progress_reporting(state_store).value_or(DEFAULT_PROGRESS_REPORTING)
+    );
     token_view_styling.subscribe_to_changes([&token_view_styling, &state_store]() {
         // Persist changes
         settings_set_show_title_bar(state_store, token_view_styling.get_show_title_bar());
+        settings_set_progress_reporting(state_store, token_view_styling.get_progress_reporting());
     });
 
     // Setup views
@@ -205,6 +209,7 @@ int main(int, char *[])
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
+        token_view_styling,
         SYSTEM_FONT
     );
 
