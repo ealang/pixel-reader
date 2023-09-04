@@ -1,6 +1,7 @@
 #include "./epub_doc_index.h"
 
 #include "./xhtml_parser.h"
+#include "doc_api/token_addressing.h"
 #include "util/zip_utils.h"
 
 #include <iostream>
@@ -86,6 +87,18 @@ uint32_t EpubDocIndex::token_count(uint32_t spine_index) const
         return tokens(spine_index).size();
     }
     return 0;
+}
+
+DocAddr EpubDocIndex::upper_address(uint32_t spine_index) const
+{
+    const auto &tokens = ensure_cached(spine_index);
+    if (!tokens.size())
+    {
+        return make_address(spine_index);
+    }
+
+    const auto &last_token = tokens[tokens.size() - 1];
+    return last_token->address + get_address_width(*last_token);
 }
 
 const std::vector<std::unique_ptr<DocToken>> &EpubDocIndex::tokens(uint32_t spine_index) const

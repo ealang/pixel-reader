@@ -40,6 +40,7 @@ public:
     bool empty(uint32_t spine_index) const;
 
     uint32_t token_count(uint32_t spine_index) const;
+    DocAddr upper_address(uint32_t spine_index) const;
 
     const std::vector<std::unique_ptr<DocToken>> &tokens(uint32_t spine_index) const;
     const std::unordered_map<std::string, DocAddr> &elem_id_to_address(uint32_t spine_index) const;
