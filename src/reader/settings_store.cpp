@@ -1,5 +1,6 @@
 #include "./settings_store.h"
 #include "./state_store.h"
+#include "./util/string_serialization.h"
 
 #include <iostream>
 #include <vector>
@@ -13,19 +14,6 @@ constexpr const char *SETTINGS_KEY_COLOR_THEME = "color_theme";
 constexpr const char *SETTINGS_KEY_FONT_NAME = "font_name";
 constexpr const char *SETTINGS_KEY_FONT_SIZE = "font_size";
 constexpr const char *SETTINGS_PROGRESS_REPORTING = "progress_reporting";
-
-std::optional<uint32_t> try_parse_uint(const std::string &str)
-{
-    try
-    {
-        return std::stoul(str);
-    }
-    catch (const std::invalid_argument &)
-    {
-        std::cerr << "Failed to parse int in store" << std::endl;
-    }
-    return std::nullopt;
-}
 
 } // namespace
 
@@ -97,7 +85,7 @@ std::optional<uint32_t> settings_get_font_size(const StateStore &state_store)
     {
         return std::nullopt;
     }
-    return try_parse_uint(*font_size);
+    return try_decode_uint(*font_size);
 }
 
 void settings_set_font_size(StateStore &state_store, uint32_t font_size)

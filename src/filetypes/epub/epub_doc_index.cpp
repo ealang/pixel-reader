@@ -51,10 +51,13 @@ const std::vector<std::unique_ptr<DocToken>> &EpubDocIndex::ensure_cached(uint32
     return document.tokens_cache;
 }
 
-EpubDocIndex::EpubDocIndex(const PackageContents &package, zip_t *zip)
-    : zip(zip)
+EpubDocIndex::EpubDocIndex(const PackageContents &package, zip_t *zip, std::vector<uint32_t> _doc_widths_cache)
+    : zip(zip), doc_widths_cache(package.spine_ids.size())
 {
-    for (uint32_t spine_index = 0; spine_index < package.spine_ids.size(); ++spine_index)
+    uint32_t num_spine_entries = package.spine_ids.size();
+    bool cache_is_valid = num_spine_entries == _doc_widths_cache.size();
+
+    for (uint32_t spine_index = 0; spine_index < num_spine_entries; ++spine_index)
     {
         const auto &doc_id = package.spine_ids[spine_index];
         auto item_it = package.id_to_manifest_item.find(doc_id);
@@ -66,6 +69,11 @@ EpubDocIndex::EpubDocIndex(const PackageContents &package, zip_t *zip)
         {
             std::cerr << "Skipping spine doc " << doc_id << " in manifest" << std::endl;
             spine_entries.emplace_back();
+        }
+
+        if (cache_is_valid)
+        {
+            doc_widths_cache[spine_index] = _doc_widths_cache[spine_index];
         }
     }
 }
@@ -91,16 +99,25 @@ bool EpubDocIndex::empty(uint32_t spine_index) const
 
 uint32_t EpubDocIndex::address_width(uint32_t spine_index) const
 {
+    uint32_t width = 0;
     if (spine_index < spine_size())
     {
-        const auto &_tokens = ensure_cached(spine_index);
-        if (_tokens.size())
+        if (doc_widths_cache[spine_index])
         {
-            const auto &last_token = _tokens[_tokens.size() - 1];
-            return last_token->address + get_address_width(*last_token) - make_address(spine_index);
+            width = *doc_widths_cache[spine_index];
+        }
+        else
+        {
+            const auto &_tokens = ensure_cached(spine_index);
+            if (_tokens.size())
+            {
+                const auto &last_token = _tokens[_tokens.size() - 1];
+                width = last_token->address + get_address_width(*last_token) - make_address(spine_index);
+            }
+            doc_widths_cache[spine_index] = width;
         }
     }
-    return 0;
+    return width;
 }
 
 const std::vector<std::unique_ptr<DocToken>> &EpubDocIndex::tokens(uint32_t spine_index) const

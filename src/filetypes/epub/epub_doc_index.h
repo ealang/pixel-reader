@@ -8,6 +8,7 @@
 
 #include <filesystem>
 #include <unordered_map>
+#include <optional>
 #include <vector>
 
 struct Document
@@ -28,11 +29,12 @@ class EpubDocIndex
 {
     zip_t *zip;
     mutable std::vector<Document> spine_entries;
+    mutable std::vector<std::optional<uint32_t>> doc_widths_cache;
 
     const std::vector<std::unique_ptr<DocToken>> &ensure_cached(uint32_t spine_index) const;
 
 public:
-    EpubDocIndex(const PackageContents &package, zip_t *zip);
+    EpubDocIndex(const PackageContents &package, zip_t *zip, std::vector<uint32_t> doc_widths_cache);
     EpubDocIndex(const EpubDocIndex &) = delete;
     EpubDocIndex &operator=(const EpubDocIndex &) = delete;
 

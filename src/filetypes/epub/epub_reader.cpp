@@ -4,6 +4,7 @@
 #include "./epub_metadata.h"
 #include "./epub_toc_index.h"
 #include "./epub_token_iter.h"
+#include "util/string_serialization.h"
 #include "util/zip_utils.h"
 
 #include "extern/hash-library/md5.h"
@@ -11,6 +12,8 @@
 #include <algorithm>
 #include <iostream>
 #include <zip.h>
+
+#define DOC_WIDTHS_CACHE_KEY "doc_widths"
 
 struct EpubReaderState
 {
@@ -39,7 +42,7 @@ EPubReader::~EPubReader()
     }
 }
 
-bool EPubReader::open(DocReaderCache &)
+bool EPubReader::open(DocReaderCache &cache)
 {
     if (state->zip)
     {
@@ -134,8 +137,36 @@ bool EPubReader::open(DocReaderCache &)
         }
     }
 
-    state->doc_index = std::make_unique<EpubDocIndex>(package, state->zip);
-    state->toc_index = std::make_unique<EpubTocIndex>(package, navmap, *state->doc_index.get());
+    // Construct index helpers
+    {
+        std::vector<uint32_t> doc_widths_cache;
+
+        auto cache_opt = cache.read(state->package_md5, DOC_WIDTHS_CACHE_KEY);
+        bool cache_is_valid = (
+            cache_opt &&
+            try_decode_uint_vector(*cache_opt, doc_widths_cache) &&
+            doc_widths_cache.size()
+        );
+        if (!cache_is_valid)
+        {
+            doc_widths_cache.clear();
+        }
+
+        state->doc_index = std::make_unique<EpubDocIndex>(package, state->zip, doc_widths_cache);
+        state->toc_index = std::make_unique<EpubTocIndex>(package, navmap, *state->doc_index.get());
+
+        if (!cache_is_valid)
+        {
+            uint32_t num_spine_entries = state->doc_index->spine_size();
+            doc_widths_cache.reserve(num_spine_entries);
+            for (uint32_t i = 0; i < num_spine_entries; ++i)
+            {
+                doc_widths_cache.emplace_back(state->doc_index->address_width(i));
+            }
+
+            cache.write(state->package_md5, DOC_WIDTHS_CACHE_KEY, encode_uint_vector(doc_widths_cache));
+        }
+    }
 
     // Compile user table of contents
     state->user_toc.reserve(state->toc_index->toc_size());
