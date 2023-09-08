@@ -1,6 +1,7 @@
 #include "./epub_doc_index.h"
 
 #include "./xhtml_parser.h"
+#include "doc_api/token_addressing.h"
 #include "util/zip_utils.h"
 
 #include <iostream>
@@ -74,16 +75,30 @@ uint32_t EpubDocIndex::spine_size() const
     return spine_entries.size();
 }
 
-bool EpubDocIndex::empty(uint32_t spine_index) const
-{
-    return ensure_cached(spine_index).size() == 0;
-}
-
 uint32_t EpubDocIndex::token_count(uint32_t spine_index) const
 {
     if (spine_index < spine_size())
     {
-        return tokens(spine_index).size();
+        return ensure_cached(spine_index).size();
+    }
+    return 0;
+}
+
+bool EpubDocIndex::empty(uint32_t spine_index) const
+{
+    return token_count(spine_index) == 0;
+}
+
+uint32_t EpubDocIndex::address_width(uint32_t spine_index) const
+{
+    if (spine_index < spine_size())
+    {
+        const auto &_tokens = ensure_cached(spine_index);
+        if (_tokens.size())
+        {
+            const auto &last_token = _tokens[_tokens.size() - 1];
+            return last_token->address + get_address_width(*last_token) - make_address(spine_index);
+        }
     }
     return 0;
 }

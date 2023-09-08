@@ -34,6 +34,8 @@ public:
 
     // Return (pos inside, size of) the toc item in units of address space.
     std::pair<uint32_t, uint32_t> get_toc_item_progress(const DocAddr &address) const;
+    // Return (pos inside, size of) the book in units of address space.
+    std::pair<uint32_t, uint32_t> get_global_progress(const DocAddr &address) const;
 };
 
 #endif

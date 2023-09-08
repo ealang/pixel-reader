@@ -34,6 +34,9 @@ struct EpubTocIndexState
     EpubDocIndex &doc_index;
     std::vector<TocItemCache> toc;
 
+    std::vector<uint32_t> spine_to_offset;
+    uint32_t book_width = 0;
+
     mutable uint32_t cached_toc_index = 0;
     mutable DocAddr cached_toc_index_start_address = -1;
     mutable DocAddr cached_toc_index_upper_address = -1;
@@ -169,13 +172,7 @@ DocAddr spine_upper_address(const EpubDocIndex &doc_index)
 // Address just above the given document.
 DocAddr document_upper_address(const EpubDocIndex &doc_index, uint32_t spine_index)
 {
-    const auto &tokens = doc_index.tokens(spine_index);
-    if (tokens.size())
-    {
-        const auto *last_token = tokens.back().get();
-        return last_token->address + get_address_width(*last_token);
-    }
-    return make_address(spine_index);
+    return make_address(spine_index) + doc_index.address_width(spine_index);
 }
 
 DocAddr resolve_start_address(uint32_t item_index, const EpubDocIndex &doc_index, const std::vector<TocItemCache> &toc)
@@ -289,6 +286,7 @@ const TocItemProgressLookup &resolve_progress_lookup(uint32_t item_index, const 
 EpubTocIndex::EpubTocIndex(const PackageContents &package, const std::vector<NavPoint> &navmap, EpubDocIndex &doc_index)
     : state(std::make_unique<EpubTocIndexState>(doc_index))
 {
+    // Compile Toc
     auto &toc = state->toc;
 
     flatten_navmap_to_toc(package, navmap, toc);
@@ -297,6 +295,17 @@ EpubTocIndex::EpubTocIndex(const PackageContents &package, const std::vector<Nav
     {
         std::cerr << "Falling back to spine for TOC" << std::endl;
         fallback_convert_spine_to_toc(package, toc);
+    }
+
+    // Compile global progress lookup
+    {
+        uint32_t offset = 0;
+        for (uint32_t i = 0; i < doc_index.spine_size(); ++i)
+        {
+            state->spine_to_offset.emplace_back(offset);
+            offset += doc_index.address_width(i);
+        }
+        state->book_width = offset;
     }
 
     #if DEBUG
@@ -411,7 +420,6 @@ std::optional<uint32_t> EpubTocIndex::get_toc_item_index(const DocAddr &address)
     return std::nullopt;
 }
 
-// Excluding empty address space, return (pos inside, size of) the toc item.
 std::pair<uint32_t, uint32_t> EpubTocIndex::get_toc_item_progress(const DocAddr &address) const
 {
     auto toc_index = get_toc_item_index(address);
@@ -428,4 +436,18 @@ std::pair<uint32_t, uint32_t> EpubTocIndex::get_toc_item_progress(const DocAddr 
         static_cast<uint32_t>(address - progress.spine_to_start_addr[spine_index])
     );
     return {pos, progress.total_size};
+}
+
+std::pair<uint32_t, uint32_t> EpubTocIndex::get_global_progress(const DocAddr &address) const
+{
+    uint32_t cur_spine = get_chapter_number(address);
+    if (cur_spine >= state->doc_index.spine_size())
+    {
+        return {0, 0};
+    }
+
+    return {
+        state->spine_to_offset[cur_spine] + (address - make_address(cur_spine)),
+        state->book_width
+    };
 }

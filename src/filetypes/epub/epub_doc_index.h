@@ -36,10 +36,16 @@ public:
     EpubDocIndex(const EpubDocIndex &) = delete;
     EpubDocIndex &operator=(const EpubDocIndex &) = delete;
 
+    // Number of spine entries
     uint32_t spine_size() const;
+
+    // Number of tokens in spine entry
+    uint32_t token_count(uint32_t spine_index) const;
+    // True if spine has no tokens
     bool empty(uint32_t spine_index) const;
 
-    uint32_t token_count(uint32_t spine_index) const;
+    // Address space consumed by spine entry
+    uint32_t address_width(uint32_t spine_index) const;
 
     const std::vector<std::unique_ptr<DocToken>> &tokens(uint32_t spine_index) const;
     const std::unordered_map<std::string, DocAddr> &elem_id_to_address(uint32_t spine_index) const;
