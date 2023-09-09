@@ -29,6 +29,8 @@ public:
         TokenViewStyling &token_view_styling,
         ViewStack &view_stack
     );
+    ReaderView(const ReaderView &) = delete;
+    ReaderView &operator=(const ReaderView &) = delete;
     virtual ~ReaderView();
 
     bool render(SDL_Surface *dest_surface, bool force_render) override;

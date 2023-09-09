@@ -25,16 +25,18 @@ struct ReaderViewState
     std::shared_ptr<DocReader> reader;
     SystemStyling &sys_styling;
     TokenViewStyling &token_view_styling;
+    uint32_t token_view_styling_sub_id;
 
     ViewStack &view_stack;
 
     std::unique_ptr<TokenView> token_view;
     
-    ReaderViewState(std::filesystem::path path, DocAddr seek_address, std::shared_ptr<DocReader> reader, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, ViewStack &view_stack)
+    ReaderViewState(std::filesystem::path path, DocAddr seek_address, std::shared_ptr<DocReader> reader, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, uint32_t token_view_styling_sub_id, ViewStack &view_stack)
         : filename(path.filename()),
           reader(reader),
           sys_styling(sys_styling),
           token_view_styling(token_view_styling),
+          token_view_styling_sub_id(token_view_styling_sub_id),
           view_stack(view_stack),
           token_view(std::make_unique<TokenView>(
               reader,
@@ -117,7 +119,17 @@ ReaderView::ReaderView(
     SystemStyling &sys_styling,
     TokenViewStyling &token_view_styling,
     ViewStack &view_stack
-) : state(std::make_unique<ReaderViewState>(path, seek_address, reader, sys_styling, token_view_styling, view_stack))
+) : state(std::make_unique<ReaderViewState>(
+        path,
+        seek_address,
+        reader,
+        sys_styling,
+        token_view_styling,
+        token_view_styling.subscribe_to_changes([this]() {
+            update_token_view_title(get_current_address(*state));
+        }),
+        view_stack
+    ))
 {
     update_token_view_title(seek_address);
 
@@ -134,12 +146,16 @@ ReaderView::ReaderView(
 
 ReaderView::~ReaderView()
 {
+    state->token_view_styling.unsubscribe_from_changes(
+        state->token_view_styling_sub_id
+    );
 }
 
 void ReaderView::update_token_view_title(DocAddr address)
 {
     const auto &toc = state->reader->get_table_of_contents();
     auto toc_position = state->reader->get_toc_position(address);
+
     if (toc_position.toc_index < toc.size())
     {
         state->token_view->set_title(toc[toc_position.toc_index].display_name);
@@ -148,7 +164,13 @@ void ReaderView::update_token_view_title(DocAddr address)
     {
         state->token_view->set_title(state->filename);
     }
-    state->token_view->set_title_progress(toc_position.progress_percent);
+
+    uint32_t progress_percent = (
+        state->token_view_styling.get_progress_reporting() == ProgressReporting::CHAPTER_PERCENT ?
+        toc_position.progress_percent :
+        state->reader->get_global_progress_percent(address)
+    );
+    state->token_view->set_title_progress(progress_percent);
 }
 
 bool ReaderView::render(SDL_Surface *dest_surface, bool force_render)
