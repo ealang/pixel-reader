@@ -106,15 +106,20 @@ const std::vector<TocItem> &TxtReader::get_table_of_contents() const
 
 TocPosition TxtReader::get_toc_position(const DocAddr &address) const
 {
+    return {0, get_global_progress_percent(address)};
+}
+
+uint32_t TxtReader::get_global_progress_percent(const DocAddr &address) const
+{
     uint32_t pos = get_text_number(address);
     uint32_t size = state->total_address_width;
 
-    return {
-        0,
-        size == 0 ? 100 : (
-            (std::min(pos, size) * 100) / size
-        )
-    };
+    if (!size)
+    {
+        return 100;
+    }
+
+    return std::min(pos, size) * 100 / size;
 }
 
 DocAddr TxtReader::get_toc_item_address(uint32_t) const

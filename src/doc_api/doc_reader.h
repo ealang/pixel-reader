@@ -45,6 +45,8 @@ public:
     virtual TocPosition get_toc_position(const DocAddr &address) const = 0;
     virtual DocAddr get_toc_item_address(uint32_t toc_item_index) const = 0;
 
+    virtual uint32_t get_global_progress_percent(const DocAddr &address) const = 0;
+
     virtual std::shared_ptr<TokenIter> get_iter(DocAddr address = make_address()) const = 0;
 
     virtual std::vector<char> load_resource(const std::filesystem::path &path) const = 0;

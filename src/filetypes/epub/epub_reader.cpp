@@ -13,7 +13,33 @@
 #include <iostream>
 #include <zip.h>
 
+#define DEBUG 0
 #define DOC_WIDTHS_CACHE_KEY "doc_widths"
+
+namespace
+{
+
+uint32_t fraction_to_progress_percent( std::pair<uint32_t, uint32_t> fraction)
+{
+    auto [pos, size] = fraction;
+
+    uint32_t percent = 100;
+    if (size)
+    {
+        percent = pos * 100 / size;
+        if (percent > 100)
+        {
+            #if DEBUG
+            std::cerr << "Got unexpected progress value " << percent << std::endl;
+            #endif
+            percent = 100;
+        }
+    }
+
+    return percent;
+}
+
+} // namespace
 
 struct EpubReaderState
 {
@@ -198,18 +224,10 @@ const std::vector<TocItem> &EPubReader::get_table_of_contents() const
 
 TocPosition EPubReader::get_toc_position(const DocAddr &address) const
 {
-    auto [pos, size] = state->toc_index->get_toc_item_progress(address);
-    
-    uint32_t percent = 100;
-    if (size)
-    {
-        percent = pos * 100 / size;
-        if (percent > 100)
-        {
-            std::cerr << "Got unexpected progress value for address " << to_string(address) << std::endl;
-            percent = 100;
-        }
-    }
+    uint32_t percent = fraction_to_progress_percent(
+        state->toc_index->get_toc_item_progress(address)
+    );
+
     return {
         state->toc_index->get_toc_item_index(address).value_or(0),
         percent
@@ -219,6 +237,13 @@ TocPosition EPubReader::get_toc_position(const DocAddr &address) const
 DocAddr EPubReader::get_toc_item_address(uint32_t toc_item_index) const
 {
     return state->toc_index->get_toc_item_address(toc_item_index);
+}
+
+uint32_t EPubReader::get_global_progress_percent(const DocAddr &address) const
+{
+    return fraction_to_progress_percent(
+        state->toc_index->get_global_progress(address)
+    );
 }
 
 std::shared_ptr<TokenIter> EPubReader::get_iter(DocAddr address) const
