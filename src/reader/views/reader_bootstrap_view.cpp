@@ -1,12 +1,14 @@
 #include "./reader_bootstrap_view.h"
 
+#include "./popup_view.h"
+#include "./reader_view.h"
 #include "filetypes/open_doc.h"
 #include "reader/config.h"
 #include "reader/ss_doc_reader_cache.h"
 #include "reader/state_store.h"
+#include "reader/system_styling.h"
 #include "reader/view_stack.h"
-#include "./popup_view.h"
-#include "./reader_view.h"
+#include "sys/screen.h"
 
 #include <iostream>
 
@@ -18,8 +20,8 @@ struct ReaderBootstrapViewState
     ViewStack &view_stack;
     StateStore &state_store;
 
-    std::unique_ptr<PopupView> loading_modal;
     bool is_done = false;
+    bool needs_render = true;
 
     ReaderBootstrapViewState(
         std::filesystem::path book_path,
@@ -32,12 +34,7 @@ struct ReaderBootstrapViewState
         sys_styling(sys_styling),
         token_view_styling(token_view_styling),
         view_stack(view_stack),
-        state_store(state_store),
-        loading_modal(std::make_unique<PopupView>(
-            "Loading...",
-            SYSTEM_FONT,
-            sys_styling
-        ))
+        state_store(state_store)
     {
     }
 };
@@ -58,7 +55,6 @@ void ReaderBootstrapView::load_reader()
     {
         std::cerr << "Failed to open " << book_path << std::endl;
         view_stack.push(std::make_shared<PopupView>("Error opening", SYSTEM_FONT, sys_styling));
-
         return;
     }
 
@@ -103,22 +99,30 @@ ReaderBootstrapView::~ReaderBootstrapView()
 
 bool ReaderBootstrapView::render(SDL_Surface *dest_surface, bool force_render)
 {
-    if (!state->is_done)
+    bool perform_render = force_render || state->needs_render;
+    if (perform_render)
     {
-        return state->loading_modal->render(dest_surface, force_render);
+        // blank screen during loading
+        const auto &bg_color = state->sys_styling.get_loaded_color_theme().background;
+
+        SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+        uint32_t surf_color = SDL_MapRGB(
+            dest_surface->format,
+            bg_color.r,
+            bg_color.g,
+            bg_color.b
+        );
+        SDL_FillRect(dest_surface, &rect, surf_color);
+
+        state->needs_render = false;
     }
 
-    return false;
+    return perform_render;
 }
 
 bool ReaderBootstrapView::is_done()
 {
     return state->is_done;
-}
-
-bool ReaderBootstrapView::is_modal()
-{
-    return true;
 }
 
 void ReaderBootstrapView::on_keypress(SDLKey)
