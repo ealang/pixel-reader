@@ -92,7 +92,7 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
         auto progress_value = render_text(
             token_view_styling.get_progress_reporting() == ProgressReporting::CHAPTER_PERCENT ?
             "Chapter %" :
-            "Global %",
+            "Book %",
             line_selected == 4 ? style_hl : style_normal
         );
 
