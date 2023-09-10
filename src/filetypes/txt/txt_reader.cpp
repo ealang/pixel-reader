@@ -21,7 +21,7 @@ bool tokenize_text_file(const std::filesystem::path &path, std::vector<std::uniq
         return false;
     }
 
-    DocAddr cur_address = make_address();
+    DocAddr cur_address = 0;
 
     std::string line;
     MD5 md5;
@@ -83,7 +83,7 @@ bool TxtReader::open(DocReaderCache &)
     if (state->is_open && state->tokens.size())
     {
         const auto *last_token = state->tokens.back().get();
-        state->total_address_width = get_text_number(last_token->address) + get_address_width(*last_token);
+        state->total_address_width = last_token->address + get_address_width(*last_token);
     }
 
     return state->is_open;
@@ -111,7 +111,7 @@ TocPosition TxtReader::get_toc_position(const DocAddr &address) const
 
 uint32_t TxtReader::get_global_progress_percent(const DocAddr &address) const
 {
-    uint32_t pos = get_text_number(address);
+    uint32_t pos = address;
     uint32_t size = state->total_address_width;
 
     if (!size)

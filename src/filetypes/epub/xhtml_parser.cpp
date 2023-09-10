@@ -1,5 +1,6 @@
 #include "./xhtml_parser.h"
 
+#include "./epub_doc_addr.h"
 #include "./libxml_iter.h"
 #include "./xhtml_string_util.h"
 #include "./util/str_utils.h"

@@ -68,7 +68,7 @@ void ReaderBootstrapView::load_reader()
     auto reader_view = std::make_shared<ReaderView>(
         book_path,
         reader,
-        state_store.get_book_address(book_id).value_or(make_address()),
+        state_store.get_book_address(book_id).value_or(0),
         sys_styling,
         token_view_styling,
         view_stack

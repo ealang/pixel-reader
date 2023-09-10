@@ -30,7 +30,7 @@ public:
 
     uint32_t get_global_progress_percent(const DocAddr &address) const override;
 
-    std::shared_ptr<TokenIter> get_iter(DocAddr address = make_address()) const override;
+    std::shared_ptr<TokenIter> get_iter(DocAddr address = 0) const override;
 
     std::vector<char> load_resource(const std::filesystem::path &path) const override;
 };

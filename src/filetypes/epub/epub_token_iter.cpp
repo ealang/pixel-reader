@@ -1,5 +1,6 @@
 #include "./epub_token_iter.h"
 
+#include "./epub_doc_addr.h"
 #include "./epub_doc_index.h"
 
 EPubTokenIter::EPubTokenIter(EpubDocIndex *index, DocAddr address)

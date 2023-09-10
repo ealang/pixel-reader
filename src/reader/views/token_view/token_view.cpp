@@ -423,7 +423,7 @@ DocAddr TokenView::get_address() const
     {
         return line->address;
     }
-    return make_address();
+    return 0;
 }
 
 void TokenView::seek_to_address(DocAddr address)

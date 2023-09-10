@@ -1,5 +1,6 @@
 #include "./epub_doc_index.h"
 
+#include "./epub_doc_addr.h"
 #include "./xhtml_parser.h"
 #include "doc_api/token_addressing.h"
 #include "util/zip_utils.h"

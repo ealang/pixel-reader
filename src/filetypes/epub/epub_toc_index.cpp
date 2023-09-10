@@ -1,6 +1,8 @@
 #include "./epub_toc_index.h"
 
+#include "./epub_doc_addr.h"
 #include "./epub_doc_index.h"
+
 #include "doc_api/token_addressing.h"
 
 #include <iostream>

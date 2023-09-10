@@ -2,6 +2,7 @@
 #define EPUB_READER_H_
 
 #include "doc_api/doc_reader.h"
+#include "./epub_doc_addr.h"
 
 struct EpubReaderState;
 

@@ -62,7 +62,7 @@ DocAddr get_current_address(const ReaderViewState &state)
         return state.token_view->get_address();
     }
 
-    return make_address();
+    return 0;
 }
 
 void open_toc_menu(ReaderView &reader_view, ReaderViewState &state)
