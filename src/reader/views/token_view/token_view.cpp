@@ -341,47 +341,20 @@ void TokenView::scroll(int num_lines)
     }
 }
 
-void TokenView::on_keypress(SDLKey key)
+void TokenView::on_keypress(Key key)
 {
-    switch (key) {
-        case SW_BTN_UP:
-            scroll(-1);
-            break;
-        case SW_BTN_DOWN:
-            scroll(1);
-            break;
-        case SW_BTN_L1:
-        case SW_BTN_R1:
-        case SW_BTN_L2:
-        case SW_BTN_R2:
-            {
-                auto [l_key, r_key] = get_shoulder_keymap_lr(
-                    state->sys_styling.get_shoulder_keymap()
-                );
-
-                if (key == l_key)
-                {
-                    key = SW_BTN_LEFT;
-                }
-                else if (key == r_key)
-                {
-                    key = SW_BTN_RIGHT;
-                }
-            }
-            // fallthrough
-        case SW_BTN_LEFT:
-        case SW_BTN_RIGHT:
-            if (key == SW_BTN_LEFT)
-            {
-                scroll(-state->num_text_display_lines());
-            }
-            else if (key == SW_BTN_RIGHT)
-            {
-                scroll(state->num_text_display_lines());
-            }
-            break;
-        default:
-            break;
+    const auto &keyamp = get_reader_keymap();
+    if (keymap.scroll_up.contains(key))
+    {
+        scroll(-1);
+    }
+    else if (keymap.page_left.contains(key))
+    {
+        scroll(-state->num_text_display_lines());
+    }
+    else if (keymap.page_right.contains(key))
+    {
+        scroll(state->num_text_display_lines());
     }
 }
 

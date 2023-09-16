@@ -183,9 +183,11 @@ bool ReaderView::is_done()
     return state->is_done;
 }
 
-void ReaderView::on_keypress(SDLKey key)
+void ReaderView::on_keypress(Key key)
 {
-    if (key == SW_BTN_B)
+
+    const auto &keyamp = get_reader_keymap();
+    if (keymap.back_button.contains(key))
     {
         state->is_done = true;
         if (state->on_quit)
@@ -195,18 +197,19 @@ void ReaderView::on_keypress(SDLKey key)
         return;
     }
 
-    switch (key) {
-        case SW_BTN_A:
-            state->token_view_styling.set_show_title_bar(
-                !state->token_view_styling.get_show_title_bar()
-            );
-            break;
-        case SW_BTN_SELECT:
-            open_toc_menu(*this, *state);
-            break;
-        default:
-            state->token_view->on_keypress(key);
-            break;
+    if (keymap.toggle_statusbar.contains(key))
+    {
+        state->token_view_styling.set_show_title_bar(
+            !state->token_view_styling.get_show_title_bar()
+        );
+    }
+    else if (keymap.toggle_statusbar.contains(key))
+    {
+        open_toc_menu(*this, *state);
+    }
+    else
+    {
+        state->token_view->on_keypress(key);
     }
 }
 
