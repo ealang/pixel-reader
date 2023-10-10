@@ -5,6 +5,8 @@
 
 static bool format_initialized = false;
 static SDL_PixelFormat format;
+short unsigned int SCREEN_WIDTH  = 640;
+short unsigned int SCREEN_HEIGHT = 480;
 
 SDL_PixelFormat *get_render_surface_format()
 {
