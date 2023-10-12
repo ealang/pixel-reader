@@ -151,6 +151,20 @@ int main(int, char *[])
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
+    if (char* env_screen_width = SDL_getenv("SCREEN_WIDTH")) {
+        int new_width = atoi(env_screen_width);
+        if (100 < new_width && new_width < 4096)
+            SCREEN_WIDTH = static_cast<unsigned int>(new_width);
+    }
+
+    if (char* env_screen_height = SDL_getenv("SCREEN_HEIGHT")) {
+        int new_height = atoi(env_screen_height);
+        if (100 < new_height && new_height < 4096)
+            SCREEN_HEIGHT = static_cast<unsigned int>(new_height);
+    }
+
+    std::cout << "Screen Size: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
+
     // SDL Init
     SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
