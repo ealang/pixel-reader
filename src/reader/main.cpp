@@ -26,11 +26,12 @@
 
 #include <csignal>
 #include <iostream>
+#include <stdarg.h>
 
 namespace
 {
 
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, TaskQueue &task_queue)
+void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, TaskQueue &task_queue, int argc, char **argv)
 {
     auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
@@ -38,10 +39,15 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         sys_styling
     );
 
-    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue](std::filesystem::path path) {
-        if (!std::filesystem::exists(path) || !file_type_is_supported(path))
-        {
-            return;
+    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue, &argc, &argv](std::filesystem::path path) {
+        if (argc != 2) {
+            if (!std::filesystem::exists(path) || !file_type_is_supported(path))
+            {
+                return;
+            }
+        } else {
+            std::filesystem::path pathObj(argv[1]);
+            path = pathObj;
         }
 
         view_stack.push(
@@ -146,7 +152,7 @@ std::unordered_map<std::string, std::string> load_config_with_defaults()
 
 } // namespace
 
-int main(int, char *[])
+int main(int argc, char **argv)
 {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
@@ -219,7 +225,7 @@ int main(int, char *[])
     // Setup views
     TaskQueue task_queue;
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, sys_styling, token_view_styling, task_queue);
+    initialize_views(view_stack, state_store, sys_styling, token_view_styling, task_queue, argc, argv);
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
