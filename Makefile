@@ -26,7 +26,7 @@ CXX      := $(CROSS_COMPILE)c++
 BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)
-INCLUDE  := -Isrc -I${PREFIX}/include/libxml2
+INCLUDE  := -Isrc -I${SYSROOT}${PREFIX}/include/libxml2
 
 ROTOZOOM_SRC := src/extern/rotozoom/SDL_rotozoom.c
 COMMON_SRC   := $(filter-out src/reader/main.cpp, $(wildcard src/filetypes/*.cpp src/filetypes/txt/*.cpp src/filetypes/epub/*.cpp src/reader/*.cpp src/reader/views/*.cpp src/reader/views/token_view/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp src/extern/hash-library/*.cpp))
@@ -52,23 +52,23 @@ all: build $(APP_DIR)/$(APP_READER_TARGET) $(APP_DIR)/$(APP_SANDBOX_TARGET)
 
 $(ROTOZOOM_OBJECT): $(ROTOZOOM_SRC)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -MMD -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDE) -c $< -MMD -o $@
 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(WARNFLAGS) -c $< -MMD -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDE) $(WARNFLAGS) -c $< -MMD -o $@
 
 $(APP_DIR)/$(APP_READER_TARGET): $(READER_OBJECTS)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(APP_DIR)/$(APP_SANDBOX_TARGET): $(SANDBOX_OBJECTS)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(APP_DIR)/$(APP_TEST_TARGET): $(TEST_OBJECTS)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lgtest -lgtest_main
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lgtest -lgtest_main
 
 -include $(DEPENDENCIES)
 
