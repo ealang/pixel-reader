@@ -26,13 +26,19 @@
 
 #include <csignal>
 #include <iostream>
-#include <stdarg.h>
 
 namespace
 {
 
 void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, TaskQueue &task_queue, int argc, char **argv)
 {
+    std::string strPath = "";
+    if (argc == 2)
+    {
+        strPath = argv[1];
+    }
+    std::filesystem::path pathArg(strPath);
+
     auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
     std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
         browse_path,
@@ -40,16 +46,10 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
     );
 
     auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue, &argc, &argv](std::filesystem::path path) {
-        if (argc != 2) {
-            if (!std::filesystem::exists(path) || !file_type_is_supported(path))
-            {
-                return;
-            }
-        } else {
-            std::filesystem::path pathObj(argv[1]);
-            path = pathObj;
+        if (argc < 2 && (!std::filesystem::exists(path) || !file_type_is_supported(path)))
+        {
+            return;
         }
-
         view_stack.push(
             std::make_shared<ReaderBootstrapView>(
                 path,
@@ -63,13 +63,25 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
     };
 
     fs->set_on_file_selected(load_book);
-    fs->set_on_file_focus([&state_store](std::string path) {
+
+    if (argc == 2)
+    {
+        state_store.set_current_browse_path(pathArg);
+    }
+    else
+    {
+        fs->set_on_file_focus([&state_store](std::string path) {
         state_store.set_current_browse_path(path);
-    });
+        });
+    }
 
     view_stack.push(fs);
 
-    if (state_store.get_current_book_path())
+    if (argc == 2)
+    {
+        load_book(pathArg);
+    }
+    else if (state_store.get_current_book_path())
     {
         load_book(state_store.get_current_book_path().value());
     }
@@ -299,6 +311,10 @@ int main(int argc, char **argv)
                                 {
                                     settings_view->terminate();
                                 }
+                            } 
+                            else if (argc == 2 && key == SW_BTN_B)
+                            {
+                                quit = true;
                             }
 
                             ran_user_code = true;
