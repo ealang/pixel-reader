@@ -274,6 +274,15 @@ int main(int argc, char **argv)
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
 
+    bool view_active = false;
+
+    std::string strPath = "";
+    if (argc == 2)
+    {
+        strPath = argv[1]; 
+    }
+    std::filesystem::path pathArg(strPath);
+
     while (!quit)
     {
         bool ran_user_code = task_queue.drain();
@@ -291,6 +300,11 @@ int main(int argc, char **argv)
                         idle_timer.reset();
 
                         SDLKey key = chord_tracker.on_keypress(event.key.keysym.sym);
+
+                        if (argc == 2 && (!std::filesystem::exists(pathArg) || !file_type_is_supported(pathArg)))
+                        {
+                            quit = true;
+                        }
 
                         if (key == SW_BTN_POWER)
                         {
