@@ -325,10 +325,18 @@ int main(int argc, char **argv)
                                 {
                                     settings_view->terminate();
                                 }
-                            } 
-                            else if (argc == 2 && key == SW_BTN_B)
+                            }
+                            else if (argc == 2 && key == SW_BTN_SELECT)
+                            {
+                                view_active = !view_active;
+                            }
+                            else if (argc == 2 && key == SW_BTN_B && !view_active && view_stack.top_view() != settings_view)
                             {
                                 quit = true;
+                            }
+                            else if (argc == 2 && key == SW_BTN_B) 
+                            {
+                                view_active = false;
                             }
 
                             ran_user_code = true;
