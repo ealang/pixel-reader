@@ -334,7 +334,7 @@ int main(int argc, char **argv)
                             {
                                 quit = true;
                             }
-                            else if (argc == 2 && key == SW_BTN_B) 
+                            else if (argc == 2 && (key == SW_BTN_B  || key == SW_BTN_A)) 
                             {
                                 view_active = false;
                             }
