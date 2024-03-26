@@ -30,26 +30,27 @@
 namespace
 {
 
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, TaskQueue &task_queue, int argc, char **argv)
+void initialize_views(
+    ViewStack &view_stack,
+    StateStore &state_store,
+    SystemStyling &sys_styling,
+    TokenViewStyling &token_view_styling,
+    TaskQueue &task_queue,
+    std::optional<std::filesystem::path> requested_book_path
+)
 {
-    std::string strPath = "";
-    if (argc == 2)
-    {
-        strPath = argv[1];
-    }
-    std::filesystem::path pathArg(strPath);
-
-    auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
-    std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
-        browse_path,
-        sys_styling
-    );
-
-    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue, &argc, &argv](std::filesystem::path path) {
-        if (argc < 2 && (!std::filesystem::exists(path) || !file_type_is_supported(path)))
+    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue](std::filesystem::path path) {
+        if (!std::filesystem::exists(path))
         {
+            std::cerr << path << " does not exist" << std::endl;
             return;
         }
+        if (!file_type_is_supported(path))
+        {
+            std::cerr << path << " filetype is not supported" << std::endl;
+            return;
+        }
+
         view_stack.push(
             std::make_shared<ReaderBootstrapView>(
                 path,
@@ -62,28 +63,29 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         );
     };
 
-    fs->set_on_file_selected(load_book);
-
-    if (argc == 2)
+    if (requested_book_path)
     {
-        state_store.set_current_browse_path(pathArg);
+        load_book(*requested_book_path);
     }
     else
     {
+        auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
+        std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
+            browse_path,
+            sys_styling
+        );
+
+        fs->set_on_file_selected(load_book);
         fs->set_on_file_focus([&state_store](std::string path) {
-        state_store.set_current_browse_path(path);
+            state_store.set_current_browse_path(path);
         });
-    }
 
-    view_stack.push(fs);
+        view_stack.push(fs);
 
-    if (argc == 2)
-    {
-        load_book(pathArg);
-    }
-    else if (state_store.get_current_book_path())
-    {
-        load_book(state_store.get_current_book_path().value());
+        if (state_store.get_current_book_path())
+        {
+            load_book(state_store.get_current_book_path().value());
+        }
     }
 }
 
@@ -237,7 +239,19 @@ int main(int argc, char **argv)
     // Setup views
     TaskQueue task_queue;
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, sys_styling, token_view_styling, task_queue, argc, argv);
+
+    std::optional<std::filesystem::path> requested_book_path = (
+        argc == 2 ? std::optional<std::filesystem::path>(argv[1]) : std::nullopt
+    );
+    initialize_views(
+        view_stack,
+        state_store,
+        sys_styling,
+        token_view_styling,
+        task_queue,
+        requested_book_path
+    );
+    quit = view_stack.is_done();
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
@@ -274,15 +288,6 @@ int main(int argc, char **argv)
     SDL_BlitSurface(screen, NULL, video, NULL);
     SDL_Flip(video);
 
-    bool view_active = false;
-
-    std::string strPath = "";
-    if (argc == 2)
-    {
-        strPath = argv[1]; 
-    }
-    std::filesystem::path pathArg(strPath);
-
     while (!quit)
     {
         bool ran_user_code = task_queue.drain();
@@ -300,11 +305,6 @@ int main(int argc, char **argv)
                         idle_timer.reset();
 
                         SDLKey key = chord_tracker.on_keypress(event.key.keysym.sym);
-
-                        if (argc == 2 && (!std::filesystem::exists(pathArg) || !file_type_is_supported(pathArg)))
-                        {
-                            quit = true;
-                        }
 
                         if (key == SW_BTN_POWER)
                         {
@@ -325,18 +325,6 @@ int main(int argc, char **argv)
                                 {
                                     settings_view->terminate();
                                 }
-                            }
-                            else if (argc == 2 && key == SW_BTN_SELECT)
-                            {
-                                view_active = !view_active;
-                            }
-                            else if (argc == 2 && key == SW_BTN_B && !view_active && view_stack.top_view() != settings_view)
-                            {
-                                quit = true;
-                            }
-                            else if (argc == 2 && (key == SW_BTN_B  || key == SW_BTN_A)) 
-                            {
-                                view_active = false;
                             }
 
                             ran_user_code = true;
