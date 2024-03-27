@@ -73,9 +73,6 @@ void ReaderBootstrapView::load_reader()
     reader_view->set_on_change_address([&state_store, book_id](DocAddr addr) {
         state_store.set_book_address(book_id, addr);
     });
-    reader_view->set_on_quit_requested([&state_store]() {
-        state_store.remove_current_book_path();
-    });
 
     view_stack.push(reader_view);
 }

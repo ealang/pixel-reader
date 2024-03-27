@@ -18,7 +18,6 @@ struct ReaderViewState
 {
     bool is_done = false;
 
-    std::function<void()> on_quit;
     std::function<void(DocAddr)> on_change_address;
 
     std::string filename;
@@ -188,10 +187,6 @@ void ReaderView::on_keypress(SDLKey key)
     if (key == SW_BTN_B)
     {
         state->is_done = true;
-        if (state->on_quit)
-        {
-            state->on_quit();
-        }
         return;
     }
 
@@ -213,11 +208,6 @@ void ReaderView::on_keypress(SDLKey key)
 void ReaderView::on_keyheld(SDLKey key, uint32_t hold_time_ms)
 {
     state->token_view->on_keyheld(key, hold_time_ms);
-}
-
-void ReaderView::set_on_quit_requested(std::function<void()> callback)
-{
-    state->on_quit = callback;
 }
 
 void ReaderView::set_on_change_address(std::function<void(DocAddr)> callback)
