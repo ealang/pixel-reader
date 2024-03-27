@@ -48,7 +48,7 @@ DEPENDENCIES := \
 	    $(SANDBOX_OBJECTS:.o=.d) \
 	    $(TEST_OBJECTS:.o=.d)
 
-all: build $(APP_DIR)/$(APP_READER_TARGET) $(APP_DIR)/$(APP_SANDBOX_TARGET)
+all: build $(APP_READER_TARGET) $(APP_SANDBOX_TARGET)
 
 $(ROTOZOOM_OBJECT): $(ROTOZOOM_SRC)
 	@mkdir -p $(@D)
@@ -58,24 +58,22 @@ $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(WARNFLAGS) -c $< -MMD -o $@
 
-$(APP_DIR)/$(APP_READER_TARGET): $(READER_OBJECTS)
+$(APP_READER_TARGET): $(READER_OBJECTS)
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-$(APP_DIR)/$(APP_SANDBOX_TARGET): $(SANDBOX_OBJECTS)
+$(APP_SANDBOX_TARGET): $(SANDBOX_OBJECTS)
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-$(APP_DIR)/$(APP_TEST_TARGET): $(TEST_OBJECTS)
+$(APP_TEST_TARGET): $(TEST_OBJECTS)
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lgtest -lgtest_main
+	./$(APP_TEST_TARGET)
 
 -include $(DEPENDENCIES)
 
 .PHONY: all build clean debug release run_tests miyoo-mini-shell
-
-test: $(APP_DIR)/$(APP_TEST_TARGET)
-	$(APP_DIR)/$(APP_TEST_TARGET)
 
 miyoo-mini-shell:
 	-$(MAKE) -C cross-compile/miyoo-mini/union-miyoomini-toolchain shell WORKSPACE_DIR=$(shell pwd)
@@ -91,4 +89,4 @@ debug_test: CXXFLAGS += -g
 debug_test: test
 
 clean:
-	-@rm -rf $(BUILD)
+	-@rm -rf $(BUILD) $(APP_READER_TARGET) $(APP_SANDBOX_TARGET) $(APP_TEST_TARGET)

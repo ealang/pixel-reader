@@ -171,6 +171,13 @@ std::unordered_map<std::string, std::string> load_config_with_defaults()
 
 int main(int argc, char **argv)
 {
+    if (argc)
+    {
+        std::filesystem::current_path(
+            std::filesystem::path(argv[0]).parent_path()
+        );
+    }
+
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
