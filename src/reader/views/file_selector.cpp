@@ -15,6 +15,7 @@ struct FSState
     std::vector<FSEntry> path_entries;
     std::function<void(const std::filesystem::path &)> on_file_selected;
     std::function<void(const std::filesystem::path &)> on_file_focus;
+    std::function<void()> on_view_focus;
 
     SelectionMenu menu;
 
@@ -172,6 +173,14 @@ void FileSelector::on_keyheld(SDLKey key, uint32_t held_time_ms)
     state->menu.on_keyheld(key, held_time_ms);
 }
 
+void FileSelector::on_focus()
+{
+    if (state->on_view_focus)
+    {
+        state->on_view_focus();
+    }
+}
+
 void FileSelector::set_on_file_selected(std::function<void(const std::filesystem::path &)> callback)
 {
     state->on_file_selected = callback;
@@ -180,4 +189,9 @@ void FileSelector::set_on_file_selected(std::function<void(const std::filesystem
 void FileSelector::set_on_file_focus(std::function<void(const std::filesystem::path &)> callback)
 {
     state->on_file_focus = callback;
+}
+
+void FileSelector::set_on_view_focus(std::function<void()> callback)
+{
+    state->on_view_focus = callback;
 }

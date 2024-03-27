@@ -79,6 +79,9 @@ void initialize_views(
         fs->set_on_file_focus([&state_store](std::string path) {
             state_store.set_current_browse_path(path);
         });
+        fs->set_on_view_focus([&state_store]() {
+            state_store.remove_current_book_path();
+        });
 
         view_stack.push(fs);
 
