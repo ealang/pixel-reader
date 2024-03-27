@@ -9,6 +9,7 @@
 class ViewStack: public View
 {
     std::vector<std::shared_ptr<View>> views;
+    std::weak_ptr<View> last_top_view;
 public:
     void push(std::shared_ptr<View> view);
     virtual ~ViewStack();

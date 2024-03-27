@@ -24,6 +24,9 @@ public:
 
     // This view has been popped from the stack (now defunct).
     virtual void on_pop() {}
+
+    // When the view is now on top of the stack.
+    virtual void on_focus() {}
 };
 
 #endif

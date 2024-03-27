@@ -14,9 +14,16 @@ bool ViewStack::render(SDL_Surface *dest, bool force_render)
     bool rendered = false;
     if (!views.empty())
     {
-        if (!views.back()->is_modal())
+        auto &top_view = views.back();
+        if (top_view != last_top_view.lock())
         {
-            rendered = views.back()->render(dest, force_render) || force_render;
+            top_view->on_focus();
+            last_top_view = top_view;
+        }
+
+        if (!top_view->is_modal())
+        {
+            rendered = top_view->render(dest, force_render) || force_render;
         }
         else
         {
@@ -31,7 +38,7 @@ bool ViewStack::render(SDL_Surface *dest, bool force_render)
                 (*it)->render(dest, true);
                 --it;
             }
-            views.back()->render(dest, true);
+            top_view->render(dest, true);
 
             rendered = true;
         }
