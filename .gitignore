@@ -1,2 +1,5 @@
 build
 .pixel_reader_store
+sandbox
+reader
+!src/reader
