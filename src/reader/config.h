@@ -10,7 +10,7 @@
 #define SYSTEM_FONT         "resources/fonts/DejaVuSansMono.ttf"
 
 #define MIN_FONT_SIZE      18
-#define MAX_FONT_SIZE      32
+#define MAX_FONT_SIZE      40
 #define DEFAULT_FONT_SIZE  26
 #define FONT_SIZE_STEP     2
 
