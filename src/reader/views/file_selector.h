@@ -26,9 +26,11 @@ public:
     bool is_done() override;
     void on_keypress(SDLKey key) override;
     void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
+    void on_focus() override;
 
     void set_on_file_selected(std::function<void(const std::filesystem::path &)> on_file_selected);
     void set_on_file_focus(std::function<void(const std::filesystem::path &)> on_file_focus);
+    void set_on_view_focus(std::function<void()> on_view_focus);
 };
 
 #endif

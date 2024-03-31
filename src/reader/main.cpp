@@ -30,17 +30,24 @@
 namespace
 {
 
-void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyling &sys_styling, TokenViewStyling &token_view_styling, TaskQueue &task_queue)
+void initialize_views(
+    ViewStack &view_stack,
+    StateStore &state_store,
+    SystemStyling &sys_styling,
+    TokenViewStyling &token_view_styling,
+    TaskQueue &task_queue,
+    std::optional<std::filesystem::path> requested_book_path
+)
 {
-    auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
-    std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
-        browse_path,
-        sys_styling
-    );
-
     auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue](std::filesystem::path path) {
-        if (!std::filesystem::exists(path) || !file_type_is_supported(path))
+        if (!std::filesystem::exists(path))
         {
+            std::cerr << path << " does not exist" << std::endl;
+            return;
+        }
+        if (!file_type_is_supported(path))
+        {
+            std::cerr << path << " filetype is not supported" << std::endl;
             return;
         }
 
@@ -56,16 +63,32 @@ void initialize_views(ViewStack &view_stack, StateStore &state_store, SystemStyl
         );
     };
 
-    fs->set_on_file_selected(load_book);
-    fs->set_on_file_focus([&state_store](std::string path) {
-        state_store.set_current_browse_path(path);
-    });
-
-    view_stack.push(fs);
-
-    if (state_store.get_current_book_path())
+    if (requested_book_path)
     {
-        load_book(state_store.get_current_book_path().value());
+        load_book(*requested_book_path);
+    }
+    else
+    {
+        auto browse_path = state_store.get_current_browse_path().value_or(DEFAULT_BROWSE_PATH);
+        std::shared_ptr<FileSelector> fs = std::make_shared<FileSelector>(
+            browse_path,
+            sys_styling
+        );
+
+        fs->set_on_file_selected(load_book);
+        fs->set_on_file_focus([&state_store](std::string path) {
+            state_store.set_current_browse_path(path);
+        });
+        fs->set_on_view_focus([&state_store]() {
+            state_store.remove_current_book_path();
+        });
+
+        view_stack.push(fs);
+
+        if (state_store.get_current_book_path())
+        {
+            load_book(state_store.get_current_book_path().value());
+        }
     }
 }
 
@@ -146,7 +169,7 @@ std::unordered_map<std::string, std::string> load_config_with_defaults()
 
 } // namespace
 
-int main(int, char *[])
+int main(int argc, char **argv)
 {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
@@ -219,7 +242,19 @@ int main(int, char *[])
     // Setup views
     TaskQueue task_queue;
     ViewStack view_stack;
-    initialize_views(view_stack, state_store, sys_styling, token_view_styling, task_queue);
+
+    std::optional<std::filesystem::path> requested_book_path = (
+        argc == 2 ? std::optional<std::filesystem::path>(argv[1]) : std::nullopt
+    );
+    initialize_views(
+        view_stack,
+        state_store,
+        sys_styling,
+        token_view_styling,
+        task_queue,
+        requested_book_path
+    );
+    quit = view_stack.is_done();
 
     std::shared_ptr<SettingsView> settings_view = std::make_shared<SettingsView>(
         sys_styling,
