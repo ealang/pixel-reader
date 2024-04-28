@@ -2,14 +2,12 @@
 
 #include "sys/screen.h"
 #include "util/sdl_pointer.h"
+#include "./config.h"
 
 void draw_modal_border(uint32_t w, uint32_t h, const ColorTheme &theme, SDL_Surface *dest_surface)
 {
-    Uint16 dialog_padding = 25;
-    Uint16 line_width = 3;
-
-    w += dialog_padding * 2;
-    h += dialog_padding * 2;
+    w += DIALOG_PADDING * 2;
+    h += DIALOG_PADDING * 2;
 
     // transparent background
     {
@@ -50,10 +48,10 @@ void draw_modal_border(uint32_t w, uint32_t h, const ColorTheme &theme, SDL_Surf
             SDL_MapRGB(dest_surface->format, border_color.r, border_color.g, border_color.b)
         );
 
-        rect.x += line_width;
-        rect.y += line_width;
-        rect.w -= line_width * 2;
-        rect.h -= line_width * 2;
+        rect.x += DIALOG_BORDER_WIDTH;
+        rect.y += DIALOG_BORDER_WIDTH;
+        rect.w -= DIALOG_BORDER_WIDTH * 2;
+        rect.h -= DIALOG_BORDER_WIDTH * 2;
 
         SDL_FillRect(
             dest_surface,

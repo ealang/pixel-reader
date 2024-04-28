@@ -14,6 +14,9 @@
 #define DEFAULT_FONT_SIZE  26
 #define FONT_SIZE_STEP     2
 
+#define DIALOG_PADDING       25
+#define DIALOG_BORDER_WIDTH  3
+
 #define DEFAULT_COLOR_THEME "night_contrast"
 
 #define CONFIG_FILE_PATH "reader.cfg"

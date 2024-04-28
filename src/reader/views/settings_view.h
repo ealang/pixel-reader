@@ -13,6 +13,7 @@ class SettingsView: public View
     bool _is_done = false;
     bool needs_render = true;
     uint32_t line_selected = 0;
+    uint32_t scroll_position = 0;
     std::string font_name;
 
     SystemStyling &sys_styling;

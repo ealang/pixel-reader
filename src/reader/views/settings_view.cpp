@@ -2,6 +2,7 @@
 #include "./token_view/token_view_styling.h"
 
 #include "reader/color_theme_def.h"
+#include "reader/config.h"
 #include "reader/draw_modal_border.h"
 #include "reader/font_catalog.h"
 #include "reader/settings_store.h"
@@ -114,22 +115,30 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
             content_w = *std::max_element(widths.begin(), widths.end());
         }
 
+        int num_menu_items = 5;
         Uint16 text_padding = 5;
-        Uint16 content_h = (
-            theme_label->h +
-            theme_value->h +
-            text_padding +
-            font_size_label->h +
-            font_size_value->h +
-            text_padding +
-            font_name_label->h +
-            font_name_value->h +
-            text_padding +
-            shoulder_keymap_label->h +
-            shoulder_keymap_value->h +
-            progress_label->h +
-            progress_value->h
-        );
+        Uint16 max_content_h = SCREEN_HEIGHT - DIALOG_BORDER_WIDTH * 2;
+        Uint16 line_height = theme_label->h + theme_value->h;
+        int max_lines = std::max(1, (max_content_h + text_padding) / (line_height + text_padding));
+        int num_lines_shown = std::min(num_menu_items, max_lines);
+        {
+            if (max_lines >= num_menu_items)
+            {
+                scroll_position = 0;
+            }
+            else if (line_selected < scroll_position)
+            {
+                // scroll up
+                scroll_position = line_selected;
+            }
+            else if (line_selected >= scroll_position + max_lines - 1)
+            {
+                // scroll down
+                scroll_position = line_selected + 1 - max_lines;
+            }
+        }
+
+        Uint16 content_h = num_lines_shown * line_height + (num_lines_shown - 1) * text_padding;
         Sint16 content_y = SCREEN_HEIGHT / 2 - content_h / 2;
 
         draw_modal_border(
@@ -163,24 +172,43 @@ bool SettingsView::render(SDL_Surface *dest_surface, bool force_render)
                 rect.y += surf->h;
             };
 
-            push_text(theme_label.get());
-            push_text(theme_value.get(), line_selected == 0);
-            rect.y += text_padding;
+            auto is_line_shown = [this, num_lines_shown](uint32_t i) {
+                return i >= scroll_position && i <= scroll_position + num_lines_shown - 1;
+            };
 
-            push_text(font_size_label.get());
-            push_text(font_size_value.get(), line_selected == 1);
-            rect.y += text_padding;
+            if (is_line_shown(0))
+            {
+                push_text(theme_label.get());
+                push_text(theme_value.get(), line_selected == 0);
+                rect.y += text_padding;
+            }
 
-            push_text(font_name_label.get());
-            push_text(font_name_value.get(), line_selected == 2);
-            rect.y += text_padding;
+            if (is_line_shown(1))
+            {
+                push_text(font_size_label.get());
+                push_text(font_size_value.get(), line_selected == 1);
+                rect.y += text_padding;
+            }
 
-            push_text(shoulder_keymap_label.get());
-            push_text(shoulder_keymap_value.get(), line_selected == 3);
-            rect.y += text_padding;
+            if (is_line_shown(2))
+            {
+                push_text(font_name_label.get());
+                push_text(font_name_value.get(), line_selected == 2);
+                rect.y += text_padding;
+            }
 
-            push_text(progress_label.get());
-            push_text(progress_value.get(), line_selected == 4);
+            if (is_line_shown(3))
+            {
+                push_text(shoulder_keymap_label.get());
+                push_text(shoulder_keymap_value.get(), line_selected == 3);
+                rect.y += text_padding;
+            }
+
+            if (is_line_shown(4))
+            {
+                push_text(progress_label.get());
+                push_text(progress_value.get(), line_selected == 4);
+            }
         }
 
         needs_render = false;

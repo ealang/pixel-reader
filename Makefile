@@ -84,7 +84,7 @@ build:
 	@mkdir -p $(APP_DIR)
 	@mkdir -p $(OBJ_DIR)
 
-debug: CXXFLAGS += -g
+debug: CXXFLAGS += -g3 -O0
 debug: all
 
 debug_test: CXXFLAGS += -g
