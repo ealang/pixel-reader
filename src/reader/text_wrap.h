@@ -1,6 +1,7 @@
 #ifndef TEXT_WRAP_H_
 #define TEXT_WRAP_H_
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>

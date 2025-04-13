@@ -2,6 +2,7 @@
 
 #include "util/str_utils.h"
 
+#include <cstdint>
 #include <cstring>
 
 std::string compact_whitespace(const char *str)

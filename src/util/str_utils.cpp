@@ -1,5 +1,6 @@
 #include "./str_utils.h"
 
+#include <cstdint>
 #include <algorithm>
 #include <cstring>
 

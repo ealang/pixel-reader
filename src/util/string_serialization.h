@@ -1,6 +1,7 @@
 #ifndef STRING_SERIALIZATION_H_
 #define STRING_SERIALIZATION_H_
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
