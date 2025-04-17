@@ -20,6 +20,7 @@
 #include "util/sdl_font_cache.h"
 #include "util/task_queue.h"
 #include "util/timer.h"
+#include "extern/rotozoom/SDL_rotozoom.h"
 
 #include <libxml/parser.h>
 #include <SDL/SDL.h>
@@ -167,6 +168,45 @@ std::unordered_map<std::string, std::string> load_config_with_defaults()
     return config;
 }
 
+// Screen rotation modes
+enum ScreenRotation {
+    ROTATION_NONE = 0,      // No rotation
+    ROTATION_90 = 90,       // 90 degrees clockwise
+    ROTATION_180 = 180,     // 180 degrees (upside down)
+    ROTATION_270 = 270      // 270 degrees clockwise (90 counterclockwise)
+};
+
+// Current rotation setting (default: no rotation)
+ScreenRotation current_rotation = ROTATION_NONE;
+
+// Apply screen rotation transform to the surface
+void apply_screen_rotation(SDL_Surface* src, SDL_Surface* dest) {
+    if (current_rotation == ROTATION_NONE) {
+        // No rotation, just do a normal blit
+        SDL_BlitSurface(src, NULL, dest, NULL);
+        return;
+    }
+    
+    // Create a temporary rotated surface
+    SDL_Surface* rotated = rotozoomSurface(src, current_rotation, 1.0, SMOOTHING_OFF);
+    if (!rotated) {
+        // Fallback to normal blit if rotation fails
+        SDL_BlitSurface(src, NULL, dest, NULL);
+        return;
+    }
+    
+    // Calculate destination position to center the rotated image
+    SDL_Rect dest_rect;
+    dest_rect.x = (dest->w - rotated->w) / 2;
+    dest_rect.y = (dest->h - rotated->h) / 2;
+    
+    // Blit the rotated surface to the destination
+    SDL_BlitSurface(rotated, NULL, dest, &dest_rect);
+    
+    // Free the temporary rotated surface
+    SDL_FreeSurface(rotated);
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -288,7 +328,7 @@ int main(int argc, char **argv)
 
     // Initial render
     view_stack.render(screen, true);
-    SDL_BlitSurface(screen, NULL, video, NULL);
+    apply_screen_rotation(screen, video);
     SDL_Flip(video);
 
     while (!quit)
@@ -329,6 +369,36 @@ int main(int argc, char **argv)
                                     settings_view->terminate();
                                 }
                             }
+                            
+                            // Toggle rotation with Y button + R1
+                            if (key == SDLK_r)
+                            {
+                                std::cout << "applying rotation\n";
+                                // Cycle through rotation modes: None -> 90 -> 180 -> 270 -> None
+                                switch (current_rotation) {
+                                    case ROTATION_NONE:
+                                        std::cout << "applying rotation 90\n";
+                                        current_rotation = ROTATION_90;
+                                        break;
+                                    case ROTATION_90:
+                                        std::cout << "applying rotation 180\n";
+                                        current_rotation = ROTATION_180;
+                                        break;
+                                    case ROTATION_180:
+                                        std::cout << "applying rotation 270\n";
+                                        current_rotation = ROTATION_270;
+                                        break;
+                                    case ROTATION_270:
+                                        std::cout << "applying rotation none\n";
+                                        current_rotation = ROTATION_NONE;
+                                        break;
+                                }
+                                
+                                // Force re-render with new rotation
+                                view_stack.render(screen, true);
+                                apply_screen_rotation(screen, video);
+                                SDL_Flip(video);
+                            }
 
                             ran_user_code = true;
                         }
@@ -361,7 +431,7 @@ int main(int argc, char **argv)
 
             if (view_stack.render(screen, force_render))
             {
-                SDL_BlitSurface(screen, NULL, video, NULL);
+                apply_screen_rotation(screen, video);
                 SDL_Flip(video);
             }
         }

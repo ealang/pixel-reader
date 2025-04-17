@@ -49,6 +49,24 @@ Create app packages:
 ./cross-compile/miyoo-mini/create_packages.sh <version num>
 ```
 
+### Key Mapping
+
+During desktop development, the following keys are mapped to the Miyoo Mini buttons:
+- Arrow keys: D-pad directions
+- Space: A button
+- Left Ctrl: B button
+- Left Shift: X button
+- Left Alt: Y button
+- E: L1 button
+- T: R1 button
+- Tab: L2 button
+- Backspace: R2 button
+- Right Ctrl: Select button
+- Return: Start button
+- Escape: Menu button
+
+For complete key mapping definition, see [src/sys/keymap.h](src/sys/keymap.h).
+
 ### Run Tests
 
 [Install gtest](https://github.com/google/googletest/blob/main/googletest/README.md).
