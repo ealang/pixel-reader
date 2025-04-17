@@ -32,7 +32,7 @@ ROTOZOOM_SRC := src/extern/rotozoom/SDL_rotozoom.c
 COMMON_SRC   := $(filter-out src/reader/main.cpp, $(wildcard src/filetypes/*.cpp src/filetypes/txt/*.cpp src/filetypes/epub/*.cpp src/reader/*.cpp src/reader/views/*.cpp src/reader/views/token_view/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp src/extern/hash-library/*.cpp))
 READER_SRC   := $(COMMON_SRC) src/reader/main.cpp
 SANDBOX_SRC  := $(COMMON_SRC) $(wildcard src/sandbox/*.cpp)
-TEST_SRC     := $(COMMON_SRC) $(wildcard src/sys/tests/*.cpp src/reader/tests/*.cpp src/filetypes/epub/tests/*.cpp src/util/tests/*.cpp src/doc_api/tests/*.cpp)
+TEST_SRC     := $(COMMON_SRC) $(wildcard src/reader/tests/*.cpp src/filetypes/epub/tests/*.cpp src/util/tests/*.cpp src/doc_api/tests/*.cpp)
 
 APP_READER_TARGET := reader
 APP_SANDBOX_TARGET := sandbox
@@ -72,7 +72,7 @@ $(APP_DIR)/$(APP_TEST_TARGET): $(TEST_OBJECTS)
 
 -include $(DEPENDENCIES)
 
-.PHONY: all build clean debug release run_tests miyoo-mini-shell
+.PHONY: all build clean debug debug_test test miyoo-mini-shell
 
 test: $(APP_DIR)/$(APP_TEST_TARGET)
 	$(APP_DIR)/$(APP_TEST_TARGET)
