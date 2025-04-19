@@ -20,6 +20,7 @@
 #include "util/sdl_font_cache.h"
 #include "util/task_queue.h"
 #include "util/timer.h"
+#include "util/screen_rotation.h"
 #include "extern/rotozoom/SDL_rotozoom.h"
 
 #include <libxml/parser.h>
@@ -168,14 +169,6 @@ std::unordered_map<std::string, std::string> load_config_with_defaults()
     return config;
 }
 
-// Screen rotation modes
-enum ScreenRotation {
-    ROTATION_NONE = 0,      // No rotation
-    ROTATION_90 = 90,       // 90 degrees clockwise
-    ROTATION_180 = 180,     // 180 degrees (upside down)
-    ROTATION_270 = 270      // 270 degrees clockwise (90 counterclockwise)
-};
-
 // Current rotation setting (default: no rotation)
 ScreenRotation current_rotation = ROTATION_NONE;
 
@@ -197,8 +190,31 @@ void apply_screen_rotation(SDL_Surface* src, SDL_Surface* dest) {
     
     // Calculate destination position to center the rotated image
     SDL_Rect dest_rect;
-    dest_rect.x = (dest->w - rotated->w) / 2;
-    dest_rect.y = (dest->h - rotated->h) / 2;
+
+    std::uint16_t dest_x = 0;
+    std::uint16_t dest_y = 0;
+
+    // auto dest_x = (dest->w - rotated->w) / 2;
+    // auto dest_y = (dest->h - rotated->h) / 2;
+    if (current_rotation == ROTATION_90) {
+        dest_x = 0;
+        dest_y = -160;
+    }
+    else if (current_rotation == ROTATION_180) {
+        dest_x = 0;
+        dest_y = -160;
+    }
+    else if (current_rotation == ROTATION_270) {
+        dest_x = 0;
+        dest_y = 0;
+    }
+
+    // auto dest_x = 0;
+    // auto dest_y = -160;
+    // std::cout << "dest_x: " << dest_x << ", dest_y: " << dest_y << std::endl;
+
+    dest_rect.x = dest_x;
+    dest_rect.y = dest_y;
     
     // Blit the rotated surface to the destination
     SDL_BlitSurface(rotated, NULL, dest, &dest_rect);
@@ -234,8 +250,18 @@ int main(int argc, char **argv)
     TTF_Init();
 
     // Surfaces
-    SDL_Surface *video = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
-    SDL_Surface *screen = SDL_CreateRGBSurface(SDL_HWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
+    SDL_Surface *video = SDL_SetVideoMode(
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+        32,
+        SDL_HWSURFACE
+    );
+    SDL_Surface *screen = SDL_CreateRGBSurface(
+        SDL_HWSURFACE,
+        std::max(SCREEN_WIDTH, SCREEN_HEIGHT),
+        std::max(SCREEN_WIDTH, SCREEN_HEIGHT),
+        32, 0, 0, 0, 0
+    );
     set_render_surface_format(screen->format);
 
     auto config = load_config_with_defaults();
@@ -318,7 +344,9 @@ int main(int argc, char **argv)
     SystemKeyChordTracker chord_tracker;
 
     auto key_held_callback = [&view_stack](SDLKey key, uint32_t held_ms) {
-        view_stack.on_keyheld(key, held_ms);
+        // Apply rotation to key
+        SDLKey rotated_key = get_rotated_keymap(key, current_rotation);
+        view_stack.on_keyheld(rotated_key, held_ms);
     };
 
     // Timing
@@ -346,8 +374,8 @@ int main(int argc, char **argv)
                 case SDL_KEYDOWN:
                     {
                         idle_timer.reset();
-
-                        SDLKey key = chord_tracker.on_keypress(event.key.keysym.sym);
+                        SDLKey key = get_rotated_keymap(chord_tracker.on_keypress(event.key.keysym.sym), current_rotation);
+                        
 
                         if (key == SW_BTN_POWER)
                         {
@@ -370,29 +398,33 @@ int main(int argc, char **argv)
                                 }
                             }
                             
-                            // Toggle rotation with Y button + R1
-                            if (key == SDLK_r)
+                            // Toggle rotation
+                            if (key == SW_BTN_Y)
                             {
                                 std::cout << "applying rotation\n";
                                 // Cycle through rotation modes: None -> 90 -> 180 -> 270 -> None
                                 switch (current_rotation) {
                                     case ROTATION_NONE:
-                                        std::cout << "applying rotation 90\n";
+                                        // std::cout << "applying rotation 90\n";
                                         current_rotation = ROTATION_90;
                                         break;
                                     case ROTATION_90:
-                                        std::cout << "applying rotation 180\n";
+                                        // std::cout << "applying rotation 180\n";
                                         current_rotation = ROTATION_180;
                                         break;
                                     case ROTATION_180:
-                                        std::cout << "applying rotation 270\n";
+                                        // std::cout << "applying rotation 270\n";
                                         current_rotation = ROTATION_270;
                                         break;
                                     case ROTATION_270:
-                                        std::cout << "applying rotation none\n";
+                                        // std::cout << "applying rotation none\n";
                                         current_rotation = ROTATION_NONE;
                                         break;
                                 }
+
+                                auto tmp = SCREEN_WIDTH;
+                                SCREEN_WIDTH = SCREEN_HEIGHT;
+                                SCREEN_HEIGHT = tmp;
                                 
                                 // Force re-render with new rotation
                                 view_stack.render(screen, true);
