@@ -28,9 +28,80 @@
 
 #include <csignal>
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <iomanip>
 
 namespace
 {
+
+// FPS counter class
+class FPSCounter {
+private:
+    uint32_t frame_count;
+    Timer fps_timer;
+    float current_fps;
+
+public:
+    FPSCounter() : frame_count(0), current_fps(0.0f) {
+        fps_timer.reset();
+    }
+
+    bool update() {
+        frame_count++;
+        
+        bool updated = false;
+        uint32_t elapsed = fps_timer.elapsed_ms();
+        if (elapsed >= 250) {
+            current_fps = static_cast<float>(frame_count) * 1000 / static_cast<float>(elapsed);
+            frame_count = 0;
+            fps_timer.reset();
+            updated = true;
+        }
+        return updated;
+    }
+
+    float get_fps() const {
+        return current_fps;
+    }
+
+    void render(SDL_Surface* surface) {
+
+        // Format FPS string with 1 decimal place
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(1) << current_fps << " FPS";
+        std::string fps_text = ss.str();
+        
+        // Render the FPS text in the top-right corner
+        TTF_Font* font = cached_load_font(SYSTEM_FONT, 16, FontLoadErrorOpt::NoThrow);
+        if (!font) return;
+
+        SDL_Color text_color = {255, 255, 255, 255}; // White text
+        SDL_Surface* text_surface = TTF_RenderText_Solid(font, fps_text.c_str(), text_color);
+        if (!text_surface) return;
+
+        // Create a small background for better readability
+        SDL_Rect bg_rect = {
+            static_cast<Sint16>(surface->w - text_surface->w - 10),
+            static_cast<Sint16>(5),
+            static_cast<Uint16>(text_surface->w + 6),
+            static_cast<Uint16>(text_surface->h + 2)
+        };
+        
+        // Semi-transparent black background
+        SDL_FillRect(surface, &bg_rect, SDL_MapRGBA(surface->format, 0, 0, 0, 180));
+        
+        // Position in top-right corner with a small margin
+        SDL_Rect text_pos = {
+            static_cast<Sint16>(surface->w - text_surface->w - 7),
+            static_cast<Sint16>(6),
+            0, 0
+        };
+        
+        SDL_BlitSurface(text_surface, NULL, surface, &text_pos);
+        SDL_FreeSurface(text_surface);
+    }
+};
 
 void initialize_views(
     ViewStack &view_stack,
@@ -353,9 +424,14 @@ int main(int argc, char **argv)
     Timer idle_timer;
     FPSLimiter limit_fps(TARGET_FPS);
     const uint32_t avg_loop_time = 1000 / TARGET_FPS;
+    
+    // FPS counter
+    FPSCounter fps_counter;
 
     // Initial render
     view_stack.render(screen, true);
+    fps_counter.update();
+    fps_counter.render(screen);
     apply_screen_rotation(screen, video);
     SDL_Flip(video);
 
@@ -452,7 +528,8 @@ int main(int argc, char **argv)
         held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
         ran_user_code = held_key_tracker.for_longest_held(key_held_callback) || ran_user_code;
 
-        if (ran_user_code)
+        bool fps_changed = fps_counter.update();
+        if (ran_user_code || fps_changed)
         {
             bool force_render = view_stack.pop_completed_views();
 
@@ -461,8 +538,9 @@ int main(int argc, char **argv)
                 quit = true;
             }
 
-            if (view_stack.render(screen, force_render))
+            if (view_stack.render(screen, force_render) || fps_changed)
             {
+                fps_counter.render(screen);
                 apply_screen_rotation(screen, video);
                 SDL_Flip(video);
             }
