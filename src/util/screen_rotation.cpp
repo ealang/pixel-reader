@@ -1,6 +1,6 @@
 #include "screen_rotation.h"
 #include "sys/keymap.h"
-#include <SDL/SDL.h>
+#include <SDL2/SDL.h>
 
 // Define a platform check macro for Miyoo Mini target hardware
 #ifdef MIYOO_MINI
@@ -9,7 +9,7 @@
   #define REVERSE_ROTATION 0
 #endif
 
-SDLKey get_rotated_keymap(SDLKey key, ScreenRotation rotation)
+SDL_Keycode get_rotated_keymap(SDL_Keycode key, ScreenRotation rotation)
 {
     // If not a directional key or no rotation, return the original key
     if (rotation == ROTATION_NONE ||

@@ -9,7 +9,7 @@ ViewStack::~ViewStack()
 {
 }
 
-bool ViewStack::render(SDL_Surface *dest, bool force_render)
+bool ViewStack::render(SDL_Renderer *renderer, bool force_render)
 {
     bool rendered = false;
     if (!views.empty())
@@ -23,7 +23,7 @@ bool ViewStack::render(SDL_Surface *dest, bool force_render)
 
         if (!top_view->is_modal())
         {
-            rendered = top_view->render(dest, force_render) || force_render;
+            rendered = top_view->render(renderer, force_render) || force_render;
         }
         else
         {
@@ -35,10 +35,10 @@ bool ViewStack::render(SDL_Surface *dest, bool force_render)
             }
             while (it != views.rend() && it != views.rbegin())
             {
-                (*it)->render(dest, true);
+                (*it)->render(renderer, true);
                 --it;
             }
-            top_view->render(dest, true);
+            top_view->render(renderer, true);
 
             rendered = true;
         }
@@ -51,7 +51,7 @@ bool ViewStack::is_done()
     return views.empty();
 }
 
-void ViewStack::on_keypress(SDLKey key)
+void ViewStack::on_keypress(SDL_Keycode key)
 {
     if (!views.empty())
     {
@@ -59,7 +59,7 @@ void ViewStack::on_keypress(SDLKey key)
     }
 }
 
-void ViewStack::on_keyheld(SDLKey key, uint32_t hold_time_ms)
+void ViewStack::on_keyheld(SDL_Keycode key, uint32_t hold_time_ms)
 {
     if (!views.empty())
     {

@@ -1,4 +1,4 @@
-#include <SDL/SDL_keysym.h>
+#include <SDL2/SDL_keycode.h>
 
 // https://github.com/OnionUI/Onion/blob/main/src/common/system/keymap_sw.h
 #define SW_BTN_UP       SDLK_UP
@@ -16,4 +16,4 @@
 #define SW_BTN_SELECT   SDLK_RCTRL
 #define SW_BTN_START    SDLK_RETURN
 #define SW_BTN_MENU     SDLK_ESCAPE
-#define SW_BTN_POWER    SDLK_FIRST
+#define SW_BTN_POWER    SDLK_UNKNOWN // Changed from SDLK_FIRST which doesn't exist in SDL2

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDL/SDL_keysym.h>
+#include <SDL2/SDL_keycode.h>
 
 // Screen rotation modes
 enum ScreenRotation {
@@ -13,4 +13,4 @@ enum ScreenRotation {
 // Get a key mapping based on the screen rotation
 // This maps directional keys based on the current rotation
 // For example, if the screen is rotated 180 degrees, pressing UP should register as DOWN
-SDLKey get_rotated_keymap(SDLKey key, ScreenRotation rotation);
+SDL_Keycode get_rotated_keymap(SDL_Keycode key, ScreenRotation rotation);

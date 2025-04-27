@@ -65,8 +65,7 @@ public:
         return current_fps;
     }
 
-    void render(SDL_Surface* surface) {
-
+    void render(SDL_Renderer* renderer) {
         // Format FPS string with 1 decimal place
         std::stringstream ss;
         ss << std::fixed << std::setprecision(1) << current_fps << " FPS";
@@ -77,29 +76,48 @@ public:
         if (!font) return;
 
         SDL_Color text_color = {255, 255, 255, 255}; // White text
-        SDL_Surface* text_surface = TTF_RenderText_Solid(font, fps_text.c_str(), text_color);
-        if (!text_surface) return;
-
+        
+        // Create texture from rendered text
+        auto text_texture = render_text_to_texture(font, fps_text.c_str(), text_color, renderer);
+        if (!text_texture) return;
+        
+        // Get texture dimensions
+        int text_width, text_height;
+        SDL_QueryTexture(text_texture.get(), nullptr, nullptr, &text_width, &text_height);
+        
         // Create a small background for better readability
         SDL_Rect bg_rect = {
-            static_cast<Sint16>(surface->w - text_surface->w - 10),
-            static_cast<Sint16>(5),
-            static_cast<Uint16>(text_surface->w + 6),
-            static_cast<Uint16>(text_surface->h + 2)
+            static_cast<int>(SCREEN_WIDTH - text_width - 10),
+            5,
+            text_width + 6,
+            text_height + 2
         };
         
+        // Save current renderer state
+        Uint8 r, g, b, a;
+        SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+        SDL_BlendMode blend_mode;
+        SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
+        
         // Semi-transparent black background
-        SDL_FillRect(surface, &bg_rect, SDL_MapRGBA(surface->format, 0, 0, 0, 180));
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
+        SDL_RenderFillRect(renderer, &bg_rect);
         
         // Position in top-right corner with a small margin
         SDL_Rect text_pos = {
-            static_cast<Sint16>(surface->w - text_surface->w - 7),
-            static_cast<Sint16>(6),
-            0, 0
+            static_cast<int>(SCREEN_WIDTH - text_width - 7),
+            6,
+            text_width,
+            text_height
         };
         
-        SDL_BlitSurface(text_surface, NULL, surface, &text_pos);
-        SDL_FreeSurface(text_surface);
+        // Render the text
+        SDL_RenderCopy(renderer, text_texture.get(), nullptr, &text_pos);
+        
+        // Restore renderer state
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+        SDL_SetRenderDrawBlendMode(renderer, blend_mode);
     }
 };
 
@@ -176,10 +194,10 @@ class SystemKeyChordTracker
 public:
 
     // Report keypress event. Return filtered key code.
-    SDLKey on_keypress(SDLKey key)
+    SDL_Keycode on_keypress(SDL_Keycode key)
     {
         // Block any other keys while special key is held
-        SDLKey filtered_key = (_menu_held || _select_held) ? SDLK_UNKNOWN : key;
+        SDL_Keycode filtered_key = (_menu_held || _select_held) ? SDLK_UNKNOWN : key;
 
         if (key == SW_BTN_SELECT)
         {
@@ -201,7 +219,7 @@ public:
     }
 
     // Report keyrelease event.
-    void on_keyrelease(SDLKey key)
+    void on_keyrelease(SDL_Keycode key)
     {
         if (key == SW_BTN_MENU)
         {
@@ -315,25 +333,19 @@ int main(int argc, char **argv)
 
     std::cout << "Screen Size: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
 
-    // SDL Init
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_ShowCursor(SDL_DISABLE);
+    // SDL2 Init
+    initialize_sdl2("Pixel Reader");
     TTF_Init();
-
-    // Surfaces
-    SDL_Surface *video = SDL_SetVideoMode(
+    SDL_ShowCursor(SDL_DISABLE);
+    
+    // Create a render target texture for compatibility
+    SDL_Texture* screen_texture = SDL_CreateTexture(
+        g_renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
         SCREEN_WIDTH,
-        SCREEN_HEIGHT,
-        32,
-        SDL_HWSURFACE
+        SCREEN_HEIGHT
     );
-    SDL_Surface *screen = SDL_CreateRGBSurface(
-        SDL_HWSURFACE,
-        std::max(SCREEN_WIDTH, SCREEN_HEIGHT),
-        std::max(SCREEN_WIDTH, SCREEN_HEIGHT),
-        32, 0, 0, 0, 0
-    );
-    set_render_surface_format(screen->format);
 
     auto config = load_config_with_defaults();
     StateStore state_store(config[CONFIG_KEY_STORE_PATH]);
@@ -414,10 +426,10 @@ int main(int argc, char **argv)
     );
     SystemKeyChordTracker chord_tracker;
 
-    auto key_held_callback = [&view_stack](SDLKey key, uint32_t held_ms) {
-        // Apply rotation to key
-        SDLKey rotated_key = get_rotated_keymap(key, current_rotation);
-        view_stack.on_keyheld(rotated_key, held_ms);
+    auto key_held_callback = [&view_stack](SDL_Keycode key, uint32_t held_ms) {
+        // Screen rotation temporarily disabled in SDL2 migration
+        // SDL_Keycode rotated_key = get_rotated_keymap(key, current_rotation);
+        view_stack.on_keyheld(key, held_ms);
     };
 
     // Timing
@@ -429,11 +441,17 @@ int main(int argc, char **argv)
     FPSCounter fps_counter;
 
     // Initial render
-    view_stack.render(screen, true);
+    SDL_SetRenderTarget(g_renderer, screen_texture);
+    SDL_SetRenderDrawColor(g_renderer, 0, 0, 0, 255);
+    SDL_RenderClear(g_renderer);
+    view_stack.render(g_renderer, true);
     fps_counter.update();
-    fps_counter.render(screen);
-    apply_screen_rotation(screen, video);
-    SDL_Flip(video);
+    fps_counter.render(g_renderer);
+    
+    // Reset render target and present
+    SDL_SetRenderTarget(g_renderer, NULL);
+    SDL_RenderCopy(g_renderer, screen_texture, NULL, NULL);
+    SDL_RenderPresent(g_renderer);
 
     while (!quit)
     {
@@ -450,8 +468,11 @@ int main(int argc, char **argv)
                 case SDL_KEYDOWN:
                     {
                         idle_timer.reset();
-                        SDLKey key = get_rotated_keymap(chord_tracker.on_keypress(event.key.keysym.sym), current_rotation);
+                        SDL_Keycode key_sym = event.key.keysym.sym;
                         
+                        // Screen rotation temporarily disabled in SDL2 migration
+                        // SDLKey key = get_rotated_keymap(chord_tracker.on_keypress(key_sym), current_rotation);
+                        SDL_Keycode key = chord_tracker.on_keypress(key_sym);
 
                         if (key == SW_BTN_POWER)
                         {
@@ -474,6 +495,8 @@ int main(int argc, char **argv)
                                 }
                             }
                             
+                            // Screen rotation temporarily disabled in SDL2 migration
+                            /*
                             // Toggle rotation
                             if (key == SW_BTN_Y)
                             {
@@ -481,19 +504,15 @@ int main(int argc, char **argv)
                                 // Cycle through rotation modes: None -> 90 -> 180 -> 270 -> None
                                 switch (current_rotation) {
                                     case ROTATION_NONE:
-                                        // std::cout << "applying rotation 90\n";
                                         current_rotation = ROTATION_90;
                                         break;
                                     case ROTATION_90:
-                                        // std::cout << "applying rotation 180\n";
                                         current_rotation = ROTATION_180;
                                         break;
                                     case ROTATION_180:
-                                        // std::cout << "applying rotation 270\n";
                                         current_rotation = ROTATION_270;
                                         break;
                                     case ROTATION_270:
-                                        // std::cout << "applying rotation none\n";
                                         current_rotation = ROTATION_NONE;
                                         break;
                                 }
@@ -503,10 +522,17 @@ int main(int argc, char **argv)
                                 SCREEN_HEIGHT = tmp;
                                 
                                 // Force re-render with new rotation
-                                view_stack.render(screen, true);
-                                apply_screen_rotation(screen, video);
-                                SDL_Flip(video);
+                                SDL_SetRenderTarget(g_renderer, screen_texture);
+                                SDL_RenderClear(g_renderer);
+                                view_stack.render(g_renderer, true);
+                                
+                                // Reset render target and present with rotation
+                                SDL_SetRenderTarget(g_renderer, NULL);
+                                SDL_RenderCopyEx(g_renderer, screen_texture, NULL, NULL, 
+                                                current_rotation, NULL, SDL_FLIP_NONE);
+                                SDL_RenderPresent(g_renderer);
                             }
+                            */
 
                             ran_user_code = true;
                         }
@@ -514,7 +540,7 @@ int main(int argc, char **argv)
                     break;
                 case SDL_KEYUP:
                     {
-                        SDLKey key = event.key.keysym.sym;
+                        SDL_Keycode key = event.key.keysym.sym;
                         chord_tracker.on_keyrelease(key);
                     }
                     break;
@@ -538,11 +564,18 @@ int main(int argc, char **argv)
                 quit = true;
             }
 
-            if (view_stack.render(screen, force_render) || fps_changed)
+            if (view_stack.render(g_renderer, force_render) || fps_changed)
             {
-                fps_counter.render(screen);
-                apply_screen_rotation(screen, video);
-                SDL_Flip(video);
+                // Set render target to texture
+                SDL_SetRenderTarget(g_renderer, screen_texture);
+                SDL_RenderClear(g_renderer);
+                view_stack.render(g_renderer, true);
+                fps_counter.render(g_renderer);
+                
+                // Reset render target and present
+                SDL_SetRenderTarget(g_renderer, NULL);
+                SDL_RenderCopy(g_renderer, screen_texture, NULL, NULL);
+                SDL_RenderPresent(g_renderer);
             }
         }
 
@@ -563,8 +596,11 @@ int main(int argc, char **argv)
     view_stack.shutdown();
     state_store.flush();
 
-    SDL_FreeSurface(screen);
-    SDL_Quit();
+    // Cleanup SDL2 resources
+    SDL_DestroyTexture(screen_texture);
+    cleanup_sdl2();
+    
+    TTF_Quit();
     xmlCleanupParser();
     
     return 0;
