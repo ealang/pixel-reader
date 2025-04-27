@@ -14,7 +14,7 @@ public:
     void push(std::shared_ptr<View> view);
     virtual ~ViewStack();
 
-    bool render(SDL_Renderer *renderer, bool force_render) override;
+    bool render(SDL_Surface *dest_surface, bool force_render) override;
     bool is_done() override;
 
     void on_keypress(SDL_Keycode key) override;

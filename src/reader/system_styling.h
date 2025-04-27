@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include <SDL/SDL_ttf.h>
+#include <SDL2/SDL_ttf.h>
 
 struct SystemStylingState;
 

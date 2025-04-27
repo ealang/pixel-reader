@@ -7,6 +7,12 @@
 using fonts_lookup = std::unordered_map<std::string, ttf_font_unique_ptr>;
 static std::unordered_map<uint32_t, fonts_lookup> font_cache;
 
+// Function to clear the font cache
+void clear_font_cache()
+{
+    font_cache.clear();
+}
+
 static TTF_Font *load_with_warning(const std::string &font, uint32_t size, FontLoadErrorOpt opt)
 {
     TTF_Font *font_ptr = TTF_OpenFont(font.c_str(), size);

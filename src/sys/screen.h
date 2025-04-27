@@ -9,6 +9,7 @@ extern short unsigned int SCREEN_HEIGHT;
 // Global SDL2 renderer and window
 extern SDL_Renderer* g_renderer;
 extern SDL_Window* g_window;
+extern SDL_Surface* g_screen;
 
 // Initialize SDL2 window and renderer
 bool initialize_sdl2(const char* title);

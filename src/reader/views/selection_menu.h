@@ -4,7 +4,7 @@
 #include "reader/view.h"
 #include "util/throttled.h"
 
-#include <SDL/SDL_ttf.h>
+#include <SDL2/SDL_ttf.h>
 
 #include <functional>
 #include <string>
@@ -34,7 +34,7 @@ class SelectionMenu: public View
     bool _is_done = false;
     std::function<void(uint32_t)> on_selection;
     std::function<void(uint32_t)> on_focus;
-    std::function<void(SDLKey, SelectionMenu&)> default_on_keypress;
+    std::function<void(SDL_Keycode, SelectionMenu&)> default_on_keypress;
 
     void on_move_down(uint32_t step);
     void on_move_up(uint32_t step);
@@ -50,7 +50,7 @@ public:
     void set_on_selection(std::function<void(uint32_t)> callback);
     void set_on_focus(std::function<void(uint32_t)> callback);
     // Define fallback keypress handler
-    void set_default_on_keypress(std::function<void(SDLKey, SelectionMenu &)> callback);
+    void set_default_on_keypress(std::function<void(SDL_Keycode, SelectionMenu &)> callback);
     void set_close_on_select();
 
     void set_cursor_pos(const std::string &entry);
@@ -60,8 +60,8 @@ public:
 
     bool render(SDL_Surface *dest_surface, bool force_render) override;
     bool is_done() override;
-    void on_keypress(SDLKey key) override;
-    void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
+    void on_keypress(SDL_Keycode key) override;
+    void on_keyheld(SDL_Keycode key, uint32_t held_time_ms) override;
 };
 
 #endif

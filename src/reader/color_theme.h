@@ -1,7 +1,7 @@
 #ifndef COLOR_THEME_H_
 #define COLOR_THEME_H_
 
-#include "SDL/SDL_video.h"
+#include <SDL2/SDL.h>
 
 struct ColorTheme
 {

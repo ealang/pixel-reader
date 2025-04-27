@@ -12,6 +12,7 @@ short unsigned int SCREEN_HEIGHT = 480;
 // Global SDL2 objects
 SDL_Renderer* g_renderer = nullptr;
 SDL_Window* g_window = nullptr;
+SDL_Surface* g_screen = nullptr;
 
 // For compatibility with code that depends on SDL 1.2 pixel format
 SDL_Surface* g_compatible_surface = nullptr;
@@ -58,6 +59,9 @@ bool initialize_sdl2(const char* title)
         std::cerr << "Compatible surface could not be created! SDL Error: " << SDL_GetError() << std::endl;
         return false;
     }
+    
+    // Set g_screen to the compatible surface for View rendering
+    g_screen = g_compatible_surface;
 
     // Set the pixel format
     set_render_surface_format(g_compatible_surface->format);
@@ -67,6 +71,9 @@ bool initialize_sdl2(const char* title)
 
 void cleanup_sdl2()
 {
+    // Reset g_screen to nullptr first (it points to g_compatible_surface)
+    g_screen = nullptr;
+    
     if (g_compatible_surface) {
         SDL_FreeSurface(g_compatible_surface);
         g_compatible_surface = nullptr;

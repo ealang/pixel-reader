@@ -1,4 +1,5 @@
 #include "./file_selector.h"
+#include "util/sdl_compat.h"
 
 #include "./selection_menu.h"
 #include "filetypes/open_doc.h"

@@ -2,6 +2,7 @@
 #define SETTINGS_VIEW_H_
 
 #include "reader/view.h"
+#include "util/sdl_compat.h"
 
 #include <string>
 

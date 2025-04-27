@@ -9,7 +9,7 @@ ViewStack::~ViewStack()
 {
 }
 
-bool ViewStack::render(SDL_Renderer *renderer, bool force_render)
+bool ViewStack::render(SDL_Surface *dest_surface, bool force_render)
 {
     bool rendered = false;
     if (!views.empty())
@@ -23,7 +23,7 @@ bool ViewStack::render(SDL_Renderer *renderer, bool force_render)
 
         if (!top_view->is_modal())
         {
-            rendered = top_view->render(renderer, force_render) || force_render;
+            rendered = top_view->render(dest_surface, force_render) || force_render;
         }
         else
         {
@@ -35,10 +35,10 @@ bool ViewStack::render(SDL_Renderer *renderer, bool force_render)
             }
             while (it != views.rend() && it != views.rbegin())
             {
-                (*it)->render(renderer, true);
+                (*it)->render(dest_surface, true);
                 --it;
             }
-            top_view->render(renderer, true);
+            top_view->render(dest_surface, true);
 
             rendered = true;
         }

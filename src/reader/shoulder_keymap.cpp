@@ -11,7 +11,7 @@ namespace
 struct KeyMap
 {
     std::string display_name;
-    std::pair<SDLKey, SDLKey> lr_binding;
+    std::pair<SDL_Keycode, SDL_Keycode> lr_binding;
 };
 
 const std::vector<std::pair<std::string, KeyMap>> keymaps = {
@@ -55,7 +55,7 @@ std::string get_next_shoulder_keymap(const std::string &keymap)
     return keymaps[index].first;
 }
 
-std::pair<SDLKey, SDLKey> get_shoulder_keymap_lr(const std::string &keymap)
+std::pair<SDL_Keycode, SDL_Keycode> get_shoulder_keymap_lr(const std::string &keymap)
 {
     return keymaps[get_keymap_index(keymap)].second.lr_binding;
 }

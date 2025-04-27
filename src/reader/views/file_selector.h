@@ -3,7 +3,7 @@
 
 #include "reader/view.h"
 
-#include <SDL/SDL_video.h>
+#include <SDL2/SDL.h>
 
 #include <functional>
 #include <filesystem>
@@ -24,8 +24,8 @@ public:
 
     bool render(SDL_Surface *dest_surface, bool force_render) override;
     bool is_done() override;
-    void on_keypress(SDLKey key) override;
-    void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
+    void on_keypress(SDL_Keycode key) override;
+    void on_keyheld(SDL_Keycode key, uint32_t held_time_ms) override;
     void on_focus() override;
 
     void set_on_file_selected(std::function<void(const std::filesystem::path &)> on_file_selected);

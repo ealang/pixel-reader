@@ -1,6 +1,6 @@
 #include "./fps_limiter.h"
 
-#include <SDL/SDL.h>
+#include <SDL2/SDL.h>
 
 FPSLimiter::FPSLimiter(float fps)
     : target_delay(static_cast<uint32_t>(1000 / fps)),

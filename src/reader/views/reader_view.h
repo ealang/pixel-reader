@@ -3,6 +3,7 @@
 
 #include "doc_api/doc_addr.h"
 #include "reader/view.h"
+#include "util/sdl_compat.h"
 
 #include <filesystem>
 #include <functional>

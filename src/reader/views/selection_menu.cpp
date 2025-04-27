@@ -1,5 +1,6 @@
 #include <iostream>
 #include "./selection_menu.h"
+#include "util/sdl_compat.h"
 
 #include "sys/screen.h"
 #include "sys/keymap.h"

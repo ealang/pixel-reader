@@ -8,7 +8,7 @@ class View
 {
 public:
     // Returns true if rendering was performed.
-    virtual bool render(SDL_Renderer *renderer, bool force_render) = 0;
+    virtual bool render(SDL_Surface *dest_surface, bool force_render) = 0;
 
     // Return true if the view is no longer needed.
     virtual bool is_done() = 0;

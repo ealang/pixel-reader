@@ -31,30 +31,33 @@ bool PopupView::render(SDL_Surface *dest_surface, bool force_render)
     TTF_Font *font = cached_load_font(font_name, styling.get_font_size());
     const auto &theme = styling.get_loaded_color_theme();
 
-    auto text = surface_unique_ptr { TTF_RenderUTF8_Shaded(
-        font,
-        message.c_str(),
-        theme.main_text,
-        theme.background
-    ) };
-
-    draw_modal_border(
-        text->w,
-        text->h,
-        styling.get_loaded_color_theme(),
-        dest_surface
+    // Simplified implementation for SDL2 conversion
+    SDL_Surface *text_surface = TTF_RenderText_Blended(
+        font, 
+        message.c_str(), 
+        theme.main_text
     );
+    
+    if (!text_surface) {
+        return false;
+    }
+    
+    // Get text dimensions
+    int text_width = text_surface->w;
+    int text_height = text_surface->h;
 
+    // Draw text to destination
     SDL_Rect rect = {
-        static_cast<Sint16>(SCREEN_WIDTH / 2 - text->w / 2),
-        static_cast<Sint16>(SCREEN_HEIGHT / 2 - text->h / 2),
-        0,
-        0
+        static_cast<int>(SCREEN_WIDTH / 2 - text_width / 2),
+        static_cast<int>(SCREEN_HEIGHT / 2 - text_height / 2),
+        text_width,
+        text_height
     };
-    SDL_BlitSurface(text.get(), NULL, dest_surface, &rect);
+    
+    SDL_BlitSurface(text_surface, NULL, dest_surface, &rect);
+    SDL_FreeSurface(text_surface);
 
     _needs_render = false;
-
     return true;
 }
 
@@ -68,7 +71,7 @@ bool PopupView::is_modal()
     return true;
 }
 
-void PopupView::on_keypress(SDLKey)
+void PopupView::on_keypress(SDL_Keycode)
 {
     _is_done = true;
 }

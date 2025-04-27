@@ -1,4 +1,5 @@
 #include "./settings_view.h"
+#include "util/sdl_compat.h"
 #include "./token_view/token_view_styling.h"
 
 #include "reader/color_theme_def.h"

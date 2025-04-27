@@ -1,6 +1,6 @@
 #include "./timer.h"
 
-#include <SDL/SDL.h>
+#include <SDL2/SDL.h>
 
 Timer::Timer()
     : start_ms(SDL_GetTicks())
