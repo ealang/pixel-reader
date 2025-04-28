@@ -1,7 +1,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#define TARGET_FPS 20
+#define TARGET_FPS 120
 
 #define IDLE_SAVE_TIME_SEC 60
 

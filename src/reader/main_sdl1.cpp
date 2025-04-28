@@ -20,16 +20,17 @@
 #include "util/sdl_font_cache.h"
 #include "util/task_queue.h"
 #include "util/timer.h"
+#include "util/screen_rotation.h"
+#include "extern/rotozoom/SDL_rotozoom.h"
 
 #include <libxml/parser.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
+#include <SDL/SDL.h>
 
 #include <csignal>
 #include <iostream>
-#include <iomanip>
+#include <string>
 #include <sstream>
-#include <filesystem>
+#include <iomanip>
 
 namespace
 {
@@ -65,6 +66,7 @@ public:
     }
 
     void render(SDL_Surface* surface) {
+
         // Format FPS string with 1 decimal place
         std::stringstream ss;
         ss << std::fixed << std::setprecision(1) << current_fps << " FPS";
@@ -89,15 +91,14 @@ public:
         // Semi-transparent black background
         SDL_FillRect(surface, &bg_rect, SDL_MapRGBA(surface->format, 0, 0, 0, 180));
         
-        // Position text over background
-        SDL_Rect text_rect = {
+        // Position in top-right corner with a small margin
+        SDL_Rect text_pos = {
             static_cast<Sint16>(surface->w - text_surface->w - 7),
             static_cast<Sint16>(6),
             0, 0
         };
         
-        // Render text
-        SDL_BlitSurface(text_surface, NULL, surface, &text_rect);
+        SDL_BlitSurface(text_surface, NULL, surface, &text_pos);
         SDL_FreeSurface(text_surface);
     }
 };
@@ -148,7 +149,7 @@ void initialize_views(
         );
 
         fs->set_on_file_selected(load_book);
-        fs->set_on_file_focus([&state_store](const std::filesystem::path &path) {
+        fs->set_on_file_focus([&state_store](std::string path) {
             state_store.set_current_browse_path(path);
         });
         fs->set_on_view_focus([&state_store]() {
@@ -175,10 +176,10 @@ class SystemKeyChordTracker
 public:
 
     // Report keypress event. Return filtered key code.
-    SDL_Keycode on_keypress(SDL_Keycode key)
+    SDLKey on_keypress(SDLKey key)
     {
         // Block any other keys while special key is held
-        SDL_Keycode filtered_key = (_menu_held || _select_held) ? SDLK_UNKNOWN : key;
+        SDLKey filtered_key = (_menu_held || _select_held) ? SDLK_UNKNOWN : key;
 
         if (key == SW_BTN_SELECT)
         {
@@ -200,7 +201,7 @@ public:
     }
 
     // Report keyrelease event.
-    void on_keyrelease(SDL_Keycode key)
+    void on_keyrelease(SDLKey key)
     {
         if (key == SW_BTN_MENU)
         {
@@ -227,15 +228,7 @@ bool quit = false;
 
 void signal_handler(int)
 {
-    // Clean up resources
-    clear_font_cache();
-    TTF_Quit();
-    cleanup_sdl2();
-    
     quit = true;
-    
-    // Exit
-    exit(0);
 }
 
 const char *CONFIG_KEY_STORE_PATH = "store_path";
@@ -247,23 +240,74 @@ std::unordered_map<std::string, std::string> load_config_with_defaults()
     return config;
 }
 
+// Current rotation setting (default: no rotation)
+ScreenRotation current_rotation = ROTATION_NONE;
+
+// Apply screen rotation transform to the surface
+void apply_screen_rotation(SDL_Surface* src, SDL_Surface* dest) {
+    if (current_rotation == ROTATION_NONE) {
+        // No rotation, just do a normal blit
+        SDL_BlitSurface(src, NULL, dest, NULL);
+        return;
+    }
+    
+    // Create a temporary rotated surface
+    SDL_Surface* rotated = rotozoomSurface(src, current_rotation, 1.0, SMOOTHING_OFF);
+    if (!rotated) {
+        // Fallback to normal blit if rotation fails
+        SDL_BlitSurface(src, NULL, dest, NULL);
+        return;
+    }
+    
+    // Calculate destination position to center the rotated image
+    SDL_Rect dest_rect;
+
+    std::uint16_t dest_x = 0;
+    std::uint16_t dest_y = 0;
+
+    // auto dest_x = (dest->w - rotated->w) / 2;
+    // auto dest_y = (dest->h - rotated->h) / 2;
+    if (current_rotation == ROTATION_90) {
+        dest_x = 0;
+        dest_y = -160;
+    }
+    else if (current_rotation == ROTATION_180) {
+        dest_x = 0;
+        dest_y = -160;
+    }
+    else if (current_rotation == ROTATION_270) {
+        dest_x = 0;
+        dest_y = 0;
+    }
+
+    // auto dest_x = 0;
+    // auto dest_y = -160;
+    // std::cout << "dest_x: " << dest_x << ", dest_y: " << dest_y << std::endl;
+
+    dest_rect.x = dest_x;
+    dest_rect.y = dest_y;
+    
+    // Blit the rotated surface to the destination
+    SDL_BlitSurface(rotated, NULL, dest, &dest_rect);
+    
+    // Free the temporary rotated surface
+    SDL_FreeSurface(rotated);
+}
+
 } // namespace
 
-int main2(int argc, char **argv)
+int main(int argc, char **argv)
 {
-    // Set up signal handlers
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
-    signal(SIGSEGV, signal_handler);
 
-    // Check environment variables for screen dimensions
-    if (const char* env_screen_width = SDL_getenv("SCREEN_WIDTH")) {
+    if (char* env_screen_width = SDL_getenv("SCREEN_WIDTH")) {
         int new_width = atoi(env_screen_width);
         if (100 < new_width && new_width < 4096)
             SCREEN_WIDTH = static_cast<unsigned int>(new_width);
     }
 
-    if (const char* env_screen_height = SDL_getenv("SCREEN_HEIGHT")) {
+    if (char* env_screen_height = SDL_getenv("SCREEN_HEIGHT")) {
         int new_height = atoi(env_screen_height);
         if (100 < new_height && new_height < 4096)
             SCREEN_HEIGHT = static_cast<unsigned int>(new_height);
@@ -271,23 +315,26 @@ int main2(int argc, char **argv)
 
     std::cout << "Screen Size: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
 
-    // Initialize SDL2
-    if (!initialize_sdl2("Pixel Reader")) {
-        std::cerr << "Failed to initialize SDL2" << std::endl;
-        return 1;
-    }
-
-    // Initialize TTF
-    if (TTF_Init() < 0) {
-        std::cerr << "Failed to initialize SDL_ttf: " << TTF_GetError() << std::endl;
-        cleanup_sdl2();
-        return 1;
-    }
-
-    // Hide cursor
+    // SDL Init
+    SDL_Init(SDL_INIT_VIDEO);
     SDL_ShowCursor(SDL_DISABLE);
+    TTF_Init();
 
-    // Load configuration and state
+    // Surfaces
+    SDL_Surface *video = SDL_SetVideoMode(
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+        32,
+        SDL_HWSURFACE
+    );
+    SDL_Surface *screen = SDL_CreateRGBSurface(
+        SDL_HWSURFACE,
+        std::max(SCREEN_WIDTH, SCREEN_HEIGHT),
+        std::max(SCREEN_WIDTH, SCREEN_HEIGHT),
+        32, 0, 0, 0, 0
+    );
+    set_render_surface_format(screen->format);
+
     auto config = load_config_with_defaults();
     StateStore state_store(config[CONFIG_KEY_STORE_PATH]);
 
@@ -300,9 +347,6 @@ int main2(int argc, char **argv)
     )
     {
         std::cerr << "Failed to load one or more fonts" << std::endl;
-        clear_font_cache();
-        TTF_Quit();
-        cleanup_sdl2();
         return 1;
     }
 
@@ -370,8 +414,10 @@ int main2(int argc, char **argv)
     );
     SystemKeyChordTracker chord_tracker;
 
-    auto key_held_callback = [&view_stack](SDL_Keycode key, uint32_t held_ms) {
-        view_stack.on_keyheld(key, held_ms);
+    auto key_held_callback = [&view_stack](SDLKey key, uint32_t held_ms) {
+        // Apply rotation to key
+        SDLKey rotated_key = get_rotated_keymap(key, current_rotation);
+        view_stack.on_keyheld(rotated_key, held_ms);
     };
 
     // Timing
@@ -382,22 +428,30 @@ int main2(int argc, char **argv)
     // FPS counter
     FPSCounter fps_counter;
 
-    // Main loop
-    while (!quit) {
+    // Initial render
+    view_stack.render(screen, true);
+    fps_counter.update();
+    fps_counter.render(screen);
+    apply_screen_rotation(screen, video);
+    SDL_Flip(video);
+
+    while (!quit)
+    {
         bool ran_user_code = task_queue.drain();
 
-        // Handle events
         SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
+        while (SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
                 case SDL_QUIT:
                     quit = true;
                     break;
                 case SDL_KEYDOWN:
                     {
                         idle_timer.reset();
-
-                        SDL_Keycode key = chord_tracker.on_keypress(event.key.keysym.sym);
+                        SDLKey key = get_rotated_keymap(chord_tracker.on_keypress(event.key.keysym.sym), current_rotation);
+                        
 
                         if (key == SW_BTN_POWER)
                         {
@@ -419,6 +473,40 @@ int main2(int argc, char **argv)
                                     settings_view->terminate();
                                 }
                             }
+                            
+                            // Toggle rotation
+                            if (key == SW_BTN_Y)
+                            {
+                                std::cout << "applying rotation\n";
+                                // Cycle through rotation modes: None -> 90 -> 180 -> 270 -> None
+                                switch (current_rotation) {
+                                    case ROTATION_NONE:
+                                        // std::cout << "applying rotation 90\n";
+                                        current_rotation = ROTATION_90;
+                                        break;
+                                    case ROTATION_90:
+                                        // std::cout << "applying rotation 180\n";
+                                        current_rotation = ROTATION_180;
+                                        break;
+                                    case ROTATION_180:
+                                        // std::cout << "applying rotation 270\n";
+                                        current_rotation = ROTATION_270;
+                                        break;
+                                    case ROTATION_270:
+                                        // std::cout << "applying rotation none\n";
+                                        current_rotation = ROTATION_NONE;
+                                        break;
+                                }
+
+                                auto tmp = SCREEN_WIDTH;
+                                SCREEN_WIDTH = SCREEN_HEIGHT;
+                                SCREEN_HEIGHT = tmp;
+                                
+                                // Force re-render with new rotation
+                                view_stack.render(screen, true);
+                                apply_screen_rotation(screen, video);
+                                SDL_Flip(video);
+                            }
 
                             ran_user_code = true;
                         }
@@ -426,7 +514,7 @@ int main2(int argc, char **argv)
                     break;
                 case SDL_KEYUP:
                     {
-                        SDL_Keycode key = event.key.keysym.sym;
+                        SDLKey key = event.key.keysym.sym;
                         chord_tracker.on_keyrelease(key);
                     }
                     break;
@@ -450,26 +538,11 @@ int main2(int argc, char **argv)
                 quit = true;
             }
 
-            if (view_stack.render(g_screen, force_render) || fps_changed)
+            if (view_stack.render(screen, force_render) || fps_changed)
             {
-                fps_counter.render(g_screen);
-                
-                // Create texture from surface and render it
-                SDL_Texture* screenTexture = SDL_CreateTextureFromSurface(g_renderer, g_screen);
-                if (screenTexture) {
-                    // Clear the renderer
-                    SDL_SetRenderDrawColor(g_renderer, 0, 0, 0, 255);
-                    SDL_RenderClear(g_renderer);
-                    
-                    // Copy the texture to the renderer
-                    SDL_RenderCopy(g_renderer, screenTexture, NULL, NULL);
-                    
-                    // Present the renderer
-                    SDL_RenderPresent(g_renderer);
-                    
-                    // Clean up the texture
-                    SDL_DestroyTexture(screenTexture);
-                }
+                fps_counter.render(screen);
+                apply_screen_rotation(screen, video);
+                SDL_Flip(video);
             }
         }
 
@@ -487,76 +560,12 @@ int main2(int argc, char **argv)
         }
     }
 
-    // Clean up
     view_stack.shutdown();
     state_store.flush();
-    
-    // Clear the font cache
-    clear_font_cache();
-    
-    // Quit TTF
-    TTF_Quit();
-    
-    // Cleanup SDL and XML
-    cleanup_sdl2();
+
+    SDL_FreeSurface(screen);
+    SDL_Quit();
     xmlCleanupParser();
-
+    
     return 0;
-}
-
-int main() {
-
-	// Pointers to our window and surface
-	SDL_Surface* winSurface = NULL;
-	SDL_Window* window = NULL;
-
-	// Initialize SDL. SDL_Init will return -1 if it fails.
-	if ( SDL_Init( SDL_INIT_EVERYTHING ) < 0 ) {
-        std::cerr << "Error initializing SDL: " << SDL_GetError() << std::endl;
-		// system("pause");
-		// End the program
-		return 1;
-	} 
-
-	// Create our window
-	window = SDL_CreateWindow( "Example", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN );
-
-	// Make sure creating the window succeeded
-	if ( !window ) {
-        std::cerr << "Error creating window: " << SDL_GetError()  << std::endl;
-		// system("pause");
-		// End the program
-		return 1;
-	}
-
-	// Get the surface from the window
-	winSurface = SDL_GetWindowSurface( window );
-
-	// Make sure getting the surface succeeded
-	if ( !winSurface ) {
-        std::cerr << "Error getting surface: " << SDL_GetError() << std::endl;
-		// system("pause");
-		// End the program
-		return 1;
-	}
-
-	// Fill the window with a white rectangle
-	SDL_FillRect( winSurface, NULL, SDL_MapRGB( winSurface->format, 255, 255, 255 ) );
-
-	// Update the window display
-	SDL_UpdateWindowSurface( window );
-
-    // sleep for 5 seconds
-    SDL_Delay(5000);
-	// Wait
-	// system("pause");
-
-	// Destroy the window. This will also destroy the surface
-	SDL_DestroyWindow( window );
-
-	// Quit SDL
-	SDL_Quit();
-	
-	// End the program
-	return 0;
 }

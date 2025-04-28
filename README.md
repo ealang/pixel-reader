@@ -32,6 +32,8 @@ Find app in `build/reader`.
 
 ### Miyoo Mini Cross-Compile
 
+ls /opt/miyoomini-toolchain/usr/arm-linux-gnueabihf/sysroot/usr/include/SDL
+
 Cross-compile env is provided by [shauninman/union-miyoomini-toolchain](https://github.com/shauninman/union-miyoomini-toolchain). Docker is required.
 
 Fetch git submodules:
