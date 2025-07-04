@@ -10,6 +10,7 @@
 #include <vector>
 
 struct DocReader;
+struct RangeDB;
 struct SystemStyling;
 struct TokenViewState;
 struct TokenViewStyling;
@@ -24,6 +25,7 @@ public:
     TokenView(
         std::shared_ptr<DocReader> reader,
         DocAddr address,
+        RangeDB &range_db,
         SystemStyling &sys_styling,
         TokenViewStyling &token_view_styling
     );
@@ -34,7 +36,7 @@ public:
     void on_keypress(SDLKey key) override;
     void on_keyheld(SDLKey key, uint32_t held_time_ms) override;
 
-    DocAddr get_address() const;
+    DocAddr get_address(int line_offset=0) const;
     void seek_to_address(DocAddr address);
 
     void set_title(const std::string &title);

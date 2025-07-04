@@ -4,8 +4,10 @@
 #include "doc_api/doc_addr.h"
 
 #include <filesystem>
+#include <list>
 #include <optional>
 #include <set>
+#include <tuple>
 #include <unordered_map>
 
 using string_unordered_map = std::unordered_map<std::string, std::string>;
@@ -13,6 +15,7 @@ using string_unordered_map = std::unordered_map<std::string, std::string>;
 class StateStore {
     mutable bool activity_dirty = false;
     mutable bool settings_dirty = false;
+    mutable bool highlights_dirty = false;
 
     // activity
     std::filesystem::path activity_store_path;
@@ -26,6 +29,9 @@ class StateStore {
     // reader cache
     mutable std::unordered_map<std::string, string_unordered_map> book_reader_caches;
     mutable std::set<std::string> reader_cache_dirty;
+
+    // highlights
+    mutable std::unordered_map<std::string, std::list<std::tuple<DocAddr, DocAddr>>> book_highlights;
 
     // settings
     std::filesystem::path settings_store_path;
@@ -51,6 +57,10 @@ public:
     // reader cache
     const string_unordered_map &get_reader_cache(const std::string &book_id) const;
     void set_reader_cache(const std::string &book_id, const string_unordered_map &cache);
+
+    // highlights
+    const std::list<std::tuple<DocAddr, DocAddr>> &get_book_highlights(const std::string &book_id) const;
+    void set_book_highlights(const std::string &book_id, const std::list<std::tuple<DocAddr, DocAddr>> &highlights);
 
     // generic settings
     std::optional<std::string> get_setting(const std::string &name) const;

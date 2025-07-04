@@ -4,6 +4,7 @@
 #include "./reader_view.h"
 #include "filetypes/open_doc.h"
 #include "reader/config.h"
+#include "reader/range_db.h"
 #include "reader/ss_doc_reader_cache.h"
 #include "reader/state_store.h"
 #include "reader/system_styling.h"
@@ -19,6 +20,7 @@ struct ReaderBootstrapViewState
     TokenViewStyling &token_view_styling;
     ViewStack &view_stack;
     StateStore &state_store;
+    std::function<void(std::filesystem::path)> on_highlight_export;
 
     bool is_done = false;
     bool needs_render = true;
@@ -28,13 +30,15 @@ struct ReaderBootstrapViewState
         SystemStyling &sys_styling,
         TokenViewStyling &token_view_styling,
         ViewStack &view_stack,
-        StateStore &state_store
+        StateStore &state_store,
+        std::function<void(std::filesystem::path)> on_highlight_export
     ) :
         book_path(book_path),
         sys_styling(sys_styling),
         token_view_styling(token_view_styling),
         view_stack(view_stack),
-        state_store(state_store)
+        state_store(state_store),
+        on_highlight_export(on_highlight_export)
     {
     }
 };
@@ -61,10 +65,13 @@ void ReaderBootstrapView::load_reader()
     state_store.set_current_book_path(book_path);
 
     auto book_id = reader->get_id();
+
+    RangeDB highlights(state_store.get_book_highlights(book_id));
     auto reader_view = std::make_shared<ReaderView>(
         book_path,
         reader,
         state_store.get_book_address(book_id).value_or(0),
+        highlights,
         sys_styling,
         token_view_styling,
         view_stack
@@ -72,6 +79,13 @@ void ReaderBootstrapView::load_reader()
 
     reader_view->set_on_change_address([&state_store, book_id](DocAddr addr) {
         state_store.set_book_address(book_id, addr);
+    });
+
+    reader_view->set_on_highlight([&state_store, book_id, book_path, &state = *state](const RangeDB &highlights) {
+        state_store.set_book_highlights(book_id, highlights.get_ranges());
+        if (state.on_highlight_export) {
+            state.on_highlight_export(book_path);
+        }
     });
 
     view_stack.push(reader_view);
@@ -83,8 +97,9 @@ ReaderBootstrapView::ReaderBootstrapView(
     TokenViewStyling &token_view_styling,
     ViewStack &view_stack,
     StateStore &state_store,
-    std::function<void(std::function<void()>)> async
-) : state(std::make_unique<ReaderBootstrapViewState>(book_path, sys_styling, token_view_styling, view_stack, state_store))
+    std::function<void(std::function<void()>)> async,
+    std::function<void(std::filesystem::path)> on_highlight_export
+) : state(std::make_unique<ReaderBootstrapViewState>(book_path, sys_styling, token_view_styling, view_stack, state_store, on_highlight_export))
 {
     // Perform asynchronously so that rendering can continue
     async([this](){ load_reader(); });

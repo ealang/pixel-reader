@@ -1,6 +1,6 @@
 #include "doc_api/token_addressing.h"
 #include "filetypes/epub/epub_reader.h"
-#include "./cli_render_lines.h"
+#include "util/cli_render_lines.h"
 
 #include <iostream>
 #include <iomanip>

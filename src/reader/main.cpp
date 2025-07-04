@@ -1,5 +1,6 @@
 #include "./config.h"
 #include "./font_catalog.h"
+#include "./range_db.h"
 #include "./settings_store.h"
 #include "./shoulder_keymap.h"
 #include "./state_store.h"
@@ -10,9 +11,11 @@
 #include "./views/reader_bootstrap_view.h"
 #include "./views/settings_view.h"
 #include "./views/token_view/token_view_styling.h"
+#include "doc_api/token_addressing.h"
 #include "filetypes/open_doc.h"
 #include "sys/keymap.h"
 #include "sys/screen.h"
+#include "util/cli_render_lines.h"
 #include "util/fps_limiter.h"
 #include "util/held_key_tracker.h"
 #include "util/key_value_file.h"
@@ -25,10 +28,107 @@
 #include <SDL/SDL.h>
 
 #include <csignal>
+#include <fstream>
 #include <iostream>
+#include <set>
 
 namespace
 {
+
+void export_notes(std::shared_ptr<DocReader> reader, std::filesystem::path book_path, const Ranges &highlights)
+{
+    const int col_width = 40;
+
+    std::filesystem::path notes_path = book_path;
+    notes_path.replace_extension(".notes.txt");
+    std::ofstream notes_file(notes_path.string());
+
+    bool needs_separator = false;
+    uint32_t last_toc_index = -1;
+    auto write_line = [&last_toc_index, &notes_file, &reader, &needs_separator](const Line &line) {
+        const auto &toc = reader->get_table_of_contents();
+        auto toc_pos = reader->get_toc_position(line.address);
+        if (toc_pos.toc_index < toc.size() && toc_pos.toc_index != last_toc_index)
+        {
+            notes_file << std::string(col_width, '=') << std::endl;
+            notes_file << "Chapter: " << toc[toc_pos.toc_index].display_name << std::endl << std::endl;
+            last_toc_index = toc_pos.toc_index;
+        }
+        else if (needs_separator)
+        {
+            notes_file << std::string(col_width, '-') << std::endl;
+        }
+
+        notes_file << line.text << std::endl;
+        needs_separator = false;
+    };
+
+    for (const auto &[hl_start, hl_end] : highlights)
+    {
+        auto it = reader->get_iter(hl_start);
+
+        const DocToken *token = nullptr;
+        while ((token = it->read(1)) != nullptr)
+        {
+            std::vector<const DocToken *> tokens = { token };
+            for (const auto &line : cli_render_tokens(tokens, col_width))
+            {
+                DocAddr line_start = line.address;
+                DocAddr line_end = line_start + get_address_width(line.text);
+                if (hl_start >= line_end)
+                {
+                    continue;
+                }
+                if (hl_end <= line_start)
+                {
+                    break;
+                }
+
+                write_line(line);
+            }
+        }
+
+        needs_separator = true;
+    }
+}
+
+class NotesExportQueue
+{
+    std::set<std::filesystem::path> paths;
+
+    void export_notes(const StateStore &state_store, const std::filesystem::path &book_path)
+    {
+        std::cerr << "Export notes for " << book_path << std::endl;
+        std::shared_ptr<DocReader> reader = create_doc_reader(book_path);
+        if (!reader || !reader->open())
+        {
+            std::cerr << "Failed to open " << book_path << std::endl;
+            return;
+        }
+
+        auto book_id = reader->get_id();
+
+        ::export_notes(
+            reader,
+            book_path,
+            state_store.get_book_highlights(book_id)
+        );
+    }
+public:
+    void add_job(std::filesystem::path book_path)
+    {
+        paths.insert(book_path);
+    }
+
+    void export_notes(const StateStore &state_store)
+    {
+        for (const auto &path : paths)
+        {
+            export_notes(state_store, path);
+        }
+        paths.clear();
+    }
+};
 
 void initialize_views(
     ViewStack &view_stack,
@@ -36,10 +136,11 @@ void initialize_views(
     SystemStyling &sys_styling,
     TokenViewStyling &token_view_styling,
     TaskQueue &task_queue,
+    NotesExportQueue &notes_export_queue,
     std::optional<std::filesystem::path> requested_book_path
 )
 {
-    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue](std::filesystem::path path) {
+    auto load_book = [&view_stack, &state_store, &sys_styling, &token_view_styling, &task_queue, &notes_export_queue](std::filesystem::path path) {
         if (!std::filesystem::exists(path))
         {
             std::cerr << path << " does not exist" << std::endl;
@@ -58,7 +159,10 @@ void initialize_views(
                 token_view_styling,
                 view_stack,
                 state_store,
-                [&task_queue](task_func task){ task_queue.submit(task); }
+                [&task_queue](task_func task){ task_queue.submit(task); },
+                [&notes_export_queue](std::filesystem::path book_path) {
+                    notes_export_queue.add_job(book_path);
+                }
             )
         );
     };
@@ -240,6 +344,7 @@ int main(int argc, char **argv)
     });
 
     // Setup views
+    NotesExportQueue notes_export_queue;
     TaskQueue task_queue;
     ViewStack view_stack;
 
@@ -252,6 +357,7 @@ int main(int argc, char **argv)
         sys_styling,
         token_view_styling,
         task_queue,
+        notes_export_queue,
         requested_book_path
     );
     quit = view_stack.is_done();
@@ -311,6 +417,7 @@ int main(int argc, char **argv)
 
                         if (key == SW_BTN_POWER)
                         {
+                            notes_export_queue.export_notes(state_store);
                             state_store.flush();
                         }
                         else
@@ -380,6 +487,7 @@ int main(int argc, char **argv)
         }
     }
 
+    notes_export_queue.export_notes(state_store);
     view_stack.shutdown();
     state_store.flush();
 
