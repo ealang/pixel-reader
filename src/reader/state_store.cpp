@@ -175,6 +175,13 @@ std::optional<DocAddr> StateStore::get_book_address(const std::string &book_id) 
     return cache;
 }
 
+std::optional<DocAddr> StateStore::read_book_address_from_disk(const std::string &book_id) const
+{
+    return load_book_address(
+        address_store_path_for_book(book_data_root_path, book_id)
+    );
+}
+
 void StateStore::set_book_address(const std::string &book_id, DocAddr address)
 {
     auto it = book_addresses.find(book_id);

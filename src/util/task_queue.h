@@ -2,6 +2,7 @@
 #define TASK_QUEUE_H_
 
 #include <functional>
+#include <mutex>
 #include <queue>
 
 using task_func = typename std::function<void()>;
@@ -9,6 +10,7 @@ using task_func = typename std::function<void()>;
 class TaskQueue
 {
     std::queue<task_func> queue;
+    std::mutex mutex;
 
 public:
 

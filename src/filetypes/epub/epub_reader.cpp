@@ -62,7 +62,7 @@ EPubReader::EPubReader(std::filesystem::path path)
 
 EPubReader::~EPubReader()
 {
-    if (!state->zip)
+    if (state->zip)
     {
         zip_close(state->zip);
     }

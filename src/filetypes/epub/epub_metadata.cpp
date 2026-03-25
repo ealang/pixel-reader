@@ -5,6 +5,7 @@
 
 #include <libxml/parser.h>
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
@@ -74,6 +75,98 @@ std::string epub_parse_rootfile_path(const char *container_xml)
 
 namespace parse_package
 {
+
+xmlNodePtr metadata_first_child(xmlNodePtr node)
+{
+    node = elem_first_child(elem_first_by_name(node, BAD_CAST "package"));
+    return elem_first_child(elem_first_by_name(node, BAD_CAST "metadata"));
+}
+
+std::string parse_metadata_text(xmlNodePtr node, const xmlChar *name)
+{
+    node = metadata_first_child(node);
+    node = elem_first_by_name(node, name);
+    while (node)
+    {
+        xmlChar *content = xmlNodeGetContent(node);
+        if (content)
+        {
+            auto text = strip_whitespace((const char *)content);
+            xmlFree(content);
+            if (!text.empty())
+            {
+                return text;
+            }
+        }
+
+        node = elem_next_by_name(node, name);
+    }
+
+    return {};
+}
+
+bool manifest_item_has_property(const ManifestItem &item, const std::string &property)
+{
+    size_t start_pos = 0;
+    while (start_pos < item.properties.size())
+    {
+        size_t end_pos = item.properties.find(' ', start_pos);
+        if (end_pos == std::string::npos)
+        {
+            end_pos = item.properties.size();
+        }
+
+        if (item.properties.substr(start_pos, end_pos - start_pos) == property)
+        {
+            return true;
+        }
+
+        start_pos = end_pos + 1;
+    }
+
+    return false;
+}
+
+std::string parse_metadata_cover_id(xmlNodePtr node)
+{
+    node = metadata_first_child(node);
+    node = elem_first_by_name(node, BAD_CAST "meta");
+
+    while (node)
+    {
+        const char *name = (const char *)xmlGetProp(node, BAD_CAST "name");
+        const char *content = (const char *)xmlGetProp(node, BAD_CAST "content");
+        if (name && content && strcmp(name, "cover") == 0 && content[0] != 0)
+        {
+            return content;
+        }
+
+        node = elem_next_by_name(node, BAD_CAST "meta");
+    }
+
+    return {};
+}
+
+std::string parse_guide_cover_href(const std::filesystem::path &base_path, xmlNodePtr node)
+{
+    node = elem_first_child(elem_first_by_name(node, BAD_CAST "package"));
+    node = elem_first_child(elem_first_by_name(node, BAD_CAST "guide"));
+    node = elem_first_by_name(node, BAD_CAST "reference");
+
+    while (node)
+    {
+        const char *type = (const char *)xmlGetProp(node, BAD_CAST "type");
+        const char *href = (const char *)xmlGetProp(node, BAD_CAST "href");
+        if (type && href && strcmp(type, "cover") == 0 && href[0] != 0)
+        {
+            return (base_path / href).lexically_normal();
+        }
+
+        node = elem_next_by_name(node, BAD_CAST "reference");
+    }
+
+    return {};
+}
 
 std::unordered_map<std::string, ManifestItem> parse_package_manifest(const std::filesystem::path &base_path, xmlNodePtr node)
 {
@@ -145,6 +238,10 @@ bool epub_parse_package_contents(const std::string &rootfile_path, const char *p
 
     out_package.id_to_manifest_item = parse_package::parse_package_manifest(base_path, node);
     out_package.spine_ids = parse_package::parse_package_spine(node);
+    out_package.title = parse_package::parse_metadata_text(node, BAD_CAST "title");
+    out_package.author = parse_package::parse_metadata_text(node, BAD_CAST "creator");
+    out_package.cover_href_absolute.clear();
+    out_package.cover_media_type.clear();
 
     // get toc id from spine
     {
@@ -158,6 +255,56 @@ bool epub_parse_package_contents(const std::string &rootfile_path, const char *p
             if (toc_attr)
             {
                 out_package.toc_id = (const char*)toc_attr;
+            }
+        }
+    }
+
+    // Look for a cover image using common EPUB 2/3 patterns.
+    {
+        auto cover_item = std::find_if(
+            out_package.id_to_manifest_item.begin(),
+            out_package.id_to_manifest_item.end(),
+            [](const auto &item) {
+                return parse_package::manifest_item_has_property(item.second, "cover-image");
+            }
+        );
+        if (cover_item != out_package.id_to_manifest_item.end())
+        {
+            out_package.cover_href_absolute = cover_item->second.href_absolute;
+            out_package.cover_media_type = cover_item->second.media_type;
+        }
+    }
+
+    if (out_package.cover_href_absolute.empty())
+    {
+        auto cover_id = parse_package::parse_metadata_cover_id(node);
+        if (!cover_id.empty())
+        {
+            auto item_it = out_package.id_to_manifest_item.find(cover_id);
+            if (item_it != out_package.id_to_manifest_item.end())
+            {
+                out_package.cover_href_absolute = item_it->second.href_absolute;
+                out_package.cover_media_type = item_it->second.media_type;
+            }
+        }
+    }
+
+    if (out_package.cover_href_absolute.empty())
+    {
+        auto guide_href = parse_package::parse_guide_cover_href(base_path, node);
+        if (!guide_href.empty())
+        {
+            auto item_it = std::find_if(
+                out_package.id_to_manifest_item.begin(),
+                out_package.id_to_manifest_item.end(),
+                [&guide_href](const auto &item) {
+                    return item.second.href_absolute == guide_href;
+                }
+            );
+            if (item_it != out_package.id_to_manifest_item.end())
+            {
+                out_package.cover_href_absolute = item_it->second.href_absolute;
+                out_package.cover_media_type = item_it->second.media_type;
             }
         }
     }

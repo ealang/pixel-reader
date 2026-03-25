@@ -38,6 +38,10 @@ struct PackageContents
     std::unordered_map<std::string, ManifestItem> id_to_manifest_item;
     std::vector<std::string> spine_ids;
     std::string toc_id;
+    std::string title;
+    std::string author;
+    std::string cover_href_absolute;
+    std::string cover_media_type;
 };
 
 std::string epub_parse_rootfile_path(const char *container_xml);

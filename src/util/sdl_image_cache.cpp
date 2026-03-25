@@ -26,11 +26,11 @@ void SDLImageCache::put_image(const std::string &key, surface_unique_ptr image)
     total_size_bytes += surface_size;
 }
 
-SDL_Surface *SDLImageCache::get_image(const std::string &key)
+SDL_Surface *SDLImageCache::get_image(const std::string &key) const
 {
     if (!cache.has(key))
     {
         return nullptr;
     }
-    return cache[key].get();
+    return const_cast<LRUCache<std::string, surface_unique_ptr> &>(cache)[key].get();
 }
