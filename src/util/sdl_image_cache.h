@@ -15,7 +15,7 @@ class SDLImageCache
 
 public:
     void put_image(const std::string &key, surface_unique_ptr image);
-    SDL_Surface *get_image(const std::string &key);
+    SDL_Surface *get_image(const std::string &key) const;
 };
 
 #endif

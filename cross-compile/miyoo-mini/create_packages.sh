@@ -14,8 +14,10 @@ if [ -z "$VERSION" ]; then
 fi
 echo "Version v${VERSION}"
 
+MAKE_JOBS=${MAKE_JOBS:-1}
+
 make clean
-make -j
+make -j"${MAKE_JOBS}"
 
 stage_common() {
     local STAGE_ROOT=$1

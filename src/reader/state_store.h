@@ -46,6 +46,7 @@ public:
 
     // book addresses
     std::optional<DocAddr> get_book_address(const std::string &book_id) const;
+    std::optional<DocAddr> read_book_address_from_disk(const std::string &book_id) const;
     void set_book_address(const std::string &book_id, DocAddr address);
 
     // reader cache

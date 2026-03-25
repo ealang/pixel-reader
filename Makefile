@@ -4,10 +4,12 @@ ifeq (,$(PLATFORM))
 endif
 
 PREFIX ?= /usr
+UNAME_S := $(shell uname -s)
+HOMEBREW_PREFIX ?= /opt/homebrew
 
 WARNFLAGS := -pedantic-errors -Wall -Wextra
-CXXFLAGS := -std=c++17 -O2
-LDFLAGS  := -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2 -lstdc++fs
+CXXFLAGS := -std=c++17 -O2 -pthread
+LDFLAGS  := -pthread -lstdc++ -lSDL -lSDL_ttf -lSDL_image -lzip -lxml2 -lstdc++fs
 
 ifeq ($(PLATFORM),miyoomini)
 CXXFLAGS := $(CXXFLAGS) \
@@ -27,6 +29,24 @@ BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 APP_DIR  := $(BUILD)
 INCLUDE  := -Isrc -I${SYSROOT}${PREFIX}/include/libxml2
+
+ifeq ($(UNAME_S),Darwin)
+INCLUDE  := -Icompat_include \
+	-I$(HOMEBREW_PREFIX)/opt/sdl12-compat/include \
+	-I$(HOMEBREW_PREFIX)/opt/sdl2/include \
+	-I$(HOMEBREW_PREFIX)/opt/sdl2/include/SDL2 \
+	-I$(HOMEBREW_PREFIX)/opt/sdl2_ttf/include \
+	-I$(HOMEBREW_PREFIX)/opt/sdl2_image/include \
+	-I$(HOMEBREW_PREFIX)/opt/libxml2/include/libxml2 \
+	-I$(HOMEBREW_PREFIX)/opt/libzip/include \
+	-Isrc
+LDFLAGS  := -L$(HOMEBREW_PREFIX)/opt/sdl12-compat/lib \
+	-L$(HOMEBREW_PREFIX)/opt/sdl2_ttf/lib \
+	-L$(HOMEBREW_PREFIX)/opt/sdl2_image/lib \
+	-L$(HOMEBREW_PREFIX)/opt/libxml2/lib \
+	-L$(HOMEBREW_PREFIX)/opt/libzip/lib \
+	-lstdc++ -lSDL -lSDL2_ttf -lSDL2_image -lzip -lxml2 -lstdc++fs
+endif
 
 ROTOZOOM_SRC := src/extern/rotozoom/SDL_rotozoom.c
 COMMON_SRC   := $(filter-out src/reader/main.cpp, $(wildcard src/filetypes/*.cpp src/filetypes/txt/*.cpp src/filetypes/epub/*.cpp src/reader/*.cpp src/reader/views/*.cpp src/reader/views/token_view/*.cpp src/sys/*.cpp src/util/*.cpp src/doc_api/*.cpp src/extern/hash-library/*.cpp))

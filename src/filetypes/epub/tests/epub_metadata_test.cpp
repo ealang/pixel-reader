@@ -9,6 +9,98 @@ TEST(EPUB_METADATA, epub_parse_ncx__invalid_xml)
     ASSERT_TRUE(navmap.empty());
 }
 
+TEST(EPUB_METADATA, epub_parse_package_contents__finds_epub3_cover_image)
+{
+    const char *xml = (
+        "<?xml version='1.0' encoding='utf-8'?>"
+        "<package>"
+        "  <metadata></metadata>"
+        "  <manifest>"
+        "    <item id='cover' href='images/cover.jpg' media-type='image/jpeg' properties='cover-image'/>"
+        "    <item id='chap1' href='chap1.xhtml' media-type='application/xhtml+xml'/>"
+        "  </manifest>"
+        "  <spine>"
+        "    <itemref idref='chap1'/>"
+        "  </spine>"
+        "</package>"
+    );
+
+    PackageContents package;
+    ASSERT_TRUE(epub_parse_package_contents("OPS/package.opf", xml, package));
+    ASSERT_EQ(package.cover_href_absolute, "OPS/images/cover.jpg");
+    ASSERT_EQ(package.cover_media_type, "image/jpeg");
+}
+
+TEST(EPUB_METADATA, epub_parse_package_contents__parses_title_and_author)
+{
+    const char *xml = (
+        "<?xml version='1.0' encoding='utf-8'?>"
+        "<package>"
+        "  <metadata>"
+        "    <title>  The Left Hand of Darkness  </title>"
+        "    <creator> Ursula K. Le Guin </creator>"
+        "  </metadata>"
+        "  <manifest>"
+        "    <item id='chap1' href='chap1.xhtml' media-type='application/xhtml+xml'/>"
+        "  </manifest>"
+        "  <spine>"
+        "    <itemref idref='chap1'/>"
+        "  </spine>"
+        "</package>"
+    );
+
+    PackageContents package;
+    ASSERT_TRUE(epub_parse_package_contents("OPS/package.opf", xml, package));
+    ASSERT_EQ(package.title, "The Left Hand of Darkness");
+    ASSERT_EQ(package.author, "Ursula K. Le Guin");
+}
+
+TEST(EPUB_METADATA, epub_parse_package_contents__finds_epub2_cover_meta)
+{
+    const char *xml = (
+        "<?xml version='1.0' encoding='utf-8'?>"
+        "<package>"
+        "  <metadata>"
+        "    <meta name='cover' content='cover-image'/>"
+        "  </metadata>"
+        "  <manifest>"
+        "    <item id='cover-image' href='cover.png' media-type='image/png'/>"
+        "    <item id='chap1' href='chap1.xhtml' media-type='application/xhtml+xml'/>"
+        "  </manifest>"
+        "  <spine>"
+        "    <itemref idref='chap1'/>"
+        "  </spine>"
+        "</package>"
+    );
+
+    PackageContents package;
+    ASSERT_TRUE(epub_parse_package_contents("OPS/package.opf", xml, package));
+    ASSERT_EQ(package.cover_href_absolute, "OPS/cover.png");
+    ASSERT_EQ(package.cover_media_type, "image/png");
+}
+
+TEST(EPUB_METADATA, epub_parse_package_contents__falls_back_to_guide_cover_reference)
+{
+    const char *xml = (
+        "<?xml version='1.0' encoding='utf-8'?>"
+        "<package>"
+        "  <metadata></metadata>"
+        "  <manifest>"
+        "    <item id='cover-image' href='images/cover.png' media-type='image/png'/>"
+        "  </manifest>"
+        "  <spine></spine>"
+        "  <guide>"
+        "    <reference type='cover' href='images/cover.png'/>"
+        "  </guide>"
+        "</package>"
+    );
+
+    PackageContents package;
+    ASSERT_TRUE(epub_parse_package_contents("OPS/package.opf", xml, package));
+    ASSERT_EQ(package.cover_href_absolute, "OPS/images/cover.png");
+    ASSERT_EQ(package.cover_media_type, "image/png");
+}
+
 TEST(EPUB_METADATA, epub_parse_ncx__navmap_not_found)
 {
     const char *xml = (
