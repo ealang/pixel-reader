@@ -19,6 +19,7 @@ public:
 
     void on_keypress(SDLKey key) override;
     void on_keyheld(SDLKey key, uint32_t hold_time_ms) override;
+    void on_tick(uint32_t elapsed_ms) override;
 
     // Pop views that report as done. Return true if focus changed.
     bool pop_completed_views();

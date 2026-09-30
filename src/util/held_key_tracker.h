@@ -17,6 +17,10 @@ public:
 
     void accumulate(uint32_t ms);
     bool for_longest_held(const std::function<void(SDLKey, uint32_t)> &callback);
+
+    // Return true if any tracked key is currently held, checked directly
+    // against live keyboard state (independent of accumulate()'s timing).
+    bool any_held() const;
 };
 
 #endif

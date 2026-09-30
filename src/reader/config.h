@@ -3,6 +3,11 @@
 
 #define TARGET_FPS 20
 
+// How long the main loop may block waiting for input when there's nothing
+// held/animating, instead of polling at TARGET_FPS. Bounds CPU/battery use
+// while idle without meaningfully affecting perceived input latency.
+#define IDLE_POLL_TIMEOUT_MS 500
+
 #define IDLE_SAVE_TIME_SEC 60
 
 #define FONT_DIR            "resources/fonts"

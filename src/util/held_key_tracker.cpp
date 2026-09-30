@@ -63,3 +63,18 @@ bool HeldKeyTracker::for_longest_held(const std::function<void(SDLKey, uint32_t)
 
     return false;
 }
+
+bool HeldKeyTracker::any_held() const
+{
+    const Uint8 *keystate = SDL_GetKeyState(nullptr);
+
+    for (SDLKey key : keycodes)
+    {
+        if (keystate[key])
+        {
+            return true;
+        }
+    }
+
+    return false;
+}

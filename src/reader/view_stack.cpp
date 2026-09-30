@@ -67,6 +67,14 @@ void ViewStack::on_keyheld(SDLKey key, uint32_t hold_time_ms)
     }
 }
 
+void ViewStack::on_tick(uint32_t elapsed_ms)
+{
+    if (!views.empty())
+    {
+        views.back()->on_tick(elapsed_ms);
+    }
+}
+
 bool ViewStack::pop_completed_views()
 {
     bool changed_focus = false;

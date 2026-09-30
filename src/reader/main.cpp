@@ -151,6 +151,29 @@ public:
     }
 };
 
+// Portable substitute for SDL_WaitEventTimeout, which isn't declared in
+// every SDL1.2 build (notably absent from the Miyoo Mini cross-compile
+// toolchain's headers). Polls in a short sleep loop instead of a single
+// blocking call - still lets the CPU idle between polls, just with
+// POLL_STEP_MS granularity instead of an instant wake.
+bool poll_event_with_timeout(SDL_Event *event, uint32_t timeout_ms)
+{
+    constexpr uint32_t POLL_STEP_MS = 10;
+    uint32_t start = SDL_GetTicks();
+    while (true)
+    {
+        if (SDL_PollEvent(event))
+        {
+            return true;
+        }
+        if (SDL_GetTicks() - start >= timeout_ms)
+        {
+            return false;
+        }
+        SDL_Delay(POLL_STEP_MS);
+    }
+}
+
 bool quit = false;
 
 void signal_handler(int)
@@ -283,6 +306,7 @@ int main(int argc, char **argv)
 
     // Timing
     Timer idle_timer;
+    Timer tick_timer;
     FPSLimiter limit_fps(TARGET_FPS);
     const uint32_t avg_loop_time = 1000 / TARGET_FPS;
 
@@ -295,8 +319,25 @@ int main(int argc, char **argv)
     {
         bool ran_user_code = task_queue.drain();
 
+        {
+            uint32_t elapsed_ms = tick_timer.elapsed_ms();
+            tick_timer.reset();
+            view_stack.on_tick(elapsed_ms);
+        }
+
+        // Only stay on a tight poll+sleep cadence while something is held or
+        // animating; otherwise block until the next real event to let the
+        // CPU idle between key presses.
+        bool need_fast_ticks = held_key_tracker.any_held() || (
+            view_stack.top_view() && view_stack.top_view()->wants_continuous_render()
+        );
+
         SDL_Event event;
-        while (SDL_PollEvent(&event))
+        bool got_event = (!ran_user_code && !need_fast_ticks)
+            ? poll_event_with_timeout(&event, IDLE_POLL_TIMEOUT_MS)
+            : SDL_PollEvent(&event) != 0;
+
+        while (got_event)
         {
             switch (event.type)
             {
@@ -343,12 +384,15 @@ int main(int argc, char **argv)
                 default:
                     break;
             }
+
+            got_event = SDL_PollEvent(&event) != 0;
         }
 
         quit = quit || chord_tracker.exit_requested();
 
         held_key_tracker.accumulate(avg_loop_time); // Pretend perfect loop timing for event firing consistency
         ran_user_code = held_key_tracker.for_longest_held(key_held_callback) || ran_user_code;
+        ran_user_code = ran_user_code || need_fast_ticks;
 
         if (ran_user_code)
         {
@@ -366,7 +410,7 @@ int main(int argc, char **argv)
             }
         }
 
-        if (!quit)
+        if (!quit && need_fast_ticks)
         {
             limit_fps();
         }
